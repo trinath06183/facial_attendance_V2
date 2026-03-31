@@ -1,0 +1,474 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Validation Scanner | {{ session.section }} — SmartAttend{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <a href="{% url 'session_detail' session.id %}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2">
+            <i class="fas fa-arrow-left text-xs"></i> Back to Session
+        </a>
+        <h1 class="text-2xl font-black text-gray-900 tracking-tight">Real-Time Validation Terminal</h1>
+        <p class="text-gray-400 text-sm mt-0.5">{{ session.section }} — {{ session.started_at|date:"l, M d, Y" }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative">
+
+    <!-- Left side: Live Camera View (spans 7 cols) -->
+    <div class="lg:col-span-7 space-y-4 sticky top-6">
+        <div class="relative bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-indigo-500/50" id="camera-frame" style="aspect-ratio: 4/3;">
+            
+            <!-- Pre-start UI -->
+            <div id="cam-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-900/80 backdrop-blur-sm text-center p-6">
+                <div class="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
+                    <i class="fas fa-camera-retro text-white text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-black text-white tracking-tight mb-2">Initialize Scanner</h2>
+                <button id="start-cam-btn" class="px-6 py-3 bg-white hover:bg-gray-100 text-gray-900 font-bold rounded-xl shadow-xl transition-all w-full max-w-xs focus:ring-4 focus:ring-blue-500/30">
+                    Enable Camera
+                </button>
+            </div>
+
+            <!-- Live Video Element -->
+            <video id="bio-video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-0 transition-opacity duration-300"></video>
+            
+            <!-- Canvas Overlay for Drawing Bounding Boxes -->
+            <canvas id="bio-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+            
+            <!-- Hidden Canvas for Frame Capture -->
+            <canvas id="hidden-canvas" class="hidden"></canvas>
+            
+            <div id="live-overlay" class="hidden absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-2 z-20">
+                <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span> LIVE
+            </div>
+            
+            <div id="mismatch-overlay" class="hidden absolute top-4 right-4 bg-red-500/90 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-2 z-20 transition-all">
+                <i class="fas fa-exclamation-triangle"></i> No Match
+            </div>
+        </div>
+        
+        <p class="text-center text-xs text-gray-500 font-medium tracking-wide">
+            Ensure the student's face is clearly visible. Step out of frame to reset.
+        </p>
+    </div>
+
+    <!-- Right side: Status and Profile Panel (spans 5 cols) -->
+    <div class="lg:col-span-5 relative">
+        
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-200 mb-6 font-bold text-sm">
+            <button id="tab-scan" class="flex-1 pb-3 text-blue-600 border-b-2 border-blue-600 cursor-pointer text-center">Live Biometric Scan</button>
+            <button id="tab-manual" class="flex-1 pb-3 text-gray-400 border-b-2 border-transparent hover:text-gray-600 cursor-pointer text-center">Manual Override</button>
+        </div>
+
+        <!-- ── TAB CONTENT: SCAN ──────────────────────── -->
+        <div id="content-scan" class="space-y-4">
+            <!-- Dynamic Status Card -->
+            <div id="status-card" class="bg-indigo-50 border border-indigo-100 rounded-3xl p-6 shadow-sm flex items-center gap-4 transition-colors duration-300">
+                <div id="status-icon" class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl shrink-0">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <div>
+                    <h2 id="status-title" class="text-lg font-black text-gray-900">Waiting for QR</h2>
+                    <p id="status-desc" class="text-xs text-gray-500 font-medium mt-0.5">Hold a student ID QR code to the camera.</p>
+                </div>
+            </div>
+
+            <!-- Student Profile Card (Hidden Initially) -->
+            <div id="profile-card" class="bg-white border text-center border-gray-100 rounded-3xl p-6 shadow-lg opacity-0 pointer-events-none transition-all duration-300 scale-95 relative overflow-hidden hidden">
+                <div class="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
+                
+                <div class="relative z-10 flex flex-col items-center">
+                    <div class="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-gray-100 mb-4 shrink-0">
+                        <img id="profile-photo" src="" alt="Student Photo" class="w-full h-full object-cover">
+                    </div>
+                    
+                    <h3 id="profile-name" class="text-2xl font-black text-gray-900 tracking-tight leading-tight"></h3>
+                    <p id="profile-id" class="text-sm font-semibold text-gray-400 mt-1 uppercase tracking-widest"></p>
+                    
+                    <div class="mt-4 flex items-center justify-center gap-2">
+                        <span id="profile-course" class="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-[10px] font-bold"></span>
+                        <span id="profile-status" class="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold"></span>
+                    </div>
+                    
+                    <div id="attendance-status" class="mt-5 w-full py-2.5 bg-gray-50 rounded-xl text-sm font-bold text-gray-500 border border-gray-100">
+                        Pending Face Match...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── TAB CONTENT: MANUAL ────────────────────── -->
+        <div id="content-manual" class="space-y-4 hidden h-[400px]">
+            <div class="bg-white border text-left border-gray-100 rounded-3xl p-6 shadow-lg min-h-[300px] flex flex-col">
+                <h3 class="text-lg font-black text-gray-900 mb-1">Search Database</h3>
+                <p class="text-xs text-gray-500 mb-4">Find a student and mark them present manually.</p>
+                
+                <div class="relative mb-4">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="manual-search-input" class="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition-colors text-sm font-medium" placeholder="Search by name or roll number...">
+                </div>
+                
+                <div id="search-results-container" class="flex-1 overflow-y-auto pr-2 space-y-2">
+                    <!-- Results populated by JS -->
+                    <div class="text-center py-8 text-gray-400 text-sm italic">Type to search students in this section...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% csrf_token %}
+
+<script>
+    
+    const LOOKUP_URL  = "{% url 'lookup_profile' session.id %}";
+    const VERIFY_URL  = "{% url 'verify_attendance' session.id %}";
+    const SEARCH_URL  = "{% url 'student_search_api' %}";
+    const OVERRIDE_URL = "{% url 'manual_override_api' session.id %}";
+    const SECTION_ID  = "{{ session.section_id }}";
+    const CSRF_TOKEN  = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const UI = {
+        tabScan: document.getElementById('tab-scan'),
+        tabManual: document.getElementById('tab-manual'),
+        contentScan: document.getElementById('content-scan'),
+        contentManual: document.getElementById('content-manual'),
+        
+        statusCard: document.getElementById('status-card'),
+        statusIcon: document.getElementById('status-icon'),
+        statusTitle: document.getElementById('status-title'),
+        statusDesc: document.getElementById('status-desc'),
+        
+        profileCard: document.getElementById('profile-card'),
+        profilePhoto: document.getElementById('profile-photo'),
+        profileName: document.getElementById('profile-name'),
+        profileId: document.getElementById('profile-id'),
+        profileCourse: document.getElementById('profile-course'),
+        profileStatus: document.getElementById('profile-status'),
+        attendanceStatus: document.getElementById('attendance-status'),
+        
+        mismatchOverlay: document.getElementById('mismatch-overlay')
+    };
+
+    // Tabs
+    function switchTab(tab) {
+        if(tab === 'scan') {
+            UI.tabScan.className = 'flex-1 pb-3 text-blue-600 border-b-2 border-blue-600 cursor-pointer text-center';
+            UI.tabManual.className = 'flex-1 pb-3 text-gray-400 border-b-2 border-transparent hover:text-gray-600 cursor-pointer text-center';
+            UI.contentScan.classList.remove('hidden');
+            UI.contentManual.classList.add('hidden');
+        } else {
+            UI.tabScan.className = 'flex-1 pb-3 text-gray-400 border-b-2 border-transparent hover:text-gray-600 cursor-pointer text-center';
+            UI.tabManual.className = 'flex-1 pb-3 text-blue-600 border-b-2 border-blue-600 cursor-pointer text-center';
+            UI.contentScan.classList.add('hidden');
+            UI.contentManual.classList.remove('hidden');
+        }
+    }
+    UI.tabScan.addEventListener('click', () => switchTab('scan'));
+    UI.tabManual.addEventListener('click', () => switchTab('manual'));
+
+    // Manual Override Logic
+    const searchInput = document.getElementById('manual-search-input');
+    const searchContainer = document.getElementById('search-results-container');
+    let searchTimeout = null;
+
+    searchInput.addEventListener('input', (e) => {
+        const q = e.target.value;
+        if(searchTimeout) clearTimeout(searchTimeout);
+        if(q.length < 2) {
+            searchContainer.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm italic">Type to search students in this section...</div>';
+            return;
+        }
+        
+        searchTimeout = setTimeout(async () => {
+            searchContainer.innerHTML = '<div class="text-center py-4 text-gray-400"><i class="fas fa-circle-notch fa-spin"></i> Searching...</div>';
+            try {
+                const res = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}&section_id=${SECTION_ID}`);
+                const parsed = await res.json();
+                if(parsed.success) {
+                    searchContainer.innerHTML = '';
+                    if(parsed.data.length === 0) {
+                        searchContainer.innerHTML = '<div class="text-center py-4 text-red-500 text-sm">No students found.</div>';
+                        return;
+                    }
+                    parsed.data.forEach(student => {
+                        const div = document.createElement('div');
+                        div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors border border-gray-100 group';
+                        div.innerHTML = `
+                            <div class="flex items-center gap-3">
+                                <img src="${student.photo_url || ''}" class="w-10 h-10 rounded-full object-cover bg-gray-200" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' viewBox=\\\'0 0 24 24\\\' fill=\\\'%23cbd5e1\\\'><path d=\\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\\'/></svg>'">
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900">${student.name}</p>
+                                    <p class="text-[10px] font-semibold text-gray-500 uppercase">${student.roll_no}</p>
+                                </div>
+                            </div>
+                            <button class="px-3 py-1.5 bg-white border border-gray-200 text-blue-600 rounded-lg text-xs font-bold shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">Mark Present</button>
+                        `;
+                        div.onclick = () => performManualOverride(student.id, div);
+                        searchContainer.appendChild(div);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 400);
+    });
+
+    async function performManualOverride(studentId, rowEl) {
+        // Optimistic UI
+        rowEl.innerHTML = `<div class="p-3 w-full text-center text-sm font-bold text-gray-500"><i class="fas fa-spinner fa-spin"></i> Submitting...</div>`;
+        try {
+            const res = await fetch(OVERRIDE_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ student_id: studentId })
+            });
+            const data = await res.json();
+            if(data.success) {
+                rowEl.innerHTML = `<div class="p-3 w-full text-center text-sm font-bold text-green-600 bg-green-50 rounded-xl border border-green-200"><i class="fas fa-check-circle"></i> Successfully marked present!</div>`;
+                setTimeout(() => rowEl.remove(), 3000);
+            } else {
+                rowEl.innerHTML = `<div class="p-3 w-full text-center text-sm font-bold text-red-600 bg-red-50 rounded-xl border border-red-200"><i class="fas fa-exclamation-circle"></i> Error: ${data.error}</div>`;
+            }
+        } catch(err) {
+            rowEl.innerHTML = `<div class="p-3 w-full text-center text-sm font-bold text-red-600 bg-red-50 rounded-xl border border-red-200"><i class="fas fa-wifi"></i> Network error</div>`;
+        }
+    }
+
+
+    // ── LIVE SCANNING PIPELINE ────────────────────────
+    let mode = 'IDLE'; // IDLE, QR_LOCKED, SUCCESS, ERROR
+    let lockedQR = null;
+    let currentStudent = null;
+    let scanInterval = null;
+
+    const video = document.getElementById('bio-video');
+    const canvasOverlay = document.getElementById('bio-canvas');
+    const hiddenCanvas = document.getElementById('hidden-canvas');
+    const ctxOverlay = canvasOverlay.getContext('2d');
+    const overlayUI = document.getElementById('cam-overlay');
+    const startBtn = document.getElementById('start-cam-btn');
+    const liveBadge = document.getElementById('live-overlay');
+
+    function updateScanUI() {
+        if(mode === 'IDLE') {
+            UI.statusCard.className = 'bg-indigo-50 border border-indigo-100 rounded-3xl p-6 shadow-sm flex items-center gap-4 transition-colors duration-300';
+            UI.statusIcon.innerHTML = '<i class="fas fa-qrcode"></i>';
+            UI.statusIcon.className = 'w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl shrink-0';
+            UI.statusTitle.textContent = 'Waiting for QR';
+            UI.statusDesc.textContent = 'Hold a student ID QR code to the camera.';
+            UI.profileCard.classList.add('hidden');
+            UI.profileCard.classList.remove('opacity-100', 'scale-100');
+            UI.mismatchOverlay.classList.add('hidden');
+        } else if (mode === 'QR_LOCKED') {
+            // Fetch profile
+            UI.statusCard.className = 'bg-amber-50 border border-amber-100 rounded-3xl p-6 shadow-sm flex items-center gap-4 transition-colors duration-300';
+            UI.statusIcon.innerHTML = '<i class="fas fa-face-viewfinder fa-beat"></i>';
+            UI.statusIcon.className = 'w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl shrink-0';
+            UI.statusTitle.textContent = 'Verifying Face';
+            UI.statusDesc.textContent = 'Look directly at the camera.';
+            UI.profileCard.classList.remove('hidden');
+            
+            if(currentStudent) {
+                UI.profilePhoto.src = currentStudent.photo_url || '';
+                UI.profileName.textContent = currentStudent.full_name;
+                UI.profileId.textContent = currentStudent.student_id;
+                UI.profileCourse.textContent = currentStudent.course;
+                UI.profileStatus.textContent = currentStudent.status;
+                UI.profileCard.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+                UI.profileCard.classList.add('opacity-100', 'scale-100');
+                
+                UI.attendanceStatus.className = 'mt-5 w-full py-2.5 bg-amber-100 rounded-xl text-sm font-bold text-amber-700 border border-amber-200';
+                UI.attendanceStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Scanning Face...';
+            }
+        } else if (mode === 'SUCCESS') {
+            UI.statusCard.className = 'bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm flex items-center gap-4 transition-colors duration-300';
+            UI.statusIcon.innerHTML = '<i class="fas fa-check"></i>';
+            UI.statusIcon.className = 'w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xl shrink-0';
+            UI.statusTitle.textContent = 'Verification Complete';
+            UI.statusDesc.textContent = 'Attendance successfully logged.';
+            
+            UI.attendanceStatus.className = 'mt-5 w-full py-2.5 bg-emerald-500 rounded-xl text-sm font-bold text-white shadow-inner';
+            UI.attendanceStatus.innerHTML = '<i class="fas fa-shield-check mr-1"></i> Verified & Present';
+        } else if (mode === 'ERROR') {
+            UI.statusCard.className = 'bg-red-50 border border-red-100 rounded-3xl p-6 shadow-sm flex items-center gap-4 transition-colors duration-300';
+            UI.statusIcon.innerHTML = '<i class="fas fa-xmark"></i>';
+            UI.statusIcon.className = 'w-12 h-12 bg-red-500 text-white rounded-full flex items-center justify-center text-xl shrink-0';
+            UI.statusTitle.textContent = 'Verification Error';
+            if(currentStudent) {
+                UI.attendanceStatus.className = 'mt-5 w-full py-2.5 bg-red-100 rounded-xl text-sm font-bold text-red-700 border border-red-200';
+                UI.attendanceStatus.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Face Mismatch';
+            }
+        }
+    }
+
+    startBtn.addEventListener('click', async () => {
+        overlayUI.innerHTML = '<i class="fas fa-circle-notch fa-spin text-white text-3xl"></i><p class="text-white font-bold mt-4">Accessing Camera...</p>';
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+            video.srcObject = stream;
+            
+            video.onloadedmetadata = () => {
+                video.play();
+                video.classList.remove('opacity-0');
+                overlayUI.classList.add('hidden');
+                liveBadge.classList.remove('hidden');
+                
+                const updateCanvasCoords = () => {
+                    const rect = video.getBoundingClientRect();
+                    canvasOverlay.width = rect.width;
+                    canvasOverlay.height = rect.height;
+                };
+                updateCanvasCoords();
+                window.addEventListener('resize', updateCanvasCoords);
+
+                mode = 'IDLE';
+                updateScanUI();
+                scanInterval = setInterval(extractAndSendFrame, 300);
+            };
+        } catch (err) {
+            console.error(err);
+            overlayUI.innerHTML = '<div class="text-red-400 bg-red-900/30 p-4 rounded-xl border border-red-500/50"><i class="fas fa-video-slash text-2xl mb-2"></i><p class="font-bold text-sm">Camera access denied.</p></div>';
+        }
+    });
+
+    function resetScanner() {
+        mode = 'IDLE';
+        lockedQR = null;
+        currentStudent = null;
+        updateScanUI();
+    }
+
+    async function lookupStudent(qrToken) {
+        try {
+            const res = await fetch(LOOKUP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ qr_token: qrToken })
+            });
+            const data = await res.json();
+            if(data.success && data.student) {
+                currentStudent = data.student;
+                if(data.student.already_marked) {
+                    mode = 'SUCCESS';
+                    updateScanUI();
+                    UI.statusTitle.textContent = 'Already Present';
+                    UI.statusDesc.textContent = `${data.student.full_name} was already marked present earlier.`;
+                    UI.attendanceStatus.innerHTML = '<i class="fas fa-clock mr-1"></i> Already Marked';
+                    setTimeout(resetScanner, 3000);
+                } else {
+                    updateScanUI();
+                }
+            } else {
+                mode = 'ERROR';
+                UI.statusDesc.textContent = data.error || "Student not found in this section.";
+                updateScanUI();
+                setTimeout(resetScanner, 3000);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function extractAndSendFrame() {
+        if(mode === 'SUCCESS' || mode === 'ERROR') return; // Don't process during timeouts
+
+        const ctxHid = hiddenCanvas.getContext('2d');
+        hiddenCanvas.width = video.videoWidth;
+        hiddenCanvas.height = video.videoHeight;
+        ctxHid.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        
+        const b64 = hiddenCanvas.toDataURL('image/jpeg', 0.7);
+
+        try {
+            const res = await fetch(VERIFY_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: JSON.stringify({
+                    frame: b64,
+                    current_qr: lockedQR
+                })
+            });
+
+            if(!res.ok) return;
+            const data = await res.json();
+            
+            if(data.success) {
+                const result = data.data;
+                ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
+
+                if(result.qr_data && mode === 'IDLE' && !lockedQR) {
+                    lockedQR = result.qr_data;
+                    mode = 'QR_LOCKED';
+                    lookupStudent(lockedQR);
+                }
+
+                const cw = canvasOverlay.width;
+                const ch = canvasOverlay.height;
+                const bw = result.original_dims ? result.original_dims[0] : 640;
+                const bh = result.original_dims ? result.original_dims[1] : 480;
+                
+                const drawBox = (box, color) => {
+                    if (!box) return;
+                    const [x, y, w, h] = box;
+                    const scaleX = cw / bw;
+                    const scaleY = ch / bh;
+                    const mirroredX = bw - x - w;
+                    const renderX = mirroredX * scaleX;
+                    const renderY = y * scaleY;
+                    const renderW = w * scaleX;
+                    const renderH = h * scaleY;
+
+                    ctxOverlay.strokeStyle = color;
+                    ctxOverlay.lineWidth = 4;
+                    ctxOverlay.strokeRect(renderX, renderY, renderW, renderH);
+
+                    ctxOverlay.fillStyle = color;
+                    ctxOverlay.fillRect(renderX - 2, renderY - 2, 16, 4);
+                    ctxOverlay.fillRect(renderX - 2, renderY - 2, 4, 16);
+                    ctxOverlay.fillRect(renderX + renderW - 14, renderY - 2, 16, 4);
+                    ctxOverlay.fillRect(renderX + renderW - 2,       renderY - 2, 4, 16);
+                    ctxOverlay.fillRect(renderX - 2, renderY + renderH - 2, 16, 4);
+                    ctxOverlay.fillRect(renderX - 2, renderY + renderH - 14, 4, 16);
+                    ctxOverlay.fillRect(renderX + renderW - 14, renderY + renderH - 2, 16, 4);
+                    ctxOverlay.fillRect(renderX + renderW - 2,       renderY + renderH - 14, 4, 16);
+                };
+
+                if (result.qr_box && mode === 'IDLE') drawBox(result.qr_box, '#06b6d4');
+                
+                if (result.face_box) {
+                    if (result.face_match) {
+                        drawBox(result.face_box, '#22c55e'); 
+                        
+                        mode = 'SUCCESS';
+                        UI.mismatchOverlay.classList.add('hidden');
+                        updateScanUI();
+                        
+                        setTimeout(resetScanner, 3000);
+                        
+                    } else {
+                        drawBox(result.face_box, '#f97316'); 
+                        if (mode === 'QR_LOCKED') {
+                            UI.mismatchOverlay.classList.remove('hidden');
+                        }
+                    }
+                } else {
+                    UI.mismatchOverlay.classList.add('hidden');
+                }
+            } else if (data.error && mode === 'QR_LOCKED') {
+                // E.g. student not in section, closed session
+                mode = 'ERROR';
+                UI.statusDesc.textContent = data.error;
+                updateScanUI();
+                setTimeout(resetScanner, 3000);
+            }
+        } catch(err) {}
+    }
+</script>
+{% endblock %}

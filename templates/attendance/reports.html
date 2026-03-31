@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+{% block title %}Attendance Reports — SmartAttend{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Analytics</p>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">Attendance Reports</h1>
+        <p class="text-gray-400 text-sm mt-1">Student-level comparison of attended vs total classes offered.</p>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6 p-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
+
+        <!-- Section selector (not for students) -->
+        {% if role != 'STUDENT' %}
+        <div class="xl:col-span-2">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Section / Class</label>
+            <select id="rpt-section" class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                <option value="">— Select Section —</option>
+                {% for s in sections %}
+                <option value="{{ s.id }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <!-- Preset buttons -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Quick Range</label>
+            <div class="flex flex-wrap gap-1">
+                {% for preset, label in presets %}
+                <button class="preset-btn px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors" data-preset="{{ preset }}">{{ label }}</button>
+                {% empty %}
+                <button class="preset-btn px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors" data-preset="last_7">7d</button>
+                <button class="preset-btn px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors" data-preset="last_30">30d</button>
+                <button class="preset-btn px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors" data-preset="last_90">90d</button>
+                <button class="preset-btn px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors" data-preset="this_month">Month</button>
+                <button class="preset-btn px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors" data-preset="this_year">Year</button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Custom date range -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">From</label>
+            <input type="date" id="rpt-from" class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5">
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">To</label>
+            <input type="date" id="rpt-to" class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5">
+        </div>
+
+        <!-- Granularity -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Granularity</label>
+            <select id="rpt-granularity" class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                <option value="daily">Daily</option>
+                <option value="weekly" selected>Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+            </select>
+        </div>
+
+        <!-- Apply -->
+        <div class="flex gap-2 items-end xl:col-span-5">
+            <button id="rpt-apply" class="px-5 py-2.5 bg-blue-500 text-white font-bold rounded-xl shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300">
+                Apply
+            </button>
+            <button id="rpt-clear" class="px-5 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors focus:outline-none">
+                Clear
+            </button>
+            <div class="flex-1"></div>
+            <!-- Export buttons (only shown when data loaded) -->
+            <div id="export-controls" class="hidden flex gap-2">
+                <button id="rpt-export-csv"  class="px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">CSV</button>
+                <button id="rpt-export-excel" class="px-4 py-2.5 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-colors">Excel</button>
+                <button id="rpt-export-pdf"   class="px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors">PDF</button>
+                <button id="rpt-export-detail-excel" class="px-4 py-2.5 bg-indigo-500 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors text-xs">Detailed XLSX</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div id="summary-cards" class="hidden grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Students</p>
+        <p id="card-students" class="text-3xl font-black text-gray-900">—</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Classes Offered</p>
+        <p id="card-offered" class="text-3xl font-black text-gray-900">—</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Cohort Avg Rate</p>
+        <p id="card-avg" class="text-3xl font-black text-blue-600">—</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Below 75%</p>
+        <p id="card-atrisk" class="text-3xl font-black text-red-500">—</p>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+    <!-- Tab Nav -->
+    <div class="flex border-b border-gray-100 px-6 pt-3 gap-1">
+        <button class="tab-btn active px-4 py-2.5 text-sm font-bold rounded-t-xl text-blue-600 border-b-2 border-blue-500 focus:outline-none" data-tab="overview">Student Overview</button>
+        <button class="tab-btn px-4 py-2.5 text-sm font-bold rounded-t-xl text-gray-500 border-b-2 border-transparent hover:text-gray-700 focus:outline-none" data-tab="topbottom">Top / Bottom</button>
+    </div>
+
+    <!-- Tab: Student Overview -->
+    <div id="tab-overview" class="tab-panel">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left whitespace-nowrap">
+                <thead class="text-xs text-gray-400 tracking-wider uppercase bg-gray-50 font-black">
+                    <tr>
+                        <th class="px-6 py-4 cursor-pointer hover:text-blue-500" data-sort="name">Student ↕</th>
+                        <th class="px-6 py-4">Roll No</th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-blue-500 text-right" data-sort="total_offered">Offered ↕</th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-blue-500 text-right" data-sort="attended">Attended ↕</th>
+                        <th class="px-6 py-4 text-right">Missed</th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-blue-500 text-right" data-sort="rate">Rate % ↕</th>
+                        <th class="px-6 py-4 text-right">vs Cohort</th>
+                        <th class="px-6 py-4 text-center">Detail</th>
+                    </tr>
+                </thead>
+                <tbody id="rpt-table-body" aria-live="polite">
+                    <tr><td colspan="8" class="px-6 py-10 text-center text-gray-400 font-medium">Select a section and apply filters to load the report.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab: Top / Bottom -->
+    <div id="tab-topbottom" class="tab-panel hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+            <!-- Top Performers -->
+            <div>
+                <h3 class="text-sm font-black text-green-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 rounded-full"></span> Top Performers
+                </h3>
+                <div id="top-list" class="space-y-3">
+                    <p class="text-gray-400 text-sm">Load a report to see performers.</p>
+                </div>
+            </div>
+            <!-- Bottom Performers -->
+            <div>
+                <h3 class="text-sm font-black text-red-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-red-500 rounded-full"></span> Needs Attention
+                </h3>
+                <div id="bottom-list" class="space-y-3">
+                    <p class="text-gray-400 text-sm">Load a report to see performers.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let activeSectionId = null;
+    let activePreset = null;
+    let currentSort = 'name';
+    let allRows = [];
+
+    // ── Tab switching ──
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active', 'text-blue-600', 'border-blue-500');
+                b.classList.add('text-gray-500', 'border-transparent');
+            });
+            btn.classList.add('active', 'text-blue-600', 'border-blue-500');
+            btn.classList.remove('text-gray-500', 'border-transparent');
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+        });
+    });
+
+    // ── Preset buttons ──
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
+            btn.classList.add('bg-blue-500', 'text-white');
+            activePreset = btn.dataset.preset;
+            document.getElementById('rpt-from').value = '';
+            document.getElementById('rpt-to').value = '';
+        });
+    });
+
+    // ── Apply ──
+    document.getElementById('rpt-apply').addEventListener('click', loadReport);
+    document.getElementById('rpt-clear').addEventListener('click', () => {
+        document.getElementById('rpt-section').value = '';
+        document.getElementById('rpt-from').value = '';
+        document.getElementById('rpt-to').value = '';
+        activePreset = null;
+        allRows = [];
+        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
+        document.getElementById('summary-cards').classList.add('hidden');
+        document.getElementById('export-controls').classList.add('hidden');
+        document.getElementById('rpt-table-body').innerHTML =
+            '<tr><td colspan="8" class="px-6 py-10 text-center text-gray-400 font-medium">Select a section and apply filters to load the report.</td></tr>';
+        document.getElementById('top-list').innerHTML = '<p class="text-gray-400 text-sm">Load a report to see performers.</p>';
+        document.getElementById('bottom-list').innerHTML = '<p class="text-gray-400 text-sm">Load a report to see performers.</p>';
+    });
+
+    // ── Sort headers ──
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+        th.addEventListener('click', () => {
+            const field = th.dataset.sort;
+            currentSort = currentSort === field ? '-' + field : field;
+            renderTable(sortRows(allRows, currentSort));
+        });
+    });
+
+    function buildParams() {
+        const params = new URLSearchParams();
+        activeSectionId = document.getElementById('rpt-section')?.value;
+        if (activeSectionId) params.append('sectionId', activeSectionId);
+        if (activePreset) {
+            params.append('preset', activePreset);
+        } else {
+            const from = document.getElementById('rpt-from').value;
+            const to   = document.getElementById('rpt-to').value;
+            if (from) params.append('fromDate', from);
+            if (to)   params.append('toDate', to);
+        }
+        params.append('granularity', document.getElementById('rpt-granularity').value);
+        return params;
+    }
+
+    function loadReport() {
+        const sectionId = document.getElementById('rpt-section')?.value;
+        if (!sectionId) {
+            alert('Please select a section first.');
+            return;
+        }
+        activeSectionId = sectionId;
+
+        const params = buildParams();
+        document.getElementById('rpt-table-body').innerHTML =
+            '<tr><td colspan="8" class="px-6 py-10 text-center text-gray-400 font-medium">Loading...</td></tr>';
+
+        const apiUrl = `/attendance/api/reports/section/${sectionId}/?` + params.toString();
+        fetch(apiUrl)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    document.getElementById('rpt-table-body').innerHTML =
+                        `<tr><td colspan="8" class="px-6 py-10 text-center text-red-500 font-bold">${data.error}</td></tr>`;
+                    return;
+                }
+                allRows = data.data.rows;
+                renderTable(sortRows(allRows, currentSort));
+                updateSummaryCards(allRows);
+                document.getElementById('summary-cards').classList.remove('hidden');
+                document.getElementById('export-controls').classList.remove('hidden');
+                loadTopBottom(sectionId, params);
+            })
+            .catch(() => {
+                document.getElementById('rpt-table-body').innerHTML =
+                    '<tr><td colspan="8" class="px-6 py-10 text-center text-red-500 font-bold">Failed to load. Try again.</td></tr>';
+            });
+    }
+
+    function loadTopBottom(sectionId, params) {
+        fetch(`/attendance/api/reports/top-bottom/${sectionId}/?` + params.toString())
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                renderPerformerList('top-list', data.data.top, true);
+                renderPerformerList('bottom-list', data.data.bottom, false);
+            });
+    }
+
+    function renderPerformerList(elId, rows, isTop) {
+        const el = document.getElementById(elId);
+        if (!rows || rows.length === 0) {
+            el.innerHTML = '<p class="text-gray-400 text-sm">No data available.</p>';
+            return;
+        }
+        el.innerHTML = rows.map((r, i) => {
+            const rateColor = r.rate >= 75 ? 'text-green-700 bg-green-50' : r.rate >= 50 ? 'text-yellow-700 bg-yellow-50' : 'text-red-700 bg-red-50';
+            return `
+                <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <span class="w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${isTop ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${i + 1}</span>
+                        <div>
+                            <p class="font-bold text-gray-900 text-sm">${r.name}</p>
+                            <p class="text-xs text-gray-400">${r.roll_no}</p>
+                        </div>
+                    </div>
+                    <span class="text-sm font-black px-2.5 py-0.5 rounded-full ${rateColor}">${r.rate}%</span>
+                </div>`;
+        }).join('');
+    }
+
+    function sortRows(rows, sort) {
+        const reverse = sort.startsWith('-');
+        const key = sort.replace(/^-/, '');
+        return [...rows].sort((a, b) => {
+            let av = a[key], bv = b[key];
+            if (typeof av === 'string') av = av.toLowerCase();
+            if (typeof bv === 'string') bv = bv.toLowerCase();
+            return reverse ? (av < bv ? 1 : -1) : (av > bv ? 1 : -1);
+        });
+    }
+
+    function rateClass(rate) {
+        if (rate >= 75) return 'bg-green-100 text-green-700';
+        if (rate >= 50) return 'bg-yellow-100 text-yellow-700';
+        return 'bg-red-100 text-red-700';
+    }
+
+    function deltaHtml(delta) {
+        if (delta > 0) return `<span class="text-green-600 font-bold">+${delta}%</span>`;
+        if (delta < 0) return `<span class="text-red-600 font-bold">${delta}%</span>`;
+        return `<span class="text-gray-400 font-bold">±0%</span>`;
+    }
+
+    function renderTable(rows) {
+        if (!rows || rows.length === 0) {
+            document.getElementById('rpt-table-body').innerHTML =
+                '<tr><td colspan="8" class="px-6 py-10 text-center text-gray-400 font-medium">No student data found for selected filters.</td></tr>';
+            return;
+        }
+        document.getElementById('rpt-table-body').innerHTML = rows.map(r => `
+            <tr class="bg-white border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
+                <td class="px-6 py-4 font-bold text-gray-900">${r.name}</td>
+                <td class="px-6 py-4 text-gray-500 text-xs font-mono">${r.roll_no}</td>
+                <td class="px-6 py-4 text-right font-bold text-gray-700">${r.total_offered}</td>
+                <td class="px-6 py-4 text-right font-bold text-gray-700">${r.attended}</td>
+                <td class="px-6 py-4 text-right text-gray-500">${r.missed}</td>
+                <td class="px-6 py-4 text-right">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black ${rateClass(r.rate)}">${r.rate}%</span>
+                </td>
+                <td class="px-6 py-4 text-right">${deltaHtml(r.delta)}</td>
+                <td class="px-6 py-4 text-center">
+                    <a href="/attendance/reports/student/${r.student_id}/" class="text-blue-500 hover:text-blue-700 font-bold text-xs underline">View</a>
+                </td>
+            </tr>`).join('');
+    }
+
+    function updateSummaryCards(rows) {
+        if (!rows.length) return;
+        const offered = rows[0]?.total_offered ?? 0;
+        const avgRate = rows.reduce((s, r) => s + r.rate, 0) / rows.length;
+        const atRisk = rows.filter(r => r.rate < 75).length;
+        document.getElementById('card-students').textContent = rows.length;
+        document.getElementById('card-offered').textContent = offered;
+        document.getElementById('card-avg').textContent = avgRate.toFixed(1) + '%';
+        document.getElementById('card-atrisk').textContent = atRisk;
+    }
+
+    // ── Exports ──
+    function doExport(format, includeDetail) {
+        if (!activeSectionId) { alert('Load a report first.'); return; }
+        const params = buildParams();
+        params.delete('granularity');
+        params.append('format', format);
+        if (includeDetail) params.append('includeDetail', 'true');
+        window.location.href = '/attendance/reports/export/?' + params.toString();
+    }
+
+    document.getElementById('rpt-export-csv').addEventListener('click', () => doExport('csv', false));
+    document.getElementById('rpt-export-excel').addEventListener('click', () => doExport('excel', false));
+    document.getElementById('rpt-export-pdf').addEventListener('click', () => doExport('pdf', false));
+    document.getElementById('rpt-export-detail-excel').addEventListener('click', () => doExport('excel', true));
+});
+</script>
+{% endblock %}

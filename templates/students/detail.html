@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student File: {{ student.full_name }} — SmartAttend{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen">
+    <!-- Breadcrumb & Header -->
+    <div class="mb-8">
+        <a href="{% url 'student_list' %}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2">
+            <i class="fas fa-arrow-left"></i> Back to Directory
+        </a>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ student.full_name }}</h1>
+                <p class="text-gray-500 font-mono text-sm uppercase tracking-widest mt-1">ID: {{ student.student_id }} &nbsp;|&nbsp; Route: {{ student.section.course_code }}</p>
+            </div>
+            <div class="flex gap-2">
+                <a href="{% url 'student_edit' student.id %}" class="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-bold shadow-sm transition-all focus:ring focus:ring-gray-100 flex items-center gap-2">
+                    <i class="fas fa-edit"></i> Edit Core Data
+                </a>
+            </div>
+        </div>
+    </div>
+``
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left Column: Identity & Bio (Student Portal crossover) -->
+        <div class="space-y-6">
+            <!-- Digital ID Card -->
+            <div class="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                <div class="absolute left-0 bottom-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+
+                <div class="flex justify-between items-start mb-6 relative">
+                    <div class="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center text-2xl shadow-sm overflow-hidden">
+                        {% if photos.first %}
+                            <img src="{{ photos.first.image.url }}" alt="Avatar"
+                                 class="w-full h-full object-cover rounded-2xl cursor-zoom-in hover:opacity-90 transition-opacity"
+                                 onclick="openPhotoLightbox('{{ photos.first.image.url }}')"
+                                 title="Click to enlarge">
+                        {% else %}
+                            <i class="fas fa-user-graduate"></i>
+                        {% endif %}
+                    </div>
+                    {% if student.enrollment_status == 'ACTIVE' %}
+                        <span class="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm">Active</span>
+                    {% else %}
+                        <span class="px-3 py-1 bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm">{{ student.enrollment_status }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="relative">
+                    <h3 class="font-black text-xl text-gray-900 mb-1 truncate">{{ student.full_name }}</h3>
+                    <p class="text-gray-400 text-xs font-semibold tracking-wider mb-6 truncate"><i class="fas fa-envelope mr-1"></i> {{ student.email }}</p>
+
+                    <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
+                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center mt-1">Smart Identity Token</p>
+                        <div class="w-32 h-32 bg-white rounded-xl shadow-sm border border-gray-100 p-2 relative group">
+                            {% if student.qr_ready %}
+                                <img src="{% url 'student_qr' student.id %}" alt="Dynamic QR Token"
+                                     id="qr-img-{{ student.id }}"
+                                     class="w-full h-full object-contain mix-blend-multiply cursor-zoom-in hover:opacity-90 transition-opacity"
+                                     onclick="openQRLightbox('{% url 'student_qr' student.id %}', '{{ student.university_roll_number|default:student.student_id }}')"
+                                     title="Click to enlarge & copy"
+                                     onerror="document.getElementById('qr-fail-{{ student.id }}').style.display='block'; this.style.display='none';">
+                                <div id="qr-fail-{{ student.id }}" class="absolute inset-0 flex flex-col items-center justify-center p-2 text-center" style="display:none;">
+                                    <i class="fas fa-exclamation-triangle text-amber-500 mb-1"></i>
+                                    <span class="text-[9px] font-bold text-gray-500 leading-tight">Sync pending.<br>Refresh soon.</span>
+                                </div>
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-colors flex items-center justify-center pointer-events-none">
+                                    <i class="fas fa-expand-alt text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-lg"></i>
+                                </div>
+                            {% else %}
+                                <div class="absolute inset-0 flex flex-col items-center justify-center p-2 text-center opacity-50">
+                                    <i class="fas fa-fingerprint text-xl text-gray-400 mb-2"></i>
+                                    <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mx-2 text-center leading-tight">No Biometrics<br>Enrolled</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Info -->
+            <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm uppercase tracking-widest"><i class="fas fa-info-circle text-blue-500"></i> Metadata</h3>
+                <div class="space-y-4 text-sm">
+                    <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <span class="text-gray-500 font-medium">Link Status</span>
+                        {% if student.user %}
+                            <span class="text-blue-600 font-bold"><i class="fas fa-link"></i> Linked</span>
+                        {% else %}
+                            <span class="text-gray-400 font-medium">Unlinked</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                        <span class="text-gray-500 font-medium">Registered By</span>
+                        <span class="text-gray-900 font-medium">{{ student.created_by.username|default:"System" }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2">
+                        <span class="text-gray-500 font-medium">Date ADDED</span>
+                        <span class="text-gray-900 font-medium">{{ student.created_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Photos & Biometrics Details -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Photo Directory -->
+            <div class="bg-white border border-gray-100 p-6 sm:p-8 rounded-3xl shadow-sm relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                        <i class="fas fa-images text-indigo-500"></i> Identity Photos
+                    </h3>
+                    <button onclick="document.getElementById('upload-modal').classList.remove('hidden')" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm border border-indigo-100">
+                        <i class="fas fa-upload"></i> Upload Evidence Photo
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {% for photo in photos %}
+                    <div class="relative group rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 aspect-square cursor-zoom-in"
+                         onclick="openPhotoLightbox('{{ photo.image.url }}')">
+                        <img src="{{ photo.image.url }}" alt="Photo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] text-white/80 font-mono">{{ photo.uploaded_at|date:"M d, y" }}</span>
+                                {% if photo.is_primary %}
+                                <span class="w-2 h-2 rounded-full bg-green-400" title="Primary Avatar"></span>
+                                {% endif %}
+                            </div>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <i class="fas fa-expand text-white text-sm"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-span-full py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                        <i class="fas fa-camera text-gray-300 text-3xl mb-2"></i>
+                        <p class="text-sm font-semibold text-gray-500">No identity photos uploaded yet.</p>
+                        <p class="text-xs text-gray-400 mt-1">These photos are securely stored for verification.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Face Vectors (SFace Data) -->
+            <div class="bg-white border border-gray-100 p-6 sm:p-8 rounded-3xl shadow-sm relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-2 border-b border-gray-50 pb-4">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                            <i class="fas fa-cubes text-emerald-500"></i> Digital Biometrics Cache
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-1">Mathematical vectors mapped by the passive AI pipeline.</p>
+                    </div>
+                    
+                    <a href="{% url 'student_enroll_face' student.id %}" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm border border-emerald-700 shrink-0">
+                        <i class="fas fa-expand"></i> Launch Scanner
+                    </a>
+                </div>
+                
+                <div class="overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest font-bold">
+                            <tr>
+                                <th class="p-3">Environment</th>
+                                <th class="p-3">Score</th>
+                                <th class="p-3 hidden sm:table-cell">Model</th>
+                                <th class="p-3 text-right">Time Registered</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            {% for emb in embeddings %}
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="p-3">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">
+                                        <i class="fas fa-sun text-yellow-500 text-[10px]"></i> {{ emb.get_capture_environment_display }}
+                                    </span>
+                                </td>
+                                <td class="p-3 font-mono font-bold text-gray-900">
+                                    {% if emb.quality_score >= 0.7 %}<span class="text-emerald-600">{% elif emb.quality_score >= 0.4 %}<span class="text-amber-600">{% else %}<span class="text-red-500">{% endif %}
+                                    {{ emb.quality_score|floatformat:2 }}
+                                    </span>
+                                </td>
+                                <td class="p-3 hidden sm:table-cell text-gray-500 text-xs">{{ emb.model_name }}</td>
+                                <td class="p-3 text-right text-gray-500 text-xs">{{ emb.created_at|date:"M d, P" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="p-6 text-center text-gray-400">
+                                    No facial data enrolled. The student is restricted from logging attendance.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ── Upload Modal ─────────────────────────────────────────────── -->
+<div id="upload-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200">
+        <button onclick="document.getElementById('upload-modal').classList.add('hidden')" class="absolute top-6 right-6 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="mb-6">
+            <h3 class="text-2xl font-black text-gray-900 tracking-tight">Add Photo</h3>
+            <p class="text-gray-500 text-sm mt-1">Upload an image for record-keeping and UI display.</p>
+        </div>
+        <form action="{% url 'student_photo_upload' student.id %}" method="post" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select Image (JPG/PNG)</label>
+                <input type="file" name="photo" accept="image/*" required class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-gray-200 rounded-xl p-2 bg-gray-50">
+            </div>
+            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" name="is_primary" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                    <span class="text-sm font-semibold text-gray-800">Set as Primary ID Thumbnail</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" name="privacy_consent" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" required>
+                    <span class="text-xs font-medium text-gray-600 leading-tight">I confirm consent was provided to store this image digitally. <span class="text-red-500">*</span></span>
+                </label>
+            </div>
+            <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black shadow-sm transition-all focus:ring focus:ring-indigo-300">
+                Upload Target Image
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ── Universal Lightbox Modal ──────────────────────────────────── -->
+<div id="lightbox-modal"
+     class="fixed inset-0 z-[100] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-200"
+     style="background: rgba(3,7,18,0.85); backdrop-filter: blur(8px);">
+
+    <!-- Backdrop (click to close) -->
+    <div class="absolute inset-0" onclick="closeLightbox()"></div>
+
+    <!-- Content wrapper -->
+    <div id="lightbox-inner"
+         class="relative flex flex-col items-center gap-4 scale-90 transition-transform duration-200 max-w-xl w-full">
+
+        <!-- Close button -->
+        <button onclick="closeLightbox()"
+                class="absolute -top-3 -right-3 z-10 w-9 h-9 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm">
+            <i class="fas fa-times text-sm"></i>
+        </button>
+
+        <!-- Image (photo or QR) -->
+        <div id="lightbox-img-wrap"
+             class="bg-white rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center p-3"
+             style="max-height: 75vh;">
+            <img id="lightbox-img" src="" alt="Enlarged view"
+                 class="max-w-full object-contain rounded-xl"
+                 style="max-height: 68vh;">
+        </div>
+
+        <!-- QR-only controls (hidden for photos) -->
+        <div id="lightbox-qr-controls" class="hidden flex-col items-center gap-3 w-full">
+            <!-- Token badge -->
+            <div class="flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2 backdrop-blur-sm">
+                <i class="fas fa-qrcode text-white/60 text-sm"></i>
+                <span id="lightbox-qr-token"
+                      class="font-mono text-white font-bold text-sm tracking-wider"></span>
+            </div>
+            <!-- Copy button -->
+            <button id="lightbox-copy-btn" onclick="copyQRToken()"
+                    class="flex items-center gap-2 px-6 py-2.5 bg-white text-gray-900 rounded-xl text-sm font-bold shadow-lg hover:bg-gray-100 active:scale-95 transition-all">
+                <i class="fas fa-copy"></i>
+                <span id="lightbox-copy-label">Copy Roll Number</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    #lightbox-modal.lb-open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    #lightbox-modal.lb-open #lightbox-inner {
+        transform: scale(1);
+    }
+    .cursor-zoom-in { cursor: zoom-in; }
+</style>
+
+<script>
+    const lbModal  = document.getElementById('lightbox-modal');
+    const lbImg    = document.getElementById('lightbox-img');
+    const lbQRCtrl = document.getElementById('lightbox-qr-controls');
+    const lbToken  = document.getElementById('lightbox-qr-token');
+    const lbLabel  = document.getElementById('lightbox-copy-label');
+    let   _currentToken = '';
+
+    function openLightbox(src, isQR, token) {
+        lbImg.src = src;
+        if (isQR) {
+            _currentToken = token || '';
+            lbToken.textContent = token || '—';
+            lbQRCtrl.classList.remove('hidden');
+            lbQRCtrl.classList.add('flex');
+            lbLabel.textContent = 'Copy Roll Number';
+            /* Make QR image white background more visible */
+            document.getElementById('lightbox-img-wrap').style.background = '#fff';
+            lbImg.style.maxWidth = '320px';
+        } else {
+            lbQRCtrl.classList.add('hidden');
+            lbQRCtrl.classList.remove('flex');
+            document.getElementById('lightbox-img-wrap').style.background = 'transparent';
+            lbImg.style.maxWidth = '100%';
+        }
+        lbModal.classList.add('lb-open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function openPhotoLightbox(src) {
+        openLightbox(src, false, null);
+    }
+
+    function openQRLightbox(src, token) {
+        openLightbox(src, true, token);
+    }
+
+    function closeLightbox() {
+        lbModal.classList.remove('lb-open');
+        document.body.style.overflow = '';
+        setTimeout(() => { lbImg.src = ''; }, 250);
+    }
+
+    function copyQRToken() {
+        if (!_currentToken) return;
+        navigator.clipboard.writeText(_currentToken).then(() => {
+            lbLabel.textContent = '✓ Copied!';
+            document.getElementById('lightbox-copy-btn').classList.add('bg-emerald-100','text-emerald-800');
+            setTimeout(() => {
+                lbLabel.textContent = 'Copy Roll Number';
+                document.getElementById('lightbox-copy-btn').classList.remove('bg-emerald-100','text-emerald-800');
+            }, 2000);
+        }).catch(() => {
+            /* Fallback for non-HTTPS contexts */
+            const ta = document.createElement('textarea');
+            ta.value = _currentToken;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            lbLabel.textContent = '✓ Copied!';
+            setTimeout(() => { lbLabel.textContent = 'Copy Roll Number'; }, 2000);
+        });
+    }
+
+    /* Close on Escape key */
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeLightbox();
+    });
+</script>
+{% endblock %}

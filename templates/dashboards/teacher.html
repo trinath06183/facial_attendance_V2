@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Teacher Portal — SmartAttend{% endblock %}
+
+{% block content %}
+<div class="bg-white min-h-screen">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Teacher Portal</h1>
+            <p class="text-gray-400 text-sm mt-1">Manage your active classes, take attendance, and overrides.</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'session_create' %}" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:ring focus:ring-blue-300">
+                <i class="fas fa-play"></i> Start Session
+            </a>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Stats Summary -->
+        <div class="bg-gray-50 border border-gray-100 p-8 rounded-3xl flex flex-col justify-center">
+            <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">My Sections</p>
+            <p class="text-5xl font-black text-gray-900">{{ my_sections.count|default:"0" }}</p>
+        </div>
+        
+        <div class="bg-green-50 border border-green-100 p-8 rounded-3xl flex flex-col justify-center">
+            <p class="text-green-600 text-xs font-bold uppercase tracking-widest mb-1">Scanning Right Now</p>
+            <p class="text-5xl font-black text-green-900">{{ open_sessions.count|default:"0" }}</p>
+        </div>
+
+        <!-- Quick Access -->
+        <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm flex flex-col justify-between">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fas fa-bolt text-yellow-400"></i> Actions
+            </h3>
+            <div class="space-y-2">
+                <a href="{% url 'student_list' %}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-semibold text-gray-700 transition">
+                    <i class="fas fa-users-class text-indigo-400 w-5"></i> View Class Roster
+                </a>
+                <a href="{% url 'session_list' %}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-semibold text-gray-700 transition">
+                    <i class="fas fa-history text-gray-400 w-5"></i> Session History
+                </a>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Active & Recent Sessions -->
+    <div class="mt-8 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm">
+        <h3 class="font-bold text-gray-800 mb-6 text-lg">My Recent Sessions</h3>
+        
+        <div class="overflow-hidden rounded-2xl border border-gray-100">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 border-b border-gray-100 text-gray-500">
+                    <tr>
+                        <th class="p-4 font-bold">Class Section</th>
+                        <th class="p-4 font-bold">Started At</th>
+                        <th class="p-4 font-bold hidden sm:table-cell">Status</th>
+                        <th class="p-4 font-bold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for session in recent_sessions %}
+                    <tr class="hover:bg-gray-50/50 transition-colors">
+                        <td class="p-4">
+                            <p class="font-bold text-gray-900">{{ session.section.course_name }}</p>
+                            <p class="text-xs text-gray-500 font-mono">{{ session.section.course_code }}</p>
+                        </td>
+                        <td class="p-4 text-gray-600">{{ session.started_at|date:"M d, Y · h:i A" }}</td>
+                        <td class="p-4 hidden sm:table-cell">
+                            {% if session.status == 'OPEN' %}
+                                <span class="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-full flex items-center gap-1.5 w-fit">
+                                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Open
+                                </span>
+                            {% else %}
+                                <span class="px-3 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider rounded-full">
+                                    {{ session.status }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-right space-x-2">
+                            <a href="{% url 'session_detail' session.id %}" class="text-blue-600 hover:text-blue-800 font-bold text-xs bg-blue-50 px-3 py-1.5 rounded-lg transition">View</a>
+                            {% if session.status == 'OPEN' %}
+                                <a href="{% url 'scanner_view' session.id %}" class="text-white hover:bg-green-700 font-bold text-xs bg-green-600 px-3 py-1.5 rounded-lg shadow-sm transition inline-flex items-center gap-1">
+                                    <i class="fas fa-camera"></i> Scan
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="p-8 text-center text-gray-400">
+                            <i class="fas fa-folder-open text-3xl mb-3 opacity-20 block"></i>
+                            No sessions found. Start your first class!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

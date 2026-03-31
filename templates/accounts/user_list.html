@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}User Accounts — SmartAttend{% endblock %}
+
+{% block content %}
+<!-- ── Page Header ───────────────────────────── -->
+<div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">User Accounts</h1>
+        <p class="text-gray-400 text-sm mt-1">Manage admin and teacher accounts for the system.</p>
+    </div>
+    <a href="{% url 'user_create' %}"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1">
+        <i class="fas fa-user-plus" aria-hidden="true"></i> Create User
+    </a>
+</div>
+
+<!-- ── Users Table ───────────────────────────── -->
+<div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+        <h2 class="font-bold text-gray-800 flex items-center gap-2 text-sm">
+            <i class="fas fa-users-cog text-blue-500" aria-hidden="true"></i>
+            All Users
+        </h2>
+        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white border border-gray-100 px-3 py-1 rounded-full shadow-sm">
+            {{ users|length }} total
+        </span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm" role="table" aria-label="User accounts">
+            <thead>
+                <tr class="bg-white border-b border-gray-100">
+                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">User</th>
+                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hidden sm:table-cell">Email</th>
+                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Role</th>
+                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for u in users %}
+                <tr class="hover:bg-gray-50/60 transition-colors" role="row">
+
+                    <!-- User Avatar + Name -->
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm
+                                {% if u.role == 'ADMIN' %}bg-gradient-to-br from-red-500 to-rose-600
+                                {% elif u.role == 'TEACHER' %}bg-gradient-to-br from-blue-500 to-indigo-600
+                                {% else %}bg-gradient-to-br from-gray-400 to-gray-500{% endif %}"
+                                aria-hidden="true">
+                                {{ u.username|slice:":1"|upper }}
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-bold text-gray-900 text-sm truncate">{{ u.username }}</p>
+                                <p class="text-xs text-gray-400 truncate">{{ u.get_full_name|default:"No name set" }}</p>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Email -->
+                    <td class="px-6 py-4 hidden sm:table-cell">
+                        <span class="text-sm text-gray-500 font-medium">{{ u.email|default:"—" }}</span>
+                    </td>
+
+                    <!-- Role Badge -->
+                    <td class="px-6 py-4 text-center">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                            {% if u.role == 'ADMIN' %}bg-red-50 text-red-600 border border-red-100
+                            {% elif u.role == 'TEACHER' %}bg-blue-50 text-blue-600 border border-blue-100
+                            {% else %}bg-gray-100 text-gray-500 border border-gray-200{% endif %}">
+                            {% if u.role == 'ADMIN' %}<i class="fas fa-shield-alt text-[8px]" aria-hidden="true"></i>
+                            {% elif u.role == 'TEACHER' %}<i class="fas fa-chalkboard-teacher text-[8px]" aria-hidden="true"></i>
+                            {% else %}<i class="fas fa-user text-[8px]" aria-hidden="true"></i>{% endif %}
+                            {{ u.get_role_display }}
+                        </span>
+                    </td>
+
+                    <!-- Active Status -->
+                    <td class="px-6 py-4 text-center">
+                        {% if u.is_active %}
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider rounded-full">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" aria-hidden="true"></span>
+                                Active
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-500 text-[10px] font-black uppercase tracking-wider rounded-full">
+                                <i class="fas fa-ban text-xs" aria-hidden="true"></i>
+                                Disabled
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'user_edit' u.id %}" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors shadow-sm" title="Edit User">
+                                <i class="fas fa-pen text-xs" aria-hidden="true"></i>
+                            </a>
+                            <form action="{% url 'user_toggle_status' u.id %}" method="post" class="inline">
+                                {% csrf_token %}
+                                {% if u.is_active %}
+                                <button type="submit" class="w-8 h-8 rounded-lg {% if request.user == u %}bg-gray-50 text-gray-300 cursor-not-allowed{% else %}bg-amber-50 text-amber-600 hover:bg-amber-100{% endif %} flex items-center justify-center transition-colors shadow-sm" title="Deactivate/Hide User" {% if request.user == u %}disabled{% endif %}>
+                                    <i class="fas fa-eye-slash text-xs" aria-hidden="true"></i>
+                                </button>
+                                {% else %}
+                                <button type="submit" class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-colors shadow-sm" title="Activate/Show User">
+                                    <i class="fas fa-eye text-xs" aria-hidden="true"></i>
+                                </button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-16 text-center">
+                        <div class="flex flex-col items-center gap-3">
+                            <div class="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                                <i class="fas fa-user-slash text-gray-300 text-2xl"></i>
+                            </div>
+                            <p class="font-bold text-gray-400">No users found</p>
+                            <p class="text-xs text-gray-300">Create the first user account.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Directory — SmartAttend{% endblock %}
+
+{% block content %}
+<!-- ── Page Header ───────────────────────────── -->
+<div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">Student Directory</h1>
+        <p class="text-gray-400 text-sm mt-1">Manage enrollments, biometric data and student profiles.</p>
+    </div>
+    <a href="{% url 'student_create' %}"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1">
+        <i class="fas fa-user-plus" aria-hidden="true"></i> Register New Student
+    </a>
+</div>
+
+<!-- ── Search & Filter Bar ───────────────────── -->
+<div class="bg-white border border-gray-100 rounded-2xl p-5 mb-6 shadow-sm">
+    <form method="get" class="flex flex-col sm:flex-row gap-3 items-end" role="search" aria-label="Filter students">
+        <div class="flex-1">
+            <label for="search" class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Search by Name</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true">
+                    <i class="fas fa-search text-gray-400 text-sm"></i>
+                </div>
+                <input type="text" name="search" id="search" value="{{ search }}"
+                    class="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                    placeholder="Search student name...">
+            </div>
+        </div>
+        <div class="sm:w-52">
+            <label for="status" class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Enrollment Status</label>
+            <select name="status" id="status"
+                class="w-full py-2.5 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none cursor-pointer">
+                <option value="">All Statuses</option>
+                <option value="ACTIVE"    {% if status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                <option value="INACTIVE"  {% if status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                <option value="GRADUATED" {% if status == 'GRADUATED' %}selected{% endif %}>Graduated</option>
+            </select>
+        </div>
+        <div class="flex gap-2 pb-0.5">
+            <button type="submit"
+                class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-300 inline-flex items-center gap-2 shadow-sm">
+                <i class="fas fa-filter" aria-hidden="true"></i> Filter
+            </button>
+            <a href="{% url 'student_list' %}"
+                class="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200 inline-flex items-center gap-2">
+                <i class="fas fa-times" aria-hidden="true"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- ── Results Count ─────────────────────────── -->
+<div class="flex items-center justify-between mb-3 px-1">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+        {{ students|length }} student{{ students|length|pluralize }} found
+    </p>
+</div>
+
+<!-- ── Student Table ─────────────────────────── -->
+<div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left" role="table" aria-label="Student directory">
+            <thead>
+                <tr>
+                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80">Student</th>
+                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 hidden sm:table-cell">ID</th>
+                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 hidden md:table-cell">Section</th>
+                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80">Status</th>
+                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 hidden lg:table-cell">Biometrics</th>
+                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for student in students %}
+                <tr class="hover:bg-gray-50/60 transition-colors group" role="row">
+                    <!-- Name + Avatar -->
+                    <td class="px-5 py-4">
+                        <a href="{% url 'student_detail' student.id %}" class="flex items-center gap-3 group/link">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm" aria-hidden="true">
+                                {{ student.full_name|slice:":1"|upper }}
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-bold text-gray-900 text-sm group-hover/link:text-blue-600 transition-colors truncate">{{ student.full_name }}</p>
+                                <p class="text-xs text-gray-400 truncate">{{ student.email|default:"No email" }}</p>
+                            </div>
+                        </a>
+                    </td>
+
+                    <!-- Student ID -->
+                    <td class="px-5 py-4 hidden sm:table-cell">
+                        <span class="font-mono text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">{{ student.student_id }}</span>
+                    </td>
+
+                    <!-- Section -->
+                    <td class="px-5 py-4 hidden md:table-cell">
+                        <span class="text-sm text-gray-600 font-medium">{{ student.section.course_code|default:"—" }}</span>
+                    </td>
+
+                    <!-- Enrollment Status -->
+                    <td class="px-5 py-4">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                            {% if student.enrollment_status == 'ACTIVE' %}bg-emerald-100 text-emerald-700
+                            {% elif student.enrollment_status == 'INACTIVE' %}bg-red-50 text-red-600
+                            {% elif student.enrollment_status == 'GRADUATED' %}bg-blue-50 text-blue-600
+                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {% if student.enrollment_status == 'ACTIVE' %}<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" aria-hidden="true"></span>{% endif %}
+                            {{ student.enrollment_status|title }}
+                        </span>
+                    </td>
+
+                    <!-- Biometrics -->
+                    <td class="px-5 py-4 hidden lg:table-cell">
+                        {% if student.qr_ready %}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                                Enrolled ({{ student.embedding_count }} frames)
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500">
+                                <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                                Pending Enrollment
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="px-5 py-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'student_detail' student.id %}"
+                                class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                aria-label="View {{ student.full_name }}'s profile">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </a>
+                            <a href="{% url 'student_edit' student.id %}"
+                                class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                aria-label="Edit {{ student.full_name }}">
+                                <i class="fas fa-edit" aria-hidden="true"></i>
+                            </a>
+                            {% if not student.qr_ready %}
+                                <a href="{% url 'student_enroll_face' student.id %}"
+                                    class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-200 whitespace-nowrap"
+                                    aria-label="Enroll face for {{ student.full_name }}">
+                                    <i class="fas fa-camera-retro" aria-hidden="true"></i> Enroll
+                                </a>
+                            {% else %}
+                                <a href="{% url 'student_qr_display' student.id %}"
+                                    class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 whitespace-nowrap"
+                                    aria-label="View QR for {{ student.full_name }}">
+                                    <i class="fas fa-qrcode" aria-hidden="true"></i> ID Card
+                                </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-5 py-16 text-center">
+                        <div class="flex flex-col items-center gap-3">
+                            <div class="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center" aria-hidden="true">
+                                <i class="fas fa-user-slash text-gray-300 text-2xl"></i>
+                            </div>
+                            <p class="font-bold text-gray-400">No students found</p>
+                            <p class="text-xs text-gray-300">Try adjusting your filters or register a new student.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

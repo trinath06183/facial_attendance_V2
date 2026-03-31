@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+
+{% block title %}Session | {{ session.section.course_code }} — SmartAttend{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen pb-12">
+    
+    <!-- Offline Indicator -->
+    <div id="offline-banner" class="hidden bg-red-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-bold shadow-md relative z-50">
+        <i class="fas fa-wifi-slash animate-pulse"></i> Network Disconnected — Live Sync Disabled
+    </div>
+
+    <div class="p-6 max-w-7xl mx-auto space-y-6">
+        <!-- Navigation & Header -->
+        <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
+            <div>
+                <a href="{% url 'dashboard' %}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2 transition">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ session.section.course_code }} Roster</h1>
+                <p class="text-gray-500 font-mono text-sm tracking-widest mt-1 uppercase">{{ session.started_at|date:"l, M d, Y · h:i A" }}</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                {% if session.status == 'OPEN' %}
+                    <a href="{% url 'scanner_view' session.id %}" target="_blank" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:ring focus:ring-emerald-200 flex items-center gap-2">
+                        <i class="fas fa-camera-viewfinder text-lg"></i> Open Live Scanner
+                    </a>
+                    <form method="post" action="{% url 'session_close' session.id %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="px-5 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl text-sm font-bold shadow-sm transition-all focus:ring focus:ring-red-100 flex items-center gap-2" onclick="return confirm('End this session and lock attendance?')">
+                            <i class="fas fa-power-off"></i> Close Session
+                        </button>
+                    </form>
+                {% else %}
+                    <span class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-black uppercase tracking-widest rounded-xl shadow-inner border border-gray-300">
+                        <i class="fas fa-lock text-gray-500 mr-1"></i> Session Closed
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 mt-1">Status</p>
+                <p class="text-3xl font-black {% if session.status == 'OPEN' %}text-emerald-600{% else %}text-gray-500{% endif %} tracking-tight">
+                    {{ session.status }}
+                    {% if session.status == 'OPEN' %}<span class="inline-block w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse ml-1 mb-1"></span>{% endif %}
+                </p>
+            </div>
+            <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 mt-1">Instructor</p>
+                <p class="text-3xl font-black text-gray-900 tracking-tight truncate">{{ session.teacher.get_full_name|default:session.teacher.username }}</p>
+            </div>
+            <div class="bg-white border border-blue-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-16 h-16 bg-blue-100 rounded-bl-full -mr-4 -mt-4 z-0"></div>
+                <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 mt-1 relative z-10">Total Active</p>
+                <p id="metric-expected" class="text-3xl font-black text-gray-900 tracking-tight relative z-10 animate-pulse bg-gray-200 text-transparent rounded w-12 h-9 inline-block"></p>
+            </div>
+            <div class="bg-white border border-emerald-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition relative overflow-hidden">
+                <div class="absolute right-0 bottom-0 w-16 h-16 bg-emerald-100 rounded-tl-full -mr-4 -mb-4 z-0"></div>
+                <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1 mt-1 relative z-10">Verified Present</p>
+                <p id="metric-present" class="text-3xl font-black text-emerald-700 tracking-tight relative z-10 animate-pulse bg-emerald-200 text-transparent rounded w-12 h-9 inline-block"></p>
+            </div>
+        </div>
+
+        <!-- Manual Refresh Control -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+            <div class="flex items-center gap-4 text-sm font-medium text-indigo-900">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-sync-alt text-indigo-500"></i>
+                    <span>Manual Refresh</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="text-[10px] font-mono text-indigo-600/70 text-right uppercase tracking-widest hidden md:block">
+                    <span id="sync-last-time">Last: None</span><br>
+                    Trigger: <span id="sync-trigger-label" class="font-bold">Initial Load</span>
+                </div>
+                
+                <button id="manualRefreshBtn" onclick="fetchLedger('Manual Refresh')" class="px-4 py-2 bg-white border border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 text-indigo-600 rounded-xl text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i id="manualRefreshIcon" class="fas fa-sync-alt"></i> Refresh Now
+                </button>
+            </div>
+        </div>
+
+        <!-- Attendance Ledger -->
+        <div class="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                <h2 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                    <i class="fas fa-clipboard-list text-blue-500"></i> Attendance Ledger
+                </h2>
+                <span id="total-enrolled-badge" class="text-xs font-semibold text-gray-400 bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">- Enrolled</span>
+            </div>
+            
+            <div class="overflow-x-auto min-h-[400px]">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-white border-b border-gray-100 text-gray-400 text-[10px] uppercase font-bold tracking-widest">
+                        <tr>
+                            <th class="px-6 py-4">Student ID</th>
+                            <th class="px-6 py-4">Name</th>
+                            <th class="px-6 py-4 text-center">Status</th>
+                            <th class="px-6 py-4 text-center">Method</th>
+                            <th class="px-6 py-4">Time Marked</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roster-tbody" class="divide-y divide-gray-50">
+                        <!-- Hydrated strictly by Javascript Event Fetch -->
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+                                <i class="fas fa-circle-notch fa-spin text-2xl mb-2"></i>
+                                <p class="text-xs font-bold uppercase tracking-widest">Syncing securely from edge...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+
+<script>
+    // ─── INIT STATE ────────────────────────────
+    const SESSION_ID = "{{ session.id }}";
+    const SESSION_STATUS = "{{ session.status }}";
+    const USER_ROLE = "{{ request.user.role }}";
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // Determine if current user can edit
+    const isTeacherAssigned = ("{% if request.user in session.section.teachers.all %}true{% endif %}" === "true");
+    const canEdit = (USER_ROLE === 'ADMIN') || (USER_ROLE === 'TEACHER' && SESSION_STATUS === 'OPEN' && isTeacherAssigned);
+
+    // ─── UI ELEMENTS ───────────────────────────
+    const DOM = {
+        expected: document.getElementById('metric-expected'),
+        present: document.getElementById('metric-present'),
+        tbody: document.getElementById('roster-tbody'),
+        enrolledBadge: document.getElementById('total-enrolled-badge'),
+        
+        btnRefresh: document.getElementById('manualRefreshBtn'),
+        iconRefresh: document.getElementById('manualRefreshIcon'),
+        lblLastTime: document.getElementById('sync-last-time'),
+        lblTrigger: document.getElementById('sync-trigger-label'),
+        
+        offlineBanner: document.getElementById('offline-banner')
+    };
+
+    let isFetching = false;
+
+    // ─── OFFLINE HANDLING ──────────────────────
+    function updateOnlineStatus(e) {
+        if(navigator.onLine) {
+            DOM.offlineBanner.classList.add('hidden');
+            DOM.btnRefresh.disabled = false;
+        } else {
+            DOM.offlineBanner.classList.remove('hidden');
+            DOM.btnRefresh.disabled = true;
+            DOM.iconRefresh.className = 'fas fa-wifi-slash text-red-500';
+        }
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus(); // Init
+
+    // ─── FETCH & RENDER ENGINE ─────────────────
+    async function fetchLedger(triggerName = "Background Event") {
+        if (!navigator.onLine || isFetching) return;
+        
+        isFetching = true;
+        DOM.btnRefresh.disabled = true;
+        DOM.iconRefresh.className = 'fas fa-sync-alt fa-spin text-indigo-400';
+        DOM.lblTrigger.textContent = triggerName;
+        
+        try {
+            const res = await fetch(`/attendance/api/${SESSION_ID}/ledger/`);
+            if(!res.ok) throw new Error('Fetch failed');
+            const parsed = await res.json();
+            
+            if(parsed.success) {
+                renderRoster(parsed.data);
+                
+                // Update specific metrics elements
+                DOM.expected.className = 'text-3xl font-black text-gray-900 tracking-tight relative z-10';
+                DOM.present.className = 'text-3xl font-black text-emerald-700 tracking-tight relative z-10';
+                DOM.expected.textContent = parsed.data.total_expected;
+                DOM.present.textContent = parsed.data.total_present;
+                DOM.enrolledBadge.textContent = `${parsed.data.roster.length} Enrolled`;
+                
+                const d = new Date();
+                DOM.lblLastTime.textContent = `Last: ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+            }
+        } catch(e) {
+            console.error('Sync failed:', e);
+            DOM.lblTrigger.innerHTML = `<span class="text-red-500">Fetch Failed</span>`;
+        } finally {
+            isFetching = false;
+            // Provide a visual minimum spinner state
+            setTimeout(() => {
+                DOM.btnRefresh.disabled = false;
+                DOM.iconRefresh.className = 'fas fa-sync-alt';
+            }, 500);
+        }
+    }
+
+    // Dynamic Select Builder if User has Privileges
+    function renderStatusCell(student) {
+        if(!canEdit && !student.record_id) {
+            return `<span class="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-full border border-red-100 shadow-sm">ABSENT</span>`;
+        }
+        
+        if(!canEdit) {
+            const colors = {
+                'PRESENT': 'bg-emerald-100/80 text-emerald-700 border-emerald-200',
+                'LATE': 'bg-amber-100/80 text-amber-700 border-amber-200',
+                'ABSENT': 'bg-red-50 text-red-600 border-red-100',
+                'EXCUSED': 'bg-blue-50 text-blue-600 border-blue-100'
+            };
+            const c = colors[student.status] || colors['ABSENT'];
+            let html = `<span class="px-3 py-1 ${c} text-[10px] font-black uppercase tracking-wider rounded-full border shadow-sm">${student.status}</span>`;
+            if(student.edited_by) {
+                html += `<div class="text-[8px] text-gray-400 mt-1 uppercase font-bold text-center" title="${student.has_reason ? 'See notes' : ''}">*Edited by ${student.edited_by}</div>`;
+            }
+            return html;
+        }
+
+        // Dropdown Mode
+        const statuses = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'];
+        let options = statuses.map(s => `<option value="${s}" ${s === student.status ? 'selected' : ''}>${s}</option>`).join('');
+        
+        let sub = student.edited_by ? `<div class="text-[8px] text-gray-400 mt-1 uppercase font-bold text-center">*Edited</div>` : '';
+
+        // If no record exists yet, we can't edit it via inline API securely unless we create it first.
+        // For security, manual edit API requires an actual record_id in this design.
+        // Wait, the API relies on record_id (`/api/record/<uuid>/edit/`). If they are absent (no record), 
+        // they need to be initialized. Actually, my implementation requires `record_id`.
+        // Let's hide the dropdown if the record doesn't exist to prevent JS errors, 
+        // or we could point to the `manual_override_api` instead if we want.
+        // For simplicity inside this scope, if it's absent and null record, we show a button.
+        if(!student.record_id) {
+            return `<button onclick="triggerOverride('${student.student_id}')" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 rounded text-xs font-bold transition">Mark Pres.</button>`;
+        }
+        
+        return `
+            <select onchange="updateRecordStatus('${student.record_id}', this)" class="bg-gray-50 border border-gray-200 text-gray-900 text-[10px] font-black uppercase rounded-lg focus:ring-blue-500 focus:border-blue-500 block px-2 py-1 shadow-sm text-center font-mono cursor-pointer mx-auto hover:bg-white transition-colors">
+              ${options}
+            </select>
+            ${sub}
+        `;
+    }
+
+    function renderRoster(data) {
+        if(!data.roster || data.roster.length === 0) {
+            DOM.tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-12 text-center text-gray-400"><i class="fas fa-users-slash text-4xl mb-3"></i><p class="font-bold">No students enrolled</p></td></tr>`;
+            return;
+        }
+
+        const frag = document.createDocumentFragment();
+        data.roster.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50/50 transition-colors group';
+            tr.id = `row-${item.record_id || item.student_id}`;
+
+            const defMethod = (item.status === 'ABSENT' || !item.method) ? '<span class="text-gray-300">-</span>' : 
+                `<span class="text-[10px] px-2 py-1 rounded-md bg-gray-100 text-gray-500 font-bold uppercase tracking-wider"><i class="fas fa-microchip mr-1"></i> ${item.method}</span>`;
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-mono font-bold text-gray-500 group-hover:text-blue-600 transition">${item.roll_no}</td>
+                <td class="px-6 py-4 flex items-center gap-3">
+                    <img src="${item.photo_url || ''}" class="w-8 h-8 rounded-full bg-blue-50 object-cover border border-blue-100 shrink-0" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' viewBox=\\\'0 0 24 24\\\' fill=\\\'%23cbd5e1\\\'><path d=\\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\\'/></svg>'">
+                    <span class="font-bold text-gray-900 group-hover:text-blue-600 transition truncate max-w-[150px]">${item.full_name}</span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    ${renderStatusCell(item)}
+                </td>
+                <td class="px-6 py-4 text-center">${defMethod}</td>
+                <td class="px-6 py-4 font-mono text-xs text-gray-600 font-semibold">${item.marked_at || '<span class="text-gray-300">-</span>'}</td>
+            `;
+            frag.appendChild(tr);
+        });
+        
+        DOM.tbody.innerHTML = '';
+        DOM.tbody.appendChild(frag);
+    }
+
+    // ─── MANUAL-ONLY REFRESH ──────────────────────
+    // Auto-sync options removed by user request. 
+    // Manual sync through "Refresh Now" button is the primary update path.
+
+    // ─── INLINE EDITING LOGIC ──────────────────
+    async function triggerOverride(studentId) {
+        if(!confirm('Manually mark this absent student as present?')) return;
+        
+        try {
+            const res = await fetch(`/attendance/api/${SESSION_ID}/override/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ student_id: studentId })
+            });
+            const data = await res.json();
+            if(data.success) {
+                fetchLedger('Local Action');
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch(err) {
+            alert('Network error.');
+        }
+    }
+
+    async function updateRecordStatus(recordId, selectEl) {
+        const val = selectEl.value;
+        const reason = prompt('Optional: Reason/Note for changing status to ' + val);
+        if(reason === null) {
+            // Cancelled
+            selectEl.value = selectEl.getAttribute('data-old') || 'ABSENT'; 
+            return;
+        }
+        
+        selectEl.disabled = true;
+        selectEl.classList.add('opacity-50', 'cursor-wait');
+        
+        try {
+            const res = await fetch(`/attendance/api/record/${recordId}/edit/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ status: val, reason: reason })
+            });
+            const parsed = await res.json();
+            
+            if(parsed.success) {
+                // Flash success outline
+                selectEl.classList.add('ring-2', 'ring-green-400');
+                setTimeout(() => selectEl.classList.remove('ring-2', 'ring-green-400'), 1500);
+                // Manual refresh triggers update
+                fetchLedger("Local Edit Action");
+            } else {
+                alert('Privilege Guard Blocked: ' + parsed.error);
+                fetchLedger('Rolled Back Edit'); // Force reset the view
+            }
+        } catch(e) {
+            alert('Failed to connect to API server.');
+            selectEl.disabled = false;
+        }
+    }
+
+    // Initialize 
+    document.addEventListener("DOMContentLoaded", () => {
+        fetchLedger('Initial Load');
+    });
+</script>
+{% endblock %}

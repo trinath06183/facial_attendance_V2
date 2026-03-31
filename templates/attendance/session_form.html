@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Start Session — SmartAttend{% endblock %}
+
+{% block content %}
+<!-- ── Page Header ───────────────────────────── -->
+<div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <a href="{% url 'session_list' %}"
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2">
+            <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i> Back to Sessions
+        </a>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">Start Attendance Session</h1>
+        <p class="text-gray-400 text-sm mt-1">Ensure the room has adequate lighting before scanning begins.</p>
+    </div>
+</div>
+
+<!-- ── Pre-flight Checklist ──────────────────── -->
+<div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 mb-6 flex items-start gap-4 max-w-2xl">
+    <div class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+        <i class="fas fa-exclamation-triangle text-amber-600 text-sm" aria-hidden="true"></i>
+    </div>
+    <div>
+        <p class="font-bold text-amber-800 text-sm mb-1">Pre-Session Checklist</p>
+        <ul class="space-y-1 text-xs text-amber-700">
+            <li class="flex items-center gap-2"><i class="fas fa-check text-amber-500 text-[10px]" aria-hidden="true"></i> Confirm scanner camera is working</li>
+            <li class="flex items-center gap-2"><i class="fas fa-check text-amber-500 text-[10px]" aria-hidden="true"></i> Room lighting is adequate (avoid backlighting)</li>
+            <li class="flex items-center gap-2"><i class="fas fa-check text-amber-500 text-[10px]" aria-hidden="true"></i> Students have QR codes ready on their phones</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ── Form Card ─────────────────────────────── -->
+<div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden max-w-2xl">
+    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+        <i class="fas fa-play-circle text-emerald-500 text-sm" aria-hidden="true"></i>
+        <h2 class="font-bold text-gray-700 text-sm">Session Configuration</h2>
+    </div>
+
+    <div class="p-6 md:p-8">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% for field in form %}
+            <div class="mb-5">
+                <label for="{{ field.id_for_label }}"
+                    class="block text-sm font-semibold text-gray-700 mb-1.5">
+                    {{ field.label }}
+                    {% if field.field.required %}
+                        <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+                    {% endif %}
+                </label>
+
+                {% if field.errors %}
+                <div class="mb-1.5">
+                    {% for error in field.errors %}
+                    <p class="text-xs text-red-600 font-semibold flex items-center gap-1">
+                        <i class="fas fa-exclamation-circle" aria-hidden="true"></i> {{ error }}
+                    </p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {{ field }}
+
+                {% if field.help_text %}
+                <p class="text-xs text-gray-400 mt-1.5 flex items-start gap-1">
+                    <i class="fas fa-info-circle mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                    {{ field.help_text }}
+                </p>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <script>
+                document.querySelectorAll('input:not([type="checkbox"]), select, textarea').forEach(el => {
+                    el.classList.add(
+                        'w-full','px-4','py-2.5','border','border-gray-200','rounded-xl',
+                        'text-sm','bg-gray-50','focus:bg-white','focus:border-emerald-500',
+                        'focus:ring-2','focus:ring-emerald-100','outline-none','transition-all',
+                        'font-medium','text-gray-800'
+                    );
+                });
+            </script>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+                <a href="{% url 'session_list' %}"
+                    class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
+                    Cancel
+                </a>
+                <button type="submit"
+                    class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-sm shadow-emerald-200 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-300 flex items-center gap-2">
+                    <i class="fas fa-satellite-dish" aria-hidden="true"></i>
+                    Start Session &amp; Open Scanner
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

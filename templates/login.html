@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[80vh]">
+    <div class="glass relative w-full max-w-md p-8 rounded-2xl shadow-2xl overflow-hidden border border-slate-700/60">
+        <!-- Decoration light inside card -->
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/30 rounded-full blur-3xl z-0"></div>
+        <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl z-0"></div>
+        
+        <div class="relative z-10 w-full">
+            <h2 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-400 mb-6 text-center tracking-tight">System Login</h2>
+            
+            {% if error %}
+            <div class="bg-rose-500/10 border border-rose-500/50 text-rose-400 p-3 rounded-xl text-sm font-medium mb-6 text-center animate-pulse">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <form method="POST" class="space-y-6">
+                {% csrf_token %}
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-slate-300">Username</label>
+                    <input type="text" name="username" required class="w-full bg-slate-800/50 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-600 block shadow-inner" placeholder="Enter Roll Number or ID">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-slate-300">Password</label>
+                    <input type="password" name="password" required class="w-full bg-slate-800/50 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all block shadow-inner placeholder:text-slate-600" placeholder="••••••••">
+                </div>
+                
+                <button type="submit" class="w-full mt-2 py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 transform hover:-translate-y-0.5 transition-all duration-200">
+                    Sign In
+                </button>
+            </form>
+            
+            <div class="mt-8 text-center border-t border-slate-800/80 pt-6">
+                <p class="text-sm text-slate-400">NexGen Biometric Tracking v4.0</p>
+                <div class="mt-2 text-xs text-slate-500 flex justify-center gap-4">
+                    <span>YuNet</span> <span>•</span> <span>SFace</span> <span>•</span> <span>PyZBar</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

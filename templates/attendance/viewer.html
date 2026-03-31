@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Viewer — SmartAttend{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Interactive Viewer</p>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">Attendance Logs</h1>
+        <p class="text-gray-400 text-sm mt-1">Filter, sort, and export attendance records.</p>
+    </div>
+    <div class="flex gap-2">
+        <button id="btn-export-csv"
+            class="px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-200 transition-colors">
+            Export CSV
+        </button>
+        <button id="btn-export-excel"
+            class="px-4 py-2 bg-green-500 text-white font-bold rounded-xl shadow-[0_4px_14px_0_rgba(34,197,94,0.39)] hover:bg-green-600 hover:shadow-[0_6px_20px_rgba(34,197,94,0.23)] transition-all">
+            Export Excel
+        </button>
+        <button id="btn-export-pdf"
+            class="px-4 py-2 bg-red-500 text-white font-bold rounded-xl shadow-[0_4px_14px_0_rgba(239,68,68,0.39)] hover:bg-red-600 hover:shadow-[0_6px_20px_rgba(239,68,68,0.23)] transition-all">
+            Export PDF
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6 p-4 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <!-- Date Form -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">From Date</label>
+            <input type="date" id="filter-from_date"
+                class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">To Date</label>
+            <input type="date" id="filter-to_date"
+                class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+        </div>
+
+        {% if user.role == 'ADMIN' %}
+        <!-- Teacher Filter -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Teacher</label>
+            <select id="filter-teacher"
+                class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                <option value="">All Teachers</option>
+                {% for t in teachers %}
+                <option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        {% if user.role != 'STUDENT' %}
+        <!-- Search by Name Filter -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Student Name</label>
+            <input type="text" id="filter-student_name" placeholder="E.g. John Doe"
+                class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+        </div>
+        <!-- Search by Roll Number Filter -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Roll Number</label>
+            <input type="text" id="filter-student_roll" placeholder="E.g. URN2024..."
+                class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+        </div>
+        {% endif %}
+
+        <!-- Course Filter -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Course</label>
+            <select id="filter-course"
+                class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                <option value="">All Courses</option>
+                {% for c in courses %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
+            <select id="filter-status"
+                class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                <option value="">All Statuses</option>
+                <option value="PRESENT">Present</option>
+                <option value="ABSENT">Absent</option>
+                <option value="LATE">Late</option>
+                <option value="EXCUSED">Excused</option>
+            </select>
+        </div>
+
+        <div class="flex items-end gap-2">
+            <button id="btn-apply-filters"
+                class="w-2/3 px-4 py-2.5 bg-blue-500 text-white font-bold rounded-xl shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] hover:bg-blue-600 focus:ring-2 focus:ring-blue-300 focus:outline-none transition-colors">
+                Apply
+            </button>
+            <button id="btn-clear-filters"
+                class="w-1/3 px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors focus:ring-2 focus:ring-gray-300 focus:outline-none"
+                title="Clear Filters">Clear <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+
+        </div>
+    </div>
+</div>
+
+<!-- Results Table -->
+<div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap">
+            <thead class="text-xs text-gray-400 tracking-wider uppercase bg-gray-50 font-black">
+                <tr>
+                    <th scope="col" class="px-6 py-4 cursor-pointer hover:text-blue-500" data-sort="date">Date ↕</th>
+                    <th scope="col" class="px-6 py-4 cursor-pointer hover:text-blue-500" data-sort="student_name">
+                        Student ↕</th>
+                    <th scope="col" class="px-6 py-4 cursor-pointer hover:text-blue-500" data-sort="course">Course ↕
+                    </th>
+                    <th scope="col" class="px-6 py-4">Section</th>
+                    {% if user.role == 'ADMIN' %}<th scope="col" class="px-6 py-4">Teacher</th>{% endif %}
+                    <th scope="col" class="px-6 py-4 cursor-pointer hover:text-blue-500" data-sort="status">Status ↕
+                    </th>
+                    <th scope="col" class="px-6 py-4 text-right">Duration</th>
+                </tr>
+            </thead>
+            <tbody id="table-body" aria-live="polite">
+                <!-- Data injected via JS -->
+                <tr>
+                    <td colspan="7" class="px-6 py-8 text-center text-gray-400 font-medium">Loading data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+        <p class="text-sm text-gray-500 font-medium" id="pagination-info">Showing 0 results</p>
+        <div class="flex items-center gap-2">
+            <button id="btn-prev"
+                class="px-3 py-1 bg-white border border-gray-200 text-gray-500 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+            <span id="page-num"
+                class="px-3 py-1 font-bold text-gray-900 border border-gray-200 bg-white rounded">1</span>
+            <button id="btn-next"
+                class="px-3 py-1 bg-white border border-gray-200 text-gray-500 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let currentPage = 1;
+        const pageSize = 25;
+        let currentSort = '-date';
+
+        const API_URL = '/attendance/api/attendances/?';
+        const EXPORT_URL = '/attendance/api/export/?';
+
+        const tbody = document.getElementById('table-body');
+        const paginationInfo = document.getElementById('pagination-info');
+        const pageNumDisplay = document.getElementById('page-num');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+
+        function getFilterParams() {
+            const params = new URLSearchParams();
+            params.append('page', currentPage);
+            params.append('pageSize', pageSize);
+            params.append('sort', currentSort);
+
+            const fromDate = document.getElementById('filter-from_date')?.value;
+            const toDate = document.getElementById('filter-to_date')?.value;
+            const teacher = document.getElementById('filter-teacher')?.value;
+            const studentName = document.getElementById('filter-student_name')?.value;
+            const studentRoll = document.getElementById('filter-student_roll')?.value;
+            const course = document.getElementById('filter-course')?.value;
+            const status = document.getElementById('filter-status')?.value;
+
+            if (fromDate) params.append('fromDate', fromDate);
+            if (toDate) params.append('toDate', toDate);
+            if (teacher) params.append('teacherId', teacher);
+            if (studentName) params.append('studentName', studentName);
+            if (studentRoll) params.append('studentRoll', studentRoll);
+            if (course) params.append('courseId', course);
+            if (status) params.append('status', status);
+
+            return params;
+        }
+
+        function fetchLogs() {
+            const params = getFilterParams();
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 font-medium">Loading data...</td></tr>';
+
+            fetch(API_URL + params.toString())
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-500 font-bold">${data.error}</td></tr>`;
+                        return;
+                    }
+
+                    const d = data.data;
+                    renderTable(d.records);
+
+                    // Update pagination
+                    paginationInfo.innerText = `Showing ${d.records.length} of ${d.pagination.totalRecords} results`;
+                    pageNumDisplay.innerText = d.pagination.page;
+
+                    btnPrev.disabled = d.pagination.page <= 1;
+                    btnNext.disabled = d.pagination.page >= d.pagination.totalPages;
+                })
+                .catch(err => {
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-500 font-bold">Failed to load data.</td></tr>`;
+                });
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'PRESENT': return 'bg-green-100 text-green-700';
+                case 'ABSENT': return 'bg-red-100 text-red-700';
+                case 'EXCUSED': return 'bg-yellow-100 text-yellow-700';
+                case 'LATE': return 'bg-orange-100 text-orange-700';
+                default: return 'bg-gray-100 text-gray-700';
+            }
+        }
+
+        function renderTable(records) {
+            if (!records || records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 font-medium tracking-wide">No records found matching filters.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            records.forEach(r => {
+                const dateObj = new Date(r.date);
+                const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                html += `
+                <tr class="bg-white border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
+                    <td class="px-6 py-4 font-medium text-gray-900">${dateStr}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-gray-900">${r.student.name}</div>
+                        <div class="text-xs text-gray-400">${r.student.roll_no}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-gray-900">${r.course.code}</div>
+                        <div class="text-xs text-gray-400">${r.course.name}</div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-500">${r.class_section}</td>
+                    {% if user.role == 'ADMIN' %}
+                    <td class="px-6 py-4 text-gray-500">${r.teacher.name}</td>
+                    {% endif %}
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(r.status)}">
+                            ${r.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right text-gray-500">${r.duration}</td>
+                </tr>
+            `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // Listeners
+        document.getElementById('btn-apply-filters').addEventListener('click', () => {
+            currentPage = 1; // reset on filter
+            fetchLogs();
+        });
+
+        document.getElementById('btn-clear-filters').addEventListener('click', () => {
+            document.querySelectorAll('input[id^="filter-"], select[id^="filter-"]').forEach(el => el.value = '');
+            currentPage = 1;
+            fetchLogs();
+        });
+
+        btnPrev.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                fetchLogs();
+            }
+        });
+
+        btnNext.addEventListener('click', () => {
+            currentPage++;
+            fetchLogs();
+        });
+
+        // Sort logic
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const field = th.getAttribute('data-sort');
+                if (currentSort === field) {
+                    currentSort = '-' + field; // toggle reverse
+                } else {
+                    currentSort = field;
+                }
+                currentPage = 1;
+                fetchLogs();
+            });
+        });
+
+        // Exports
+        document.getElementById('btn-export-csv').addEventListener('click', () => {
+            const params = getFilterParams();
+            params.delete('page');
+            params.delete('pageSize');
+            params.append('format', 'csv');
+            window.location.href = EXPORT_URL + params.toString();
+        });
+
+        document.getElementById('btn-export-excel').addEventListener('click', () => {
+            const params = getFilterParams();
+            params.delete('page');
+            params.delete('pageSize');
+            params.append('format', 'excel');
+            window.location.href = EXPORT_URL + params.toString();
+        });
+
+        document.getElementById('btn-export-pdf').addEventListener('click', () => {
+            const params = getFilterParams();
+            params.delete('page');
+            params.delete('pageSize');
+            params.append('format', 'pdf');
+            window.location.href = EXPORT_URL + params.toString();
+        });
+
+        // Initial fetch
+        fetchLogs();
+    });
+</script>
+{% endblock %}

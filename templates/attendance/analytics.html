@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}System Analytics — SmartAttend{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white min-h-screen">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Analytics Engine</h1>
+            <p class="text-gray-400 text-sm mt-1">Deep dive into biometric attendance trends.</p>
+        </div>
+    </header>
+
+    <!-- Filters Bar -->
+    <div class="bg-gray-50 border border-gray-100 p-6 rounded-3xl mb-8 flex flex-col md:flex-row gap-4 items-end">
+        <div class="flex-1 w-full">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Section Filter</label>
+            <select id="filter-section" class="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none transition-shadow">
+                <option value="">All Sections</option>
+                {% for section in sections %}
+                <option value="{{ section.id }}">{{ section.course_name }} ({{ section.course_code }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex-1 w-full flex gap-4">
+            <div class="w-full">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Start Date</label>
+                <input type="date" id="filter-start" class="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-blue-500 block p-2.5 outline-none">
+            </div>
+            <div class="w-full">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">End Date</label>
+                <input type="date" id="filter-end" class="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-blue-500 block p-2.5 outline-none">
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="fetchAnalytics()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 h-[42px]">
+                <i class="fas fa-filter"></i> Apply
+            </button>
+
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm">
+            <h3 class="font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-chart-area text-blue-500"></i> Overall Presence Trend
+            </h3>
+            <div class="relative h-64 w-full">
+                <canvas id="trendChart"></canvas>
+            </div>
+            <div id="no-data-msg" class="absolute inset-0 flex items-center justify-center bg-white/80 hidden">
+                <p class="text-gray-400 font-medium">No sufficient data to chart</p>
+            </div>
+        </div>
+        
+        <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm">
+            <h3 class="font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-chart-pie text-indigo-500"></i> Macro Summary
+            </h3>
+            <div class="flex flex-col sm:flex-row items-center gap-8 justify-around h-64">
+                <div class="w-48 h-48 relative">
+                    <canvas id="donutChart"></canvas>
+                </div>
+                <div class="flex-1 space-y-4 w-full">
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">Total Records Scanned</p>
+                        <p id="stat-total" class="text-2xl font-black text-gray-800">--</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                        <p class="text-[10px] uppercase font-bold text-blue-400 tracking-widest mb-1">Avg System Presence</p>
+                        <p id="stat-rate" class="text-2xl font-black text-blue-800">--%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let trendChartInstance = null;
+    let donutChartInstance = null;
+
+    function buildCharts(data) {
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        const ctxDonut = document.getElementById('donutChart').getContext('2d');
+        
+        if (trendChartInstance) trendChartInstance.destroy();
+        if (donutChartInstance) donutChartInstance.destroy();
+
+        document.getElementById('stat-total').innerText = data.total_records || '0';
+        document.getElementById('stat-rate').innerText = (data.system_presence_rate || '0') + '%';
+
+        // Hydrate trend chart with live timeseries data from API
+        const labels = data.trend_labels && data.trend_labels.length > 0 
+            ? data.trend_labels 
+            : Array.from({length: 7}, (_, i) => {
+                const d = new Date(); d.setDate(d.getDate() - (6 - i));
+                return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+            });
+            
+        const chartData = data.trend_rates && data.trend_rates.length > 0 
+            ? data.trend_rates 
+            : labels.map(() => 0); // show 0 if no data
+
+        trendChartInstance = new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Presence Rate %',
+                    data: chartData,
+                    borderColor: '#3B82F6', // blue-500
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#FFFFFF',
+                    pointBorderColor: '#3B82F6',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 100, border: { display: false }, grid: { color: '#F3F4F6' } },
+                    x: { border: { display: false }, grid: { display: false } }
+                }
+            }
+        });
+
+        const presents = Math.round((data.total_records || 0) * ((data.system_presence_rate || 0) / 100));
+        const absents = (data.total_records || 0) - presents;
+
+        donutChartInstance = new Chart(ctxDonut, {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent/Other'],
+                datasets: [{
+                    data: [presents, absents],
+                    backgroundColor: ['#10B981', '#F43F5E'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function getFilterParams() {
+        const section = document.getElementById('filter-section').value;
+        const start = document.getElementById('filter-start').value;
+        const end = document.getElementById('filter-end').value;
+        const params = new URLSearchParams();
+        if(section) params.append('section_id', section);
+        if(start) params.append('start_date', start);
+        if(end) params.append('end_date', end);
+        return params;
+    }
+
+    function fetchAnalytics() {
+        fetch("{% url 'analytics_data' %}?" + getFilterParams().toString())
+            .then(res => res.json())
+            .then(data => {
+                buildCharts(data);
+            })
+            .catch(err => console.error(err));
+    }
+
+
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', fetchAnalytics);
+</script>
+{% endblock %}

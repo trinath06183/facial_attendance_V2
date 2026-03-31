@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Digital ID Card | {{ student.full_name }} — SmartAttend{% endblock %}
+
+{% block extra_head %}
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        .id-card {
+            border: 3px solid #4F46E5 !important;
+            box-shadow: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Page Header ───────────────────────────── -->
+<div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
+    <div>
+        <a href="{% url 'student_detail' student.id %}"
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2">
+            <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i> Back to Profile
+        </a>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">Digital Identity Card</h1>
+        <p class="text-gray-400 text-sm mt-1">
+            {{ student.full_name }} — {{ student.section.course_name|default:"Not Enrolled" }}
+        </p>
+    </div>
+    <button onclick="window.print()"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
+        <i class="fas fa-print" aria-hidden="true"></i> Print ID Card
+    </button>
+</div>
+
+<!-- ── Card Layout ───────────────────────────── -->
+<div class="flex justify-center">
+    {% if student.qr_ready %}
+    <!-- ID Card -->
+    <div class="id-card bg-white border border-gray-200 rounded-3xl shadow-xl overflow-hidden w-full max-w-sm">
+
+        <!-- Card Header (gradient) -->
+        <div class="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 px-6 py-5 flex items-center gap-3 relative overflow-hidden">
+            <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" aria-hidden="true"></div>
+            <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 shadow">
+                <i class="fas fa-camera-retro text-white text-sm" aria-hidden="true"></i>
+            </div>
+            <div>
+                <p class="text-white font-black text-base tracking-tight leading-tight">SmartAttend AI</p>
+                <p class="text-blue-200 text-xs font-medium">Biometric Student ID</p>
+            </div>
+        </div>
+
+        <!-- QR Code Section -->
+        <div class="p-6 flex flex-col items-center">
+            <div class="bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm inline-block mb-5">
+                <img src="{% url 'student_qr' student.id %}"
+                    alt="QR code for {{ student.full_name }}"
+                    class="w-52 h-52 block"
+                    style="image-rendering: pixelated;">
+            </div>
+
+            <!-- Student Info -->
+            <div class="text-center mb-5">
+                <h2 class="text-xl font-black text-gray-900 tracking-tight">{{ student.full_name }}</h2>
+                <p class="font-mono text-lg font-bold text-indigo-600 mt-1">{{ student.student_id }}</p>
+                {% if student.section %}
+                <p class="text-sm text-gray-400 font-medium mt-1">
+                    {{ student.section.course_code }}
+                    {% if student.section.section_identifier %} · {{ student.section.section_identifier }}{% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Biometric Status Badge -->
+            <div class="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl mb-5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" aria-hidden="true"></span>
+                <span class="text-xs font-black text-emerald-700 uppercase tracking-widest">
+                    Biometrics Enrolled · {{ student.embedding_count }} frames
+                </span>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 w-full text-left">
+                <p class="text-xs font-black text-indigo-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <i class="fas fa-info-circle" aria-hidden="true"></i> Instructions
+                </p>
+                <ul class="space-y-1.5">
+                    <li class="flex items-start gap-2 text-xs text-indigo-600">
+                        <i class="fas fa-dot-circle mt-0.5 flex-shrink-0 text-[8px]" aria-hidden="true"></i>
+                        Present this QR code during class check-in.
+                    </li>
+                    <li class="flex items-start gap-2 text-xs text-indigo-600">
+                        <i class="fas fa-dot-circle mt-0.5 flex-shrink-0 text-[8px]" aria-hidden="true"></i>
+                        The scanner verifies both the code signature and your face.
+                    </li>
+                    <li class="flex items-start gap-2 text-xs text-indigo-600">
+                        <i class="fas fa-dot-circle mt-0.5 flex-shrink-0 text-[8px]" aria-hidden="true"></i>
+                        Do <strong>not</strong> share this code — it uses biometric verification.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Not Enrolled State -->
+    <div class="bg-white border border-gray-100 rounded-3xl shadow-sm p-12 max-w-sm w-full flex flex-col items-center text-center">
+        <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4" aria-hidden="true">
+            <i class="fas fa-face-frown text-red-400 text-2xl"></i>
+        </div>
+        <h2 class="font-black text-gray-900 text-lg mb-2">Enrollment Incomplete</h2>
+        <p class="text-sm text-gray-400 leading-relaxed mb-6">
+            This student's facial data has not been enrolled yet. An ID card cannot be generated without biometric verification capabilities.
+        </p>
+        <a href="{% url 'student_enroll_face' student.id %}"
+            class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <i class="fas fa-camera-retro" aria-hidden="true"></i> Start Face Enrollment
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

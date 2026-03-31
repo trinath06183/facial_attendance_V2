@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Control — SmartAttend{% endblock %}
+
+{% block content %}
+<div class="bg-white min-h-screen">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Admin Control</h1>
+            <p class="text-gray-400 text-sm mt-1">Manage institutional profiles, analytics, and biometric logs.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'student_create' %}" class="px-5 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                <i class="fas fa-plus"></i> New Student
+            </a>
+            <a href="{% url 'user_create' %}" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                <i class="fas fa-plus"></i> New User
+            </a>
+        </div>
+    </header>
+
+    <!-- Metrics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gray-50 border border-gray-100 p-6 rounded-3xl flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Total Students</p>
+                <p class="text-4xl font-black text-gray-900">{{ total_students }}</p>
+            </div>
+            <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-500 text-xl border border-gray-100">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+        </div>
+        
+        <div class="bg-blue-50 border border-blue-100 p-6 rounded-3xl flex items-center justify-between">
+            <div>
+                <p class="text-blue-600 text-xs font-bold uppercase tracking-widest mb-1">System Presence</p>
+                <p class="text-4xl font-black text-blue-900">{{ system_presence_rate }}%</p>
+            </div>
+            <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-500 text-xl border border-blue-100">
+                <i class="fas fa-chart-line"></i>
+            </div>
+        </div>
+        
+        <div class="bg-green-50 border border-green-100 p-6 rounded-3xl flex items-center justify-between">
+            <div>
+                <p class="text-green-600 text-xs font-bold uppercase tracking-widest mb-1">Active Sessions</p>
+                <p class="text-4xl font-black text-green-900">{{ open_sessions }}</p>
+            </div>
+            <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-green-500 text-xl border border-green-100">
+                <i class="fas fa-satellite-dish animate-pulse"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Database Management -->
+        <div class="lg:col-span-2 bg-gray-50 rounded-3xl p-6 sm:p-8 border border-gray-100 h-full">
+            <h3 class="font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-database text-gray-400"></i> Core Management
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <a href="{% url 'student_list' %}" class="p-6 bg-white rounded-2xl border border-gray-100 hover:border-blue-500 hover:shadow-md transition-all group">
+                    <i class="fas fa-address-book text-blue-500 mb-4 text-2xl group-hover:scale-110 transition-transform"></i>
+                    <p class="font-bold text-gray-900 text-lg">Student Directory</p>
+                    <p class="text-xs text-gray-400 mt-1">Manage enrollments & biometric data</p>
+                </a>
+                
+                <a href="{% url 'user_list' %}" class="p-6 bg-white rounded-2xl border border-gray-100 hover:border-indigo-500 hover:shadow-md transition-all group">
+                    <i class="fas fa-users-cog text-indigo-500 mb-4 text-2xl group-hover:scale-110 transition-transform"></i>
+                    <p class="font-bold text-gray-900 text-lg">User Access Matrix</p>
+                    <p class="text-xs text-gray-400 mt-1">Manage Admin & Teacher roles</p>
+                </a>
+                
+                <a href="{% url 'session_list' %}" class="p-6 bg-white rounded-2xl border border-gray-100 hover:border-orange-500 hover:shadow-md transition-all group sm:col-span-2">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <i class="fas fa-calendar-alt text-orange-500 mb-4 text-2xl group-hover:scale-110 transition-transform"></i>
+                            <p class="font-bold text-gray-900 text-lg">Class Sessions</p>
+                            <p class="text-xs text-gray-400 mt-1">View, manage, or force-close active scanning sessions</p>
+                        </div>
+                        <div class="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center text-orange-500">
+                            {{ total_sessions }}
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- System Ops & Recent -->
+        <div class="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm flex flex-col h-full">
+            <h3 class="font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-bolt text-yellow-400"></i> Quick Actions
+            </h3>
+            <div class="space-y-3 mb-8">
+                <a href="{% url 'session_create' %}" class="block p-4 bg-gray-50 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3">
+                    <i class="fas fa-play-circle text-gray-400 text-lg"></i> Launch New Session
+                </a>
+                <a href="#" class="block p-4 bg-gray-50 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3">
+                    <i class="fas fa-chart-pie text-gray-400 text-lg"></i> Open Live Analytics
+                </a>
+
+            </div>
+            
+            <h3 class="font-bold text-gray-800 mb-4 text-sm uppercase tracking-wider">Recent Activity</h3>
+            <div class="flex-1 overflow-y-auto space-y-3">
+                {% for session in recent_sessions %}
+                <a href="{% url 'session_detail' session.id %}" class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                    <div class="w-2 h-2 rounded-full {% if session.status == 'OPEN' %}bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]{% else %}bg-gray-300{% endif %}"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-gray-900 truncate">{{ session.section.course_code }}</p>
+                        <p class="text-xs text-gray-400 truncate">{{ session.started_at|date:"M d, g:i a" }}</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-xs text-gray-300"></i>
+                </a>
+                {% empty %}
+                <p class="text-sm text-gray-400 text-center py-4">No recent sessions found.</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

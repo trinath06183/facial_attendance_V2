@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+
+{% block title %}Enroll Face | {{ student.full_name }} — SmartAttend{% endblock %}
+
+{% block extra_head %}
+<style>
+    @keyframes face-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+        50%       { box-shadow: 0 0 0 12px rgba(99,102,241,0); }
+    }
+    .face-guide-ring { animation: face-pulse 2.5s ease-in-out infinite; }
+
+    @keyframes capture-flash {
+        0%   { opacity: 0; }
+        20%  { opacity: 0.6; }
+        100% { opacity: 0; }
+    }
+    .flash-overlay { animation: capture-flash 0.4s ease-out forwards; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Page Header ───────────────────────────── -->
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <a href="{% url 'student_detail' student.id %}"
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2"
+            aria-label="Back to student profile">
+            <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i> Back to Profile
+        </a>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">Enroll Facial Data</h1>
+        <p class="text-gray-400 text-sm mt-1">
+            <span class="font-semibold text-gray-600">{{ student.full_name }}</span>
+            <span class="font-mono text-gray-400 ml-1">({{ student.student_id }})</span>
+        </p>
+    </div>
+    {% if student.qr_ready %}
+    <a href="{% url 'student_qr_display' student.id %}"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-300">
+        <i class="fas fa-qrcode" aria-hidden="true"></i> View ID Card
+    </a>
+    {% endif %}
+</div>
+
+<!-- ── Main Layout ───────────────────────────── -->
+<div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+
+    <!-- Camera Column -->
+    <div>
+        <!-- Camera Box -->
+        <div class="relative bg-black rounded-3xl overflow-hidden shadow-xl border-2 border-indigo-500/40" style="aspect-ratio: 4/3;">
+            <!-- Scanner corners -->
+            <div class="absolute top-4 left-4 w-10 h-10 border-t-4 border-l-4 border-indigo-400 rounded-tl-xl z-20" aria-hidden="true"></div>
+            <div class="absolute top-4 right-4 w-10 h-10 border-t-4 border-r-4 border-indigo-400 rounded-tr-xl z-20" aria-hidden="true"></div>
+            <div class="absolute bottom-4 left-4 w-10 h-10 border-b-4 border-l-4 border-indigo-400 rounded-bl-xl z-20" aria-hidden="true"></div>
+            <div class="absolute bottom-4 right-4 w-10 h-10 border-b-4 border-r-4 border-indigo-400 rounded-br-xl z-20" aria-hidden="true"></div>
+
+            <!-- Face guide oval -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10" aria-hidden="true">
+                <div class="w-44 h-56 border-4 border-indigo-400/60 rounded-full face-guide-ring"></div>
+            </div>
+
+            <!-- Flash overlay (shown on capture) -->
+            <div id="flash-overlay" class="absolute inset-0 bg-white pointer-events-none z-30 opacity-0" aria-hidden="true"></div>
+
+            <!-- Video element (mirrored for user comfort) -->
+            <video id="webcam" class="w-full h-full object-cover" style="transform: scaleX(-1);"
+                autoplay playsinline muted aria-label="Webcam feed for face enrollment"></video>
+            <canvas id="canvas" class="hidden"></canvas>
+        </div>
+
+        <!-- Capture Button -->
+        <div class="flex justify-center mt-5">
+            <button id="capture-btn"
+                class="relative w-20 h-20 rounded-full border-4 border-indigo-600 bg-white hover:bg-indigo-50 transition-all shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed group"
+                aria-label="Capture face frame">
+                <span class="absolute inset-2 rounded-full bg-indigo-500 group-hover:bg-indigo-600 transition-colors"></span>
+            </button>
+        </div>
+        <p class="text-center text-xs text-gray-400 mt-3 font-medium">
+            Press the button to start auto-capture. Position your face inside the oval guide.
+        </p>
+    </div>
+
+    <!-- Status Column -->
+    <div class="space-y-5">
+
+        <!-- Progress Card -->
+        <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h2 class="font-bold text-gray-800 text-sm mb-4 flex items-center gap-2">
+                <i class="fas fa-tasks text-indigo-500" aria-hidden="true"></i>
+                Enrollment Progress
+            </h2>
+
+            <!-- Count Display -->
+            <div class="flex items-end justify-between mb-2">
+                <p class="text-gray-400 text-xs font-semibold uppercase tracking-widest">Frames Captured</p>
+                <p class="font-black text-2xl text-gray-900">
+                    <span id="emb-count">{{ student.embedding_count }}</span>
+                    <span class="text-sm font-semibold text-gray-400">/ 30</span>
+                </p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="h-2.5 bg-gray-100 rounded-full overflow-hidden mb-5" role="progressbar"
+                aria-label="Face enrollment progress"
+                aria-valuemin="0" aria-valuemax="30" aria-valuenow="{{ student.embedding_count }}">
+                <div id="progress-bar"
+                    class="h-full bg-indigo-500 rounded-full transition-all duration-500 ease-out"
+                    style="width: {{ student.embedding_count|default:0 }}0%"></div>
+            </div>
+
+            <!-- Feedback Alert -->
+            <div id="feedback-alert" class="hidden p-3 rounded-xl text-sm font-semibold flex items-center gap-2" role="alert" aria-live="polite"></div>
+
+            <!-- Divider -->
+            <div class="border-t border-gray-100 pt-5 mt-2">
+                <label for="env-select" class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                    Lighting Environment
+                </label>
+                <select id="env-select"
+                    class="w-full py-2.5 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all appearance-none cursor-pointer">
+                    <option value="WELL_LIT" selected>☀️ Well Lit (Indoor)</option>
+                    <option value="DIM">🌙 Dim Lighting</option>
+                    <option value="OUTDOOR">🌿 Outdoor</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tips Card -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 shadow-sm">
+            <h3 class="font-bold text-indigo-800 text-sm mb-3 flex items-center gap-2">
+                <i class="fas fa-lightbulb text-indigo-500" aria-hidden="true"></i>
+                Enrollment Tips
+            </h3>
+            <ul class="space-y-2.5">
+                <li class="flex items-start gap-2.5 text-xs text-indigo-700">
+                    <i class="fas fa-check-circle text-indigo-400 mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                    Capture 30 frames automatically with varied angles
+                </li>
+                <li class="flex items-start gap-2.5 text-xs text-indigo-700">
+                    <i class="fas fa-check-circle text-indigo-400 mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                    Ensure face is well-lit and clearly visible
+                </li>
+                <li class="flex items-start gap-2.5 text-xs text-indigo-700">
+                    <i class="fas fa-check-circle text-indigo-400 mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                    Remove glasses or face coverings for best accuracy
+                </li>
+                <li class="flex items-start gap-2.5 text-xs text-indigo-700">
+                    <i class="fas fa-check-circle text-indigo-400 mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                    Quality score above 80% is recommended
+                </li>
+            </ul>
+        </div>
+
+        <!-- Done CTA (shown when ≥ 30 frames captured) -->
+        <div id="done-section" class="{% if student.embedding_count < 30 %}hidden{% endif %}">
+            <a href="{% url 'student_qr_display' student.id %}"
+                class="flex items-center justify-center gap-2 w-full py-3 px-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                Enrollment Complete — View ID Card
+            </a>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+
+<script>
+    const webcamEl    = document.getElementById('webcam');
+    const canvasEl    = document.getElementById('canvas');
+    const captureBtn  = document.getElementById('capture-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const embCountEl  = document.getElementById('emb-count');
+    const feedbackEl  = document.getElementById('feedback-alert');
+    const envSelect   = document.getElementById('env-select');
+    const doneSection = document.getElementById('done-section');
+    const flashEl     = document.getElementById('flash-overlay');
+    const progressRole = document.querySelector('[role="progressbar"]');
+
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const UPLOAD_URL = "{% url 'upload_face_frame' student.id %}";
+
+    let cameraStream = null;
+
+    // ── Start Camera ──────────────────────────────
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } })
+        .then(stream => {
+            cameraStream = stream;
+            webcamEl.srcObject = stream;
+        })
+        .catch(err => {
+            console.error(err);
+            showFeedback("Camera access denied or unavailable.", "error");
+        });
+
+    // ── Progress Update ────────────────────────────
+    function updateProgress(count) {
+        embCountEl.textContent = count;
+        const pct = Math.min((count / 30) * 100, 100);
+        progressBar.style.width = pct + '%';
+        progressBar.style.backgroundColor = count >= 30 ? '#10B981' : '';
+        if (progressRole) {
+            progressRole.setAttribute('aria-valuenow', count);
+        }
+        if (count >= 30) doneSection.classList.remove('hidden');
+    }
+
+    updateProgress(parseInt("{{ student.embedding_count }}") || 0);
+
+    // ── Flash Animation ────────────────────────────
+    function triggerFlash() {
+        flashEl.style.opacity = '0.7';
+        flashEl.classList.add('flash-overlay');
+        setTimeout(() => {
+            flashEl.style.opacity = '0';
+            flashEl.classList.remove('flash-overlay');
+        }, 400);
+    }
+
+    let isAutoCapturing = false;
+
+    function captureFrame() {
+        if (!isAutoCapturing) return;
+        const currentCount = parseInt(embCountEl.textContent) || 0;
+        if (currentCount >= 30) {
+            isAutoCapturing = false;
+            captureBtn.innerHTML = '<span class="absolute inset-2 rounded-full bg-emerald-500 transition-colors"></span><i class="fas fa-check absolute inset-0 flex items-center justify-center text-white"></i>';
+            captureBtn.disabled = true;
+            captureBtn.classList.remove('animate-pulse');
+            return;
+        }
+
+        triggerFlash();
+
+        const ctx = canvasEl.getContext('2d');
+        canvasEl.width  = webcamEl.videoWidth;
+        canvasEl.height = webcamEl.videoHeight;
+        
+        ctx.drawImage(webcamEl, 0, 0, canvasEl.width, canvasEl.height);
+
+        canvasEl.toBlob(blob => {
+            const formData = new FormData();
+            formData.append('frame', blob, 'frame.jpg');
+            formData.append('environment', envSelect.value);
+
+            fetch(UPLOAD_URL, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF_TOKEN },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showFeedback(`✓ Captured! Quality: ${(data.quality_score * 100).toFixed(1)}%`, "success");
+                    updateProgress(data.embedding_count);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isAutoCapturing) {
+                    setTimeout(captureFrame, 600);
+                }
+            });
+
+        }, 'image/jpeg', 0.9);
+    }
+
+    // ── Capture on Click ───────────────────────────
+    captureBtn.addEventListener('click', () => {
+        if (!isAutoCapturing) {
+            isAutoCapturing = true;
+            captureBtn.innerHTML = '<span class="absolute inset-2 rounded-full bg-red-500 transition-colors"></span><i class="fas fa-stop inset-0 absolute flex items-center justify-center text-white"></i>';
+            captureBtn.classList.add('animate-pulse');
+            captureFrame();
+        } else {
+            isAutoCapturing = false;
+            captureBtn.innerHTML = '<span class="absolute inset-2 rounded-full bg-indigo-500 group-hover:bg-indigo-600 transition-colors"></span>';
+            captureBtn.classList.remove('animate-pulse');
+        }
+    });
+
+    // ── Feedback Banner ────────────────────────────
+    function showFeedback(msg, type) {
+        feedbackEl.className = `p-3 rounded-xl text-sm font-semibold flex items-center gap-2 ${
+            type === 'success'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+        }`;
+        feedbackEl.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}" aria-hidden="true"></i><span>${msg}</span>`;
+        feedbackEl.classList.remove('hidden');
+        clearTimeout(feedbackEl._timer);
+        feedbackEl._timer = setTimeout(() => feedbackEl.classList.add('hidden'), 3500);
+    }
+</script>
+{% endblock %}

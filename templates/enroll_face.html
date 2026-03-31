@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}Neural Enrollment | FA{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto glass rounded-3xl p-8 overflow-hidden relative">
+    <div class="absolute top-[-50%] left-[-10%] w-[80%] h-[150%] bg-indigo-500/10 rounded-full blur-[100px] z-0"></div>
+    
+    <div class="relative z-10">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-indigo-300 to-cyan-300">Biometric Registration</h2>
+            <p class="text-slate-400 mt-2">Position your face in the center of the camera. The system will capture 35 neural angles.</p>
+        </div>
+
+        <div class="flex flex-col items-center gap-6">
+            <div class="relative w-full max-w-xl aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border-2 border-indigo-500/30">
+                <!-- Video Stream -->
+                <video id="webcam" class="absolute inset-0 w-full h-full object-cover" style="transform: scaleX(-1);" autoplay playsinline></video>
+                <!-- Overlay for bounds -->
+                <canvas id="overlay" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none"></canvas>
+                <!-- Hidden Canvas for Data Extraction -->
+                <canvas id="hiddenCanvas" class="hidden"></canvas>
+                
+                <div class="absolute top-4 right-4 z-30 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-full border border-indigo-500/30 flex items-center gap-2">
+                    <span class="relative flex h-3 w-3">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                    <span class="text-xs font-bold font-mono tracking-widest text-indigo-200">REC</span>
+                </div>
+            </div>
+
+            <!-- Progress UI -->
+            <div class="w-full max-w-xl">
+                <div class="flex justify-between text-sm font-medium text-slate-300 mb-2">
+                    <span>Dataset Compilation</span>
+                    <span id="progressText">0 / 35 Frames</span>
+                </div>
+                <div class="h-3 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div id="progressBar" class="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 w-0 transition-all duration-300 relative">
+                        <div class="absolute top-0 right-0 bottom-0 left-0 bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[progress_1s_linear_infinite]"></div>
+                    </div>
+                </div>
+                <p id="statusMsg" class="mt-4 text-center text-sm font-medium text-amber-400 h-5"></p>
+            </div>
+            
+            <button id="startBtn" class="mt-4 px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-all transform hover:-translate-y-1">
+                Begin Mapping Sequence
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('webcam');
+    const overlay = document.getElementById('overlay');
+    const hiddenCanvas = document.getElementById('hiddenCanvas');
+    const ctxHidden = hiddenCanvas.getContext('2d');
+    const ctxOverlay = overlay.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    
+    let isRecording = false;
+    let frameCount = 0;
+    const MAX_FRAMES = 35;
+
+    // Start Webcam
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => {
+            document.getElementById('statusMsg').innerText = "Camera access denied or missing.";
+        });
+
+    // Resize canvas to match video
+    video.addEventListener('play', () => {
+        hiddenCanvas.width = video.videoWidth;
+        hiddenCanvas.height = video.videoHeight;
+        overlay.width = overlay.clientWidth;
+        overlay.height = overlay.clientHeight;
+    });
+
+    startBtn.addEventListener('click', () => {
+        if(isRecording) return;
+        isRecording = true;
+        startBtn.classList.add('hidden');
+        document.getElementById('statusMsg').innerText = "Hold steady...";
+        document.getElementById('statusMsg').classList.remove('text-rose-400', 'text-amber-400');
+        document.getElementById('statusMsg').classList.add('text-indigo-400');
+        captureLoop();
+    });
+
+    function captureLoop() {
+        if(frameCount >= MAX_FRAMES) return;
+
+        // Draw current frame to hidden canvas
+        ctxHidden.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        const base64Img = hiddenCanvas.toDataURL('image/jpeg', 0.8);
+
+        fetch('/api/capture_enrollment_frame/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ 
+                image: base64Img,
+                frameCount: frameCount
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                frameCount++;
+                const pct = (frameCount / MAX_FRAMES) * 100;
+                document.getElementById('progressBar').style.width = pct + '%';
+                document.getElementById('progressText').innerText = `${frameCount} / ${MAX_FRAMES} Frames`;
+                
+                // HUD Feedback overlay
+                ctxOverlay.clearRect(0,0, overlay.width, overlay.height);
+                ctxOverlay.strokeStyle = 'rgba(74, 222, 128, 0.4)'; // Emerald
+                ctxOverlay.lineWidth = 4;
+                ctxOverlay.setLineDash([15, 10]);
+                ctxOverlay.strokeRect(overlay.width*0.2, overlay.height*0.1, overlay.width*0.6, overlay.height*0.8);
+
+                if(data.redirect) {
+                    document.getElementById('statusMsg').innerText = "Model Generated! Redirecting...";
+                    setTimeout(() => window.location.href = data.redirect, 1000);
+                    return;
+                }
+                
+                setTimeout(captureLoop, 150); // 150ms delay
+            } else {
+                // If geometry failure or not found
+                document.getElementById('statusMsg').innerText = data.message;
+                document.getElementById('statusMsg').classList.add('text-rose-400');
+                
+                // Flash overlay red
+                ctxOverlay.clearRect(0,0, overlay.width, overlay.height);
+                ctxOverlay.fillStyle = 'rgba(225, 29, 72, 0.2)';
+                ctxOverlay.fillRect(0,0, overlay.width, overlay.height);
+                
+                setTimeout(captureLoop, 300);
+            }
+        });
+    }
+</script>
+<style>
+    @keyframes progress {
+        from { background-position: 1rem 0; }
+        to { background-position: 0 0; }
+    }
+</style>
+{% endblock %}

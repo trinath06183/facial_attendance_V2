@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}Live Scanner | FA{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="glass rounded-3xl p-6 lg:p-10 shadow-2xl relative overflow-hidden border border-slate-700/60">
+        <!-- Decoration light -->
+        <div class="absolute top-0 right-0 w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[100px] z-0"></div>
+        <div class="absolute bottom-0 left-0 w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[100px] z-0"></div>
+        
+        <div class="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Panel / Instructions -->
+            <div class="lg:col-span-1 flex flex-col justify-center space-y-6">
+                <div>
+                    <h2 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400 mb-2">Live Scanner Bridge</h2>
+                    <p class="text-sm text-slate-400">Step 1: Present your unique QR code to establish handshake.</p>
+                    <p class="text-sm text-slate-400 mt-1">Step 2: Maintain eye contact for biometric validation.</p>
+                </div>
+                
+                <div class="bg-slate-900/60 rounded-xl p-5 border border-slate-700 shadow-inner">
+                    <h4 class="text-xs uppercase tracking-widest text-slate-500 font-bold mb-3">System Diagnostics</h4>
+                    <div class="space-y-3 font-mono text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">CV Engine:</span>
+                            <span class="text-emerald-400">YuNet + SFace</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Decoder:</span>
+                            <span class="text-emerald-400">PyZBar Active</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Latency:</span>
+                            <span id="latencyDisplay" class="text-indigo-400">0ms</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full bg-slate-800/80 border-l-4 border-indigo-500 rounded-r-xl p-4 shadow-md">
+                    <p id="systemMessage" class="font-medium text-indigo-300">Initializing camera matrix...</p>
+                </div>
+                
+                <a href="{% url 'dashboard_redirect' %}" class="inline-block text-center px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition-all border border-slate-600">
+                    Exit Scanner
+                </a>
+            </div>
+
+            <!-- Right Panel / Camera Feed -->
+            <div class="lg:col-span-2">
+                <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-800 group" id="videoContainer">
+                    <video id="webcam" class="absolute inset-0 w-full h-full object-cover" style="transform: scaleX(-1);" autoplay playsinline></video>
+                    <!-- HUD Canvas overlays -->
+                    <canvas id="overlay" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none" style="transform: scaleX(-1);"></canvas>
+                    <canvas id="hiddenCanvas" class="hidden"></canvas>
+                    
+                    <!-- Viewfinder graphics -->
+                    <div class="absolute inset-0 pointer-events-none z-10 flex items-center justify-center opacity-30">
+                        <div class="w-64 h-64 border-2 border-dashed border-white rounded-xl"></div>
+                        <div class="absolute w-8 h-8 border-t-4 border-l-4 border-emerald-500 top-1/4 left-1/4 rounded-tl-lg"></div>
+                        <div class="absolute w-8 h-8 border-t-4 border-r-4 border-emerald-500 top-1/4 right-1/4 rounded-tr-lg"></div>
+                        <div class="absolute w-8 h-8 border-b-4 border-l-4 border-emerald-500 bottom-1/4 left-1/4 rounded-bl-lg"></div>
+                        <div class="absolute w-8 h-8 border-b-4 border-r-4 border-emerald-500 bottom-1/4 right-1/4 rounded-br-lg"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('webcam');
+    const overlay = document.getElementById('overlay');
+    const hiddenCanvas = document.getElementById('hiddenCanvas');
+    const ctxHidden = hiddenCanvas.getContext('2d');
+    const ctxOverlay = overlay.getContext('2d');
+    const sysMsg = document.getElementById('systemMessage');
+    const latDisplay = document.getElementById('latencyDisplay');
+    
+    let isRunning = true;
+    let t0 = performance.now();
+
+    // Stream
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        .then(stream => {
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                hiddenCanvas.width = video.videoWidth;
+                hiddenCanvas.height = video.videoHeight;
+                overlay.width = video.videoWidth;
+                overlay.height = video.videoHeight;
+                processFrame();
+            };
+        })
+        .catch(err => {
+            sysMsg.innerText = "Error: Webcam not found.";
+            sysMsg.classList.replace('text-indigo-300', 'text-rose-400');
+        });
+
+    function processFrame() {
+        if(!isRunning) return;
+
+        // Draw video
+        ctxHidden.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        const b64 = hiddenCanvas.toDataURL('image/jpeg', 0.8);
+
+        t0 = performance.now();
+
+        fetch('/api/process_client_frame/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ image: b64 })
+        })
+        .then(r => r.json())
+        .then(data => {
+            const t1 = performance.now();
+            latDisplay.innerText = `${Math.round(t1 - t0)}ms`;
+
+            // Draw bounding boxes natively
+            ctxOverlay.clearRect(0,0, overlay.width, overlay.height);
+            
+            if(data.bboxes && data.bboxes.length > 0) {
+                ctxOverlay.strokeStyle = '#34d399'; // Emerald 400
+                ctxOverlay.lineWidth = 3;
+                
+                data.bboxes.forEach(box => {
+                    const [x, y, w, h] = box;
+                    ctxOverlay.strokeRect(x, y, w, h);
+                    
+                    // Add cool HUD data
+                    ctxOverlay.fillStyle = '#34d399';
+                    ctxOverlay.font = "14px monospace";
+                    ctxOverlay.fillText(`ID_LOCK: ${Math.round(w*h)}`, x, y - 10);
+                });
+            }
+
+            sysMsg.innerText = data.message || "Awaiting target...";
+            
+            // Check success logic
+            if(data.status === 'success') {
+                isRunning = false; // pause for a sec
+                document.getElementById('videoContainer').classList.replace('border-slate-800', 'border-emerald-500');
+                
+                // Redirect user back to dashboard or show success state
+                setTimeout(() => {
+                    window.location.href = "{% url 'dashboard_redirect' %}";
+                }, 2000);
+            } else {
+                setTimeout(processFrame, 150); // Loop
+            }
+        });
+    }
+</script>
+{% endblock %}

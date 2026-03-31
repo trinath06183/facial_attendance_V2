@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+{% block title %}{{ student.full_name }} — Attendance Report{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'reports_dashboard' %}" class="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-4">
+        <i class="fas fa-arrow-left"></i> Back to Section Report
+    </a>
+    
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-black shadow-sm shrink-0">
+                {{ student.full_name|slice:":1" }}
+            </div>
+            <div>
+                <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Student Drill-Down</p>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ student.full_name }}</h1>
+                <p class="text-gray-500 font-mono text-sm mt-1 flex items-center gap-2">
+                    <i class="fas fa-id-card text-gray-400"></i> {{ student.university_roll_number|default:student.student_id }}
+                    <span class="text-gray-300">|</span>
+                    <i class="fas fa-chalkboard text-gray-400"></i> {{ student.section|default:"No Section" }}
+                </p>
+            </div>
+        </div>
+        
+        <div class="flex flex-col gap-2">
+            <!-- Filter Bar -->
+            <div class="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
+                <select id="rpt-granularity" class="bg-gray-50 border-none text-gray-900 text-sm font-medium rounded-lg focus:ring-0">
+                    <option value="daily">Daily</option>
+                    <option value="weekly" selected>Weekly</option>
+                    <option value="monthly">Monthly</option>
+                </select>
+                <select id="rpt-preset" class="bg-gray-50 border-none text-gray-900 text-sm font-medium rounded-lg focus:ring-0">
+                    <option value="" disabled>---</option>
+                    <option value="last_30" selected>Last 30 Days</option>
+                    <option value="last_90">Last 90 Days</option>
+                    <option value="this_month">This Month</option>
+                    <option value="this_year">This Year</option>
+                    <option value="all">All Time</option>
+                </select>
+                <button id="rpt-refresh" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Metrics (Dynamic) -->
+<div id="student-metrics" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <!-- Populated by JS -->
+    <div class="col-span-4 bg-white rounded-2xl p-8 text-center text-gray-400 italic shadow-sm">
+        <i class="fas fa-circle-notch fa-spin mr-2"></i> Loading metrics...
+    </div>
+</div>
+
+<!-- Chart -->
+<div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 mb-6">
+    <div class="relative h-64 w-full">
+        <canvas id="trendChart"></canvas>
+    </div>
+</div>
+
+<!-- Detailed History Table -->
+<div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+    <div class="px-6 py-5 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+        <h3 class="text-sm font-black text-gray-800 uppercase tracking-widest">Attendance History</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+            <thead class="text-xs text-gray-400 tracking-wider uppercase bg-gray-50 font-black">
+                <tr>
+                    <th class="px-6 py-4">Date & Time</th>
+                    <th class="px-6 py-4 text-center">Status</th>
+                    <th class="px-6 py-4 text-center">Method</th>
+                    <th class="px-6 py-4 text-center">Marked At</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+                <tr>
+                    <td colspan="4" class="px-6 py-10 text-center text-gray-400 italic">
+                        <i class="fas fa-circle-notch fa-spin mr-2"></i> Loading history...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const studentId = '{{ student.id }}';
+    let chartInstance = null;
+
+    function fetchStudentData() {
+        const gran = document.getElementById('rpt-granularity').value;
+        const preset = document.getElementById('rpt-preset').value;
+        
+        let url = `/attendance/api/reports/student/${studentId}/?granularity=${gran}`;
+        if (preset !== 'all') {
+            url += `&preset=${preset}`;
+        }
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(res => {
+                if (!res.success) {
+                    alert(res.error || 'Failed to fetch student data');
+                    return;
+                }
+                const data = res.data;
+                renderMetrics(data.metrics);
+                renderChart(data.trend);
+                renderHistory(data.history);
+            });
+    }
+
+    function renderHistory(history) {
+        const tbody = document.getElementById('history-table-body');
+        if (!history || history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-400 font-medium">No history found for this period.</td></tr>';
+            return;
+        }
+
+        const statusClasses = {
+            'PRESENT': 'bg-green-100 text-green-700',
+            'ABSENT': 'bg-red-100 text-red-700',
+            'LATE': 'bg-yellow-100 text-yellow-700',
+            'EXCUSED': 'bg-blue-100 text-blue-700'
+        };
+
+        tbody.innerHTML = history.map(h => `
+            <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 font-bold text-gray-900">${h.date}</td>
+                <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black ${statusClasses[h.status] || 'bg-gray-100 text-gray-700'}">
+                        ${h.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-md">${h.method}</span>
+                </td>
+                <td class="px-6 py-4 text-center text-gray-600 font-mono text-xs">${h.marked_at}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderMetrics(m) {
+        const rateClass = m.attendance_rate >= 75 ? 'text-green-600 bg-green-50' : 
+                         (m.attendance_rate >= 50 ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50');
+                         
+        const deltaStr = m.delta_vs_cohort > 0 ? `+${m.delta_vs_cohort}%` : `${m.delta_vs_cohort}%`;
+        const deltaColor = m.delta_vs_cohort >= 0 ? 'text-green-500' : 'text-red-500';
+
+        document.getElementById('student-metrics').innerHTML = `
+            <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Offered</p>
+                    <p class="text-3xl font-black text-gray-900">${m.total_offered}</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 text-xl"><i class="fas fa-calendar-check"></i></div>
+            </div>
+            
+            <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Attended</p>
+                    <p class="text-3xl font-black text-gray-900">${m.attended}</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 text-xl"><i class="fas fa-user-check"></i></div>
+            </div>
+            
+            <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Missed</p>
+                    <p class="text-3xl font-black text-gray-900">${m.missed}</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 text-xl"><i class="fas fa-user-times"></i></div>
+            </div>
+            
+            <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 flex flex-col justify-center">
+                <div class="flex items-end justify-between mb-1">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Attendance Rate</p>
+                    <span class="text-[10px] font-bold uppercase tracking-widest ${deltaColor}"><span class="text-gray-400 font-normal">vs Cohort</span> ${deltaStr}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <p class="text-3xl font-black ${rateClass} px-3 py-0.5 rounded-xl block w-full text-center">${m.attendance_rate}%</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderChart(trendData) {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+        
+        if (!trendData || trendData.length === 0) {
+            // Optional: Draw empty state
+            return;
+        }
+
+        const labels = trendData.map(d => d.bucket);
+        const rates = trendData.map(d => d.rate);
+        
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Attendance Rate (%)',
+                    data: rates,
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#3B82F6',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1E293B',
+                        padding: 12,
+                        titleFont: { family: 'Inter', size: 13 },
+                        bodyFont: { family: 'Inter', size: 14, weight: 'bold' },
+                        displayColors: false,
+                        callbacks: {
+                            label: (ctx) => `${ctx.parsed.y}%`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: '#F1F5F9', drawBorder: false },
+                        ticks: {
+                            font: { family: 'Inter', size: 11 },
+                            color: '#94A3B8',
+                            stepSize: 25,
+                            callback: v => v + '%'
+                        }
+                    },
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: {
+                            font: { family: 'Inter', size: 11 },
+                            color: '#94A3B8',
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Bind controls
+    document.getElementById('rpt-refresh').addEventListener('click', fetchStudentData);
+    document.getElementById('rpt-granularity').addEventListener('change', fetchStudentData);
+    document.getElementById('rpt-preset').addEventListener('change', fetchStudentData);
+
+    // Initial load
+    fetchStudentData();
+});
+</script>
+{% endblock %}

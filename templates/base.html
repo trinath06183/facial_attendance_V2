@@ -1,0 +1,577 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SmartAttend AI{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ─── DESIGN TOKENS ─────────────────────────────── */
+        :root {
+            --primary:        #4F46E5;
+            --primary-hover:  #4338CA;
+            --primary-light:  #EEF2FF;
+            --secondary:      #10B981;
+            --secondary-hover:#059669;
+            --secondary-light:#D1FAE5;
+            --warning:        #F59E0B;
+            --warning-light:  #FEF3C7;
+            --danger:         #EF4444;
+            --danger-hover:   #DC2626;
+            --danger-light:   #FEE2E2;
+            --info:           #3B82F6;
+            --info-light:     #DBEAFE;
+            --bg-body:        #F3F4F6;
+            --bg-card:        #FFFFFF;
+            --text-main:      #111827;
+            --text-muted:     #6B7280;
+            --border:         #E5E7EB;
+            --border-focus:   #4F46E5;
+            --radius-sm:      0.375rem;
+            --radius-md:      0.5rem;
+            --radius-lg:      1rem;
+            --radius-xl:      1.5rem;
+            --shadow-sm:      0 1px 2px rgba(0,0,0,0.06);
+            --shadow:         0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg:      0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --transition:     all 0.2s ease-in-out;
+            --sidebar-width:  260px;
+        }
+
+        /* ─── BASE ──────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* ─── ACCESSIBILITY ─────────────────────────────── */
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 1rem;
+            background: var(--primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            text-decoration: none;
+            z-index: 9999;
+            transition: top 0.2s;
+        }
+        .skip-link:focus { top: 0.5rem; }
+
+        /* ─── CARD COMPONENT ────────────────────────────── */
+        .card {
+            background-color: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        /* ─── BUTTON COMPONENT ──────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background-color: var(--primary);
+            color: white;
+            padding: 0.625rem 1.375rem;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            letter-spacing: 0.01em;
+        }
+        .btn:hover         { background-color: var(--primary-hover); color: white; transform: translateY(-1px); box-shadow: var(--shadow); }
+        .btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+        .btn:active        { transform: translateY(0); }
+        .btn:disabled      { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-secondary { background-color: #FFFFFF; color: var(--text-main); border: 1px solid var(--border); }
+        .btn-secondary:hover { background-color: #F9FAFB; border-color: #D1D5DB; color: var(--text-main); }
+
+        .btn-success { background-color: var(--secondary); }
+        .btn-success:hover { background-color: var(--secondary-hover); }
+
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: var(--danger-hover); }
+
+        .btn-sm { padding: 0.375rem 0.875rem; font-size: 0.75rem; }
+
+        /* ─── FORM COMPONENTS ───────────────────────────── */
+        .form-group        { margin-bottom: 1.25rem; }
+        .form-group label  {
+            display: block;
+            margin-bottom: 0.375rem;
+            font-weight: 600;
+            font-size: 0.8125rem;
+            color: #374151;
+            letter-spacing: 0.01em;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.6875rem 0.875rem;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 0.9375rem;
+            color: var(--text-main);
+            background-color: white;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            appearance: none;
+        }
+        .form-control:hover { border-color: #D1D5DB; }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+        }
+        .form-control::placeholder { color: #9CA3AF; }
+        .form-control.error { border-color: var(--danger); }
+
+        /* ─── TABLE COMPONENT ───────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #F9FAFB;
+            border-bottom: 2px solid var(--border);
+            padding: 0.875rem 1.25rem;
+            text-align: left;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #F3F4F6;
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+        tbody tr:hover { background-color: #FAFAFA; }
+        tbody tr:last-child td { border-bottom: none; }
+
+        /* ─── BADGE COMPONENT ───────────────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.2rem 0.65rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .badge-active, .badge-present, .badge-open {
+            background-color: var(--secondary-light);
+            color: #065F46;
+        }
+        .badge-absent, .badge-closed, .badge-inactive {
+            background-color: var(--danger-light);
+            color: #991B1B;
+        }
+        .badge-graduated {
+            background-color: var(--info-light);
+            color: #1E3A8A;
+        }
+        .badge-warning, .badge-late {
+            background-color: var(--warning-light);
+            color: #92400E;
+        }
+
+        /* ─── ALERT COMPONENT ───────────────────────────── */
+        .alert {
+            padding: 0.875rem 1.125rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.625rem;
+            border: 1px solid transparent;
+        }
+        .alert-success {
+            background-color: var(--secondary-light);
+            border-color: #A7F3D0;
+            color: #065F46;
+        }
+        .alert-error {
+            background-color: var(--danger-light);
+            border-color: #FECACA;
+            color: #991B1B;
+        }
+        .alert-warning {
+            background-color: var(--warning-light);
+            border-color: #FDE68A;
+            color: #92400E;
+        }
+        .alert-info {
+            background-color: var(--info-light);
+            border-color: #BFDBFE;
+            color: #1E40AF;
+        }
+
+        /* ─── PAGE HEADER (legacy compat) ───────────────── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .page-title {
+            font-size: 1.875rem;
+            font-weight: 900;
+            color: var(--text-main);
+            letter-spacing: -0.025em;
+            margin: 0;
+        }
+
+        /* ─── SIDEBAR ───────────────────────────────────── */
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.625rem 0.875rem;
+            border-radius: 0.75rem;
+            color: #4B5563;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .sidebar-link:hover {
+            background-color: #EFF6FF;
+            color: #2563EB;
+        }
+        .sidebar-link i { width: 1.125rem; text-align: center; flex-shrink: 0; }
+
+        .active-link {
+            background-color: #EFF6FF;
+            color: #2563EB;
+            font-weight: 600;
+        }
+        /* Accent bar on active link */
+        .active-link::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: #2563EB;
+            border-radius: 3px 0 0 3px;
+        }
+        .sidebar-link { position: relative; }
+
+        /* ─── SCROLLBAR ─────────────────────────────────── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+
+        /* ─── MOBILE OVERLAY ────────────────────────────── */
+        #sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 35;
+            backdrop-filter: blur(2px);
+        }
+        #sidebar-overlay.active { display: block; }
+
+        /* ─── PRINT ─────────────────────────────────────── */
+        @media print {
+            aside, #mobile-header { display: none !important; }
+            main { padding: 0 !important; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="bg-gray-50 min-h-screen {% if user.is_authenticated %}flex flex-col md:flex-row{% endif %}">
+
+    <!-- Skip to main content (Accessibility) -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    {% if user.is_authenticated %}
+    <!-- ── MOBILE OVERLAY ─────────────────────── -->
+    <div id="sidebar-overlay" role="presentation" aria-hidden="true"></div>
+
+    <!-- ── MOBILE TOP BAR ────────────────────── -->
+    <div id="mobile-header" class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center sticky top-0 z-50 w-full shadow-sm" role="banner">
+        <a href="{% url 'dashboard' %}" class="text-base font-black text-blue-600 flex items-center gap-2 truncate min-w-0" aria-label="SmartAttend home">
+            <i class="fas fa-camera-retro shrink-0" aria-hidden="true"></i>
+            <span class="truncate">SmartAttend</span>
+        </a>
+        <div class="flex items-center gap-1 shrink-0 ml-2">
+            <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-red-300" title="Logout" aria-label="Logout">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+                </button>
+            </form>
+            <button id="mobile-menu-btn"
+                class="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all"
+                aria-controls="main-sidebar"
+                aria-expanded="false"
+                aria-label="Toggle navigation menu">
+                <i class="fas fa-bars text-lg" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ── SIDEBAR ────────────────────────────── -->
+    <aside id="main-sidebar"
+        class="w-64 bg-white border-r border-gray-150 flex-col h-screen shrink-0 hidden md:flex fixed md:static z-40 bottom-0 overflow-y-auto shadow-lg md:shadow-none"
+        role="navigation"
+        aria-label="Main navigation">
+
+        <!-- Brand -->
+        <div class="px-6 py-5 hidden md:flex items-center gap-2">
+            <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+                <i class="fas fa-camera-retro text-white text-sm" aria-hidden="true"></i>
+            </div>
+            <a href="{% url 'dashboard' %}" class="text-lg font-black text-gray-900 tracking-tight hover:text-blue-600 transition-colors">
+                SmartAttend
+            </a>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex-1 px-3 pb-4 space-y-0.5 overflow-y-auto" aria-label="Sidebar navigation">
+            {% if user.is_admin %}
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-2 mt-2">Admin Panel</p>
+
+            <a href="{% url 'student_list' %}" class="sidebar-link">
+                <i class="fas fa-user-graduate" aria-hidden="true"></i> Manage Students
+            </a>
+            <a href="{% url 'student_create' %}" class="sidebar-link">
+                <i class="fas fa-user-plus" aria-hidden="true"></i> Register Student
+            </a>
+            <a href="{% url 'session_list' %}" class="sidebar-link">
+                <i class="fas fa-calendar-alt" aria-hidden="true"></i> Attendance Oversight
+            </a>
+            <a href="{% url 'attendance_viewer' %}" class="sidebar-link">
+                <i class="fas fa-list" aria-hidden="true"></i> Attendance Logs
+            </a>
+            <a href="{% url 'user_list' %}" class="sidebar-link">
+                <i class="fas fa-users-cog" aria-hidden="true"></i> User Accounts
+            </a>
+            <a href="{% url 'analytics_dashboard' %}" class="sidebar-link">
+                <i class="fas fa-chart-line" aria-hidden="true"></i> Live Analytics
+            </a>
+            <a href="{% url 'reports_dashboard' %}" class="sidebar-link">
+                <i class="fas fa-chart-pie" aria-hidden="true"></i> Advanced Reports
+            </a>
+
+            {% elif user.is_teacher %}
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-2 mt-2">Teacher Panel</p>
+
+            <a href="{% url 'student_list' %}" class="sidebar-link">
+                <i class="fas fa-users" aria-hidden="true"></i> Class Roster
+            </a>
+            <a href="{% url 'attendance_viewer' %}" class="sidebar-link">
+                <i class="fas fa-list" aria-hidden="true"></i> My Class Logs
+            </a>
+            <a href="{% url 'reports_dashboard' %}" class="sidebar-link">
+                <i class="fas fa-chart-pie" aria-hidden="true"></i> Advanced Reports
+            </a>
+            <a href="{% url 'session_list' %}" class="sidebar-link">
+                <i class="fas fa-calendar-check" aria-hidden="true"></i> My Sessions
+            </a>
+            <a href="{% url 'session_create' %}" class="sidebar-link">
+                <i class="fas fa-play-circle" aria-hidden="true"></i> Start New Session
+            </a>
+
+            {% elif user.is_student %}
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-2 mt-2">Student Portal</p>
+
+            <a href="{% url 'dashboard' %}" class="sidebar-link">
+                <i class="fas fa-chart-bar" aria-hidden="true"></i> My Attendance
+            </a>
+            <a href="{% url 'attendance_viewer' %}" class="sidebar-link">
+                <i class="fas fa-list" aria-hidden="true"></i> My Logs
+            </a>
+            <a href="{% url 'reports_dashboard' %}" class="sidebar-link">
+                <i class="fas fa-chart-pie" aria-hidden="true"></i> Advanced Reports
+            </a>
+            {% if request.user.is_student %}
+            <a href="{% url 'student_detail' request.user.student_profile.id %}" class="sidebar-link">
+                <i class="fas fa-id-badge" aria-hidden="true"></i> My Profile &amp; QR
+            </a>
+            {% endif %}
+
+            {% endif %}
+
+            <div class="pt-3 pb-1 px-3">
+                <hr class="border-gray-100">
+            </div>
+        </nav>
+
+        <!-- User Widget & Logout -->
+        <div class="px-3 pb-5">
+            <!-- Scanner Active Indicator -->
+            <div id="hardware-control-section" class="hidden mb-3">
+                <div class="bg-red-50 border border-red-100 rounded-2xl p-3">
+                    <p class="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1 text-center flex items-center justify-center gap-1">
+                        <span class="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Scanner Active
+                    </p>
+                </div>
+            </div>
+
+            <!-- User Card -->
+            <div class="bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm uppercase shadow-sm flex-shrink-0" aria-hidden="true">
+                        {{ user.username|slice:":1" }}
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                        <span class="text-sm font-semibold text-gray-800 truncate">{{ user.username }}</span>
+                        <span class="text-[9px] text-gray-400 uppercase font-bold tracking-widest">
+                            {{ user.get_role_display }}
+                        </span>
+                    </div>
+                </div>
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full flex justify-center items-center gap-2 px-3 py-2 rounded-xl text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-200" aria-label="Logout from SmartAttend">
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Logout
+                    </button>
+                </form>
+            </div>
+
+            <p class="text-[9px] text-gray-300 text-center uppercase tracking-widest font-bold mt-3">
+                &copy; 2026 SmartAttend AI
+            </p>
+        </div>
+    </aside>
+    {% endif %}
+
+    <!-- ── MAIN CONTENT ────────────────────────── -->
+    <main id="main-content"
+        class="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden p-4 md:p-8 {% if not user.is_authenticated %}items-center justify-center{% endif %}"
+        role="main">
+
+        <!-- Django Messages -->
+        {% if messages %}
+        <div class="w-full mb-6 space-y-2.5 max-w-7xl mx-auto" aria-live="polite" aria-atomic="true">
+            {% for message in messages %}
+            <div class="p-4 rounded-2xl flex items-start justify-between gap-3 shadow-sm text-sm
+                {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-100
+                {% elif message.tags == 'warning' %}bg-amber-50 text-amber-700 border border-amber-100
+                {% elif message.tags == 'debug' %}bg-gray-50 text-gray-700 border border-gray-100
+                {% else %}bg-emerald-50 text-emerald-700 border border-emerald-100{% endif %}"
+                role="alert">
+                <div class="flex items-start gap-3">
+                    <i class="fas
+                        {% if message.tags == 'error' %}fa-exclamation-circle
+                        {% elif message.tags == 'warning' %}fa-exclamation-triangle
+                        {% else %}fa-check-circle{% endif %}
+                        mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                    <span class="font-semibold">{{ message }}</span>
+                </div>
+                <button onclick="this.closest('[role=alert]').remove()"
+                    class="text-current opacity-50 hover:opacity-100 transition-opacity flex-shrink-0 ml-2 focus:outline-none"
+                    aria-label="Dismiss notification">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="w-full max-w-7xl mx-auto">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- ── JAVASCRIPT ─────────────────────────── -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ── Scanner Active Indicator ──
+            const scannerSection = document.getElementById('hardware-control-section');
+            if (scannerSection) {
+                const currentPath = window.location.pathname;
+                if (currentPath.includes('scanner') || currentPath.includes('enroll')) {
+                    scannerSection.classList.remove('hidden');
+                }
+            }
+
+            // ── Active Link Highlighter ──
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                const href = link.getAttribute('href');
+                if (!href || href === '#') return;
+                // Exact match for root; prefix match for sub-paths
+                if (href === '/' ? currentPath === '/' : currentPath.startsWith(href)) {
+                    link.classList.add('active-link');
+                }
+            });
+
+            // ── Mobile Menu Toggle ──
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            const sidebar   = document.getElementById('main-sidebar');
+            const overlay   = document.getElementById('sidebar-overlay');
+
+            function openSidebar() {
+                sidebar.classList.remove('hidden');
+                sidebar.classList.add('flex');
+                overlay && overlay.classList.add('active');
+                mobileBtn && mobileBtn.setAttribute('aria-expanded', 'true');
+                document.body.style.overflow = 'hidden';
+            }
+            function closeSidebar() {
+                sidebar.classList.add('hidden');
+                sidebar.classList.remove('flex');
+                overlay && overlay.classList.remove('active');
+                mobileBtn && mobileBtn.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = '';
+            }
+
+            if (mobileBtn && sidebar) {
+                mobileBtn.addEventListener('click', () => {
+                    sidebar.classList.contains('hidden') ? openSidebar() : closeSidebar();
+                });
+            }
+            if (overlay) {
+                overlay.addEventListener('click', closeSidebar);
+            }
+
+            // Close sidebar on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && overlay && overlay.classList.contains('active')) {
+                    closeSidebar();
+                }
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

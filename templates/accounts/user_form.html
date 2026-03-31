@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} — SmartAttend{% endblock %}
+
+{% block content %}
+<!-- ── Page Header ───────────────────────────── -->
+<div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <a href="{% url 'user_list' %}"
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2">
+            <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i> Back to Users
+        </a>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ title }}</h1>
+        <p class="text-gray-400 text-sm mt-1">Add an administrator or teacher account to the system.</p>
+    </div>
+</div>
+
+<!-- ── Form Card ─────────────────────────────── -->
+<div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden max-w-2xl">
+    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+        <i class="fas fa-user-cog text-blue-500 text-sm" aria-hidden="true"></i>
+        <h2 class="font-bold text-gray-700 text-sm">Account Details</h2>
+    </div>
+
+    <div class="p-6 md:p-8">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% for field in form %}
+            <div class="mb-5">
+                <label for="{{ field.id_for_label }}"
+                    class="block text-sm font-semibold text-gray-700 mb-1.5">
+                    {{ field.label }}
+                    {% if field.field.required %}
+                        <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+                    {% endif %}
+                </label>
+
+                {% if field.errors %}
+                <div class="mb-1.5">
+                    {% for error in field.errors %}
+                    <p class="text-xs text-red-600 font-semibold flex items-center gap-1">
+                        <i class="fas fa-exclamation-circle" aria-hidden="true"></i> {{ error }}
+                    </p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if field.field.widget.input_type == "checkbox" %}
+                <div class="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
+                    {{ field }}
+                    <span class="text-sm text-indigo-700 font-medium">{{ field.label }}</span>
+                </div>
+                {% else %}
+                    {{ field }}
+                {% endif %}
+
+                {% if field.help_text %}
+                <p class="text-xs text-gray-400 mt-1.5 flex items-start gap-1">
+                    <i class="fas fa-info-circle mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                    {{ field.help_text|safe }}
+                </p>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <!-- Style all generated inputs -->
+            <script>
+                document.querySelectorAll('input:not([type="checkbox"]), select, textarea').forEach(el => {
+                    el.classList.add(
+                        'w-full','px-4','py-2.5','border','border-gray-200','rounded-xl',
+                        'text-sm','bg-gray-50','focus:bg-white','focus:border-blue-500',
+                        'focus:ring-2','focus:ring-blue-100','outline-none','transition-all',
+                        'font-medium','text-gray-800'
+                    );
+                });
+            </script>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+                <a href="{% url 'user_list' %}"
+                    class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
+                    Cancel
+                </a>
+                <button type="submit"
+                    class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-300 flex items-center gap-2">
+                    <i class="fas fa-save" aria-hidden="true"></i> Save User
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
