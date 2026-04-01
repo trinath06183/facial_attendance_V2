@@ -133,7 +133,7 @@ def lookup_profile(request, pk):
     if not student:
         return JsonResponse({'success': False, 'error': 'STUDENT_NOT_FOUND'})
 
-    if student.section_id != session.section_id:
+    if not student.subjects.filter(id=session.section_id).exists():
         return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SECTION'})
         
     # Determine photo URL
@@ -206,7 +206,7 @@ def verify_attendance(request, pk):
         if not student:
             return JsonResponse({'success': False, 'error': 'STUDENT_NOT_FOUND'})
             
-        if student.section_id != session.section_id:
+        if not student.subjects.filter(id=session.section_id).exists():
              return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SECTION'})
 
         stored_embeddings = student.embeddings.filter(is_active=True)
@@ -215,7 +215,13 @@ def verify_attendance(request, pk):
             
         stored_vecs = [e.get_vector() for e in stored_embeddings]
 
-    result = process_biometric_frame(image_bytes, stored_vecs=stored_vecs)
+    try:
+        logger.info(f"Biometric Request: frame_size={len(image_bytes)} bytes, qr_present={bool(current_qr)}")
+        result = process_biometric_frame(image_bytes, stored_vecs=stored_vecs, threshold=FACE_MATCH_THRESHOLD)
+        logger.info(f"Biometric Result: qr_detected={bool(result.get('qr_data'))} face_detected={bool(result.get('face_box'))}")
+    except Exception as e:
+        logger.error(f"Biometric Processing Crash: {e}")
+        return JsonResponse({'success': False, 'error': 'SERVER_PIPELINE_ERROR', 'details': str(e)})
 
     if result.get('face_match') and student:
         record, created = AttendanceRecord.objects.get_or_create(
@@ -226,6 +232,7 @@ def verify_attendance(request, pk):
             record.status = 'PRESENT'
             record.marked_at = timezone.now()
             record.verification_method = 'FACE'
+            record.face_match_score = result.get('face_score')
             record.save()
             audit(request, 'ATTENDANCE_MARKED', 'AttendanceRecord', str(record.id))
             
@@ -254,9 +261,10 @@ def attendance_viewer(request):
         context['students'] = Student.objects.filter(subjects__in=subjects).distinct()
         
     elif request.user.role == 'STUDENT' or getattr(request.user, 'is_student', lambda: False)():
-        # Course list only limited to what they're taking (which may just be one, but we provide it)
-        if hasattr(request.user, 'student_profile') and request.user.student_profile.section:
-            context['courses'] = [request.user.student_profile.section.course_code]
+        # Course list only limited to what they're taking
+        if hasattr(request.user, 'student_profile'):
+            subjects = request.user.student_profile.subjects.all()
+            context['courses'] = list(subjects.values_list('course_code', flat=True).distinct())
         else:
             context['courses'] = []
 
@@ -353,7 +361,7 @@ def report_student_detail(request, student_id):
             messages.error(request, "Access denied.")
             return redirect('dashboard')
     elif user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        if student.section and not student.section.teachers.filter(id=user.id).exists():
+        if not student.subjects.filter(teachers=user).exists():
             messages.error(request, "Access denied.")
             return redirect('dashboard')
 

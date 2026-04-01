@@ -8,8 +8,7 @@ from django.conf import settings
 
 # ── Face Recognition ───────────────────────────────────────────────────────
 # Cosine similarity threshold for a positive face match (0.0 – 1.0).
-# SFace model: 0.60–0.70 gives a good precision/recall trade-off.
-FACE_MATCH_THRESHOLD: float = getattr(settings, "FACE_MATCH_THRESHOLD", 0.65)
+FACE_MATCH_THRESHOLD: float = getattr(settings, "FACE_MATCH_THRESHOLD", 0.45)
 
 # Maximum consecutive mismatch attempts before giving up and requesting
 # manual verification.

@@ -3,6 +3,8 @@ from .models import AuditLog
 def audit(request, action, target_resource, resource_id='', metadata=None):
     if metadata is None:
         metadata = {}
+    elif isinstance(metadata, str):
+        metadata = {'notes': metadata}
     
     actor = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
     ip = request.META.get('REMOTE_ADDR')

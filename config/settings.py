@@ -94,7 +94,7 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # Face recognition settings
 # SFace cosine-similarity threshold. Official OpenCV default is 0.363.
 # 0.38 gives a small safety margin while remaining practical for webcam conditions.
-FACE_MATCH_THRESHOLD = config('FACE_MATCH_THRESHOLD', default=0.38, cast=float)
+FACE_MATCH_THRESHOLD = config('FACE_MATCH_THRESHOLD', default=0.65, cast=float)
 HMAC_SIGNING_KEY = config('HMAC_SIGNING_KEY', default='dev-hmac-key-change-in-production')
 ML_MODELS_DIR = BASE_DIR / 'ml_models'
 

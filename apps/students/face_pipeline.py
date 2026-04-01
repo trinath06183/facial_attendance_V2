@@ -11,6 +11,7 @@ import numpy as np
 import cv2
 from PIL import Image
 from django.conf import settings
+import qrcode
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,9 @@ def _ensure_models():
 
 def _pil_to_bgr(image_bytes: bytes) -> np.ndarray:
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    img = img.resize((640, 480))
+    # Use thumbnail to maintain aspect ratio and avoid squashing QR codes.
+    # YuNet works well up to ~960px. Using 800 for balance.
+    img.thumbnail((800, 800), Image.Resampling.LANCZOS)
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
 
@@ -144,10 +147,11 @@ def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None, thresh
                      Defaults to settings.FACE_MATCH_THRESHOLD (or 0.38 if not set).
     """
     _ensure_models()
+    logger.info("Processing biometric frame...")
 
     # Resolve threshold — fall back to 0.38 (the standard SFace cosine threshold)
     if threshold is None:
-        threshold = getattr(settings, 'FACE_MATCH_THRESHOLD', 0.38)
+        threshold = getattr(settings, 'FACE_MATCH_THRESHOLD', 0.65)
 
     bgr = _pil_to_bgr(image_bytes)
     h, w = bgr.shape[:2]
@@ -163,6 +167,7 @@ def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None, thresh
 
     # 1. Detect QR Code
     data, bbox, _ = _qr_detector.detectAndDecode(bgr)
+    logger.info(f"QR Detect: data={data} bbox_found={bbox is not None}")
     if data and bbox is not None and len(bbox) > 0:
         result['qr_data'] = data
         pts = bbox[0]
@@ -197,8 +202,8 @@ def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None, thresh
                     result['face_score'] = round(float(score), 4)
                     if score >= threshold:
                         result['face_match'] = True
-                    logger.debug(
-                        f"Face score={score:.4f} threshold={threshold:.4f} match={result['face_match']}"
+                    logger.info(
+                        f"Face ID: score={score:.4f} req={threshold:.4f} match={result['face_match']}"
                     )
                 except Exception as e:
                     logger.error(f"SFace processing error: {e}")

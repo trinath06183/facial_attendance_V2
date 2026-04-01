@@ -1,5 +1,8 @@
 import math
+import logging
+import json
 from datetime import datetime
+from django.utils.timezone import now
 
 from django.core.paginator import Paginator, EmptyPage
 from django.http import JsonResponse
@@ -9,6 +12,8 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 
 from .models import AttendanceRecord
+
+logger = logging.getLogger(__name__)
 
 def get_filtered_attendance_qs(request):
     """
@@ -215,12 +220,7 @@ def student_search_api(request):
     )
     
     if section_id:
-        from apps.attendance.models import Section
-        section = Section.objects.filter(id=section_id).first()
-        if section and section.subject:
-            qs = qs.filter(subjects=section.subject)
-        else:
-            qs = qs.none()
+        qs = qs.filter(subjects__id=section_id)
         
     # Limit results to top 10 for performance in dropdowns
     results = qs[:10]
@@ -261,7 +261,7 @@ def manual_override_api(request, session_id):
     if session.status != 'OPEN':
         return JsonResponse({'success': False, 'error': 'Session is closed.'})
         
-    if not student.subjects.filter(id=session.section.subject_id).exists():
+    if not student.subjects.filter(id=session.section_id).exists():
         return JsonResponse({'success': False, 'error': 'Student not in this section.'})
         
     record, created = AttendanceRecord.objects.get_or_create(
@@ -277,7 +277,7 @@ def manual_override_api(request, session_id):
         record.save()
         
     from apps.audit.utils import audit
-    audit(request, 'ATTENDANCE_OVERRIDE', 'AttendanceRecord', str(record.id), f"Student {student.university_roll_number} manually marked present")
+    audit(request, 'ATTENDANCE_OVERRIDE', 'AttendanceRecord', str(record.id), {'notes': f"Student {student.university_roll_number} manually marked present"})
         
     return JsonResponse({'success': True, 'message': 'Successfully marked present manually.'})
 
@@ -308,30 +308,36 @@ def attendance_record_edit_api(request, record_id):
     if new_status not in valid_statuses:
         return JsonResponse({'success': False, 'error': f'Invalid status. Must be one of {valid_statuses}'}, status=400)
         
-    record = get_object_or_404(AttendanceRecord.select_related('session'), id=record_id)
-    
-    # RBAC logic for edits
-    if request.user.role != 'ADMIN':
-        if record.session.status != 'OPEN':
-            return JsonResponse({'success': False, 'error': 'Cannot edit attendance in a CLOSED session unless you are an ADMIN.'}, status=403)
-        if request.user not in record.session.section.teachers.all():
-            return JsonResponse({'success': False, 'error': 'You are not assigned to this section.'}, status=403)
-            
-    # Stash original properties before mutation
-    if record.original_status is None:
-        record.original_status = record.status 
+    try:
+        record = get_object_or_404(AttendanceRecord.objects.select_related('session__section', 'student'), id=record_id)
         
-    old_status = record.status
-    record.status = new_status
-    record.edited_by = request.user
-    record.edited_at = now()
-    record.reason = reason
-    record.save()
-    
-    audit(request, 'ATTENDANCE_INLINE_EDIT', 'AttendanceRecord', str(record.id), 
-          f"Changed status from {old_status} to {new_status} for {record.student.university_roll_number}. Reason: {reason}")
-          
-    return JsonResponse({'success': True, 'data': {'status': new_status, 'reason': reason, 'edited_by': request.user.username}})
+        # RBAC logic for edits
+        if request.user.role != 'ADMIN':
+            if record.session.status != 'OPEN':
+                return JsonResponse({'success': False, 'error': 'Cannot edit attendance in a CLOSED session unless you are an ADMIN.'}, status=403)
+            if not record.session.section.teachers.filter(id=request.user.id).exists():
+                return JsonResponse({'success': False, 'error': 'You are not assigned to this section.'}, status=403)
+                
+        # Stash original properties before mutation
+        if record.original_status is None:
+            record.original_status = record.status 
+            
+        old_status = record.status
+        record.status = new_status
+        record.edited_by = request.user
+        record.edited_at = now()
+        record.reason = reason
+        record.save()
+        
+        audit(request, 'ATTENDANCE_INLINE_EDIT', 'AttendanceRecord', str(record.id), 
+              {'notes': f"Changed status from {old_status} to {new_status} for {record.student.university_roll_number}. Reason: {reason}"})
+              
+        return JsonResponse({'success': True, 'data': {'status': new_status, 'reason': reason, 'edited_by': request.user.username}})
+    except Exception as e:
+        import traceback
+        error_msg = f"Edit Error: {str(e)}"
+        logger.error(f"{error_msg}\n{traceback.format_exc()}")
+        return JsonResponse({'success': False, 'error': error_msg}, status=500)
 
 
 @login_required
@@ -353,10 +359,7 @@ def attendance_session_ledger_api(request, session_id):
     records = AttendanceRecord.objects.filter(session=session).select_related('student')
     record_map = { r.student_id: r for r in records }
     
-    if session.section.subject:
-        students = session.section.subject.students.filter(enrollment_status='ACTIVE').order_by('full_name')
-    else:
-        students = Student.objects.none()
+    students = session.section.students.filter(enrollment_status='ACTIVE').order_by('full_name')
     
     roster = []
     for s in students:
