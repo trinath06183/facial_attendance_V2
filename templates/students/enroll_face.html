@@ -42,6 +42,22 @@
     {% endif %}
 </div>
 
+{% if student.embedding_count > 0 %}
+<!-- ── Overwrite Notice ──────────────────────── -->
+<div class="mb-6 flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-2xl p-4">
+    <div class="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+        <i class="fas fa-rotate text-orange-600"></i>
+    </div>
+    <div class="flex-1">
+        <p class="text-sm font-bold text-orange-800">Face data already enrolled ({{ student.embedding_count }} frames)</p>
+        <p class="text-xs text-orange-700 mt-0.5">
+            Starting a new capture session will <strong>overwrite</strong> all existing face vectors with the new data.
+            The student's QR code will remain valid. Or <a href="{% url 'student_detail' student.id %}" class="underline font-semibold">skip and keep existing data</a>.
+        </p>
+    </div>
+</div>
+{% endif %}
+
 <!-- ── Main Layout ───────────────────────────── -->
 <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
 
@@ -161,6 +177,16 @@
                 Enrollment Complete — View ID Card
             </a>
         </div>
+
+        <!-- Skip Face Enrollment -->
+        <div class="pt-2">
+            <a href="{% url 'student_detail' student.id %}"
+               class="flex items-center justify-center gap-2 w-full py-2.5 px-5 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-xl text-sm font-semibold border border-gray-200 transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
+                <i class="fas fa-forward-step" aria-hidden="true"></i>
+                Skip Face Enrollment
+            </a>
+            <p class="text-center text-[10px] text-gray-400 mt-1.5 font-medium">Student can still be searched and marked manually.</p>
+        </div>
     </div>
 </div>
 
@@ -178,8 +204,21 @@
     const flashEl     = document.getElementById('flash-overlay');
     const progressRole = document.querySelector('[role="progressbar"]');
 
-    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const UPLOAD_URL = "{% url 'upload_face_frame' student.id %}";
+    const CSRF_TOKEN  = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const BASE_UPLOAD_URL = "{% url 'upload_face_frame' student.id %}";
+
+    // If student already has embeddings, the FIRST upload of this session will
+    // use ?overwrite=1 to clear old data, then revert to normal mode.
+    let hasExisting  = {{ student.embedding_count }} > 0;
+    let firstCapture = true;   // tracks whether we've sent the overwrite call yet
+
+    function buildUploadURL() {
+        if (hasExisting && firstCapture) {
+            // Only the first frame of a new session uses ?overwrite=1
+            return BASE_UPLOAD_URL + '?overwrite=1';
+        }
+        return BASE_UPLOAD_URL;
+    }
 
     let cameraStream = null;
 
@@ -223,7 +262,12 @@
     function captureFrame() {
         if (!isAutoCapturing) return;
         const currentCount = parseInt(embCountEl.textContent) || 0;
-        if (currentCount >= 30) {
+
+        // Only enforce the 30-frame ceiling when NOT in overwrite mode.
+        // If hasExisting && firstCapture, we MUST send the first frame regardless
+        // of the current stored count so the overwrite can clear old data.
+        const inOverwriteMode = hasExisting && firstCapture;
+        if (!inOverwriteMode && currentCount >= 30) {
             isAutoCapturing = false;
             captureBtn.innerHTML = '<span class="absolute inset-2 rounded-full bg-emerald-500 transition-colors"></span><i class="fas fa-check absolute inset-0 flex items-center justify-center text-white"></i>';
             captureBtn.disabled = true;
@@ -244,7 +288,9 @@
             formData.append('frame', blob, 'frame.jpg');
             formData.append('environment', envSelect.value);
 
-            fetch(UPLOAD_URL, {
+            const uploadURL = buildUploadURL();
+
+            fetch(uploadURL, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': CSRF_TOKEN },
                 body: formData
@@ -252,8 +298,26 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    // After first successful overwrite-upload, reset UI counter & flags
+                    if (firstCapture) {
+                        firstCapture = false;
+                        hasExisting  = false;
+                        // Reset the UI count to 0 so progress bar starts fresh
+                        updateProgress(0);
+                        doneSection.classList.add('hidden');
+                    }
                     showFeedback(`✓ Captured! Quality: ${(data.quality_score * 100).toFixed(1)}%`, "success");
                     updateProgress(data.embedding_count);
+                } else {
+                    // Show the error reason on failed frames
+                    const errMap = {
+                        'NO_FACE_DETECTED': 'No face detected. Center your face in the oval.',
+                        'MULTIPLE_FACES':   'Multiple faces detected. Only one person should be in frame.',
+                        'LOW_CONFIDENCE':   'Face too far or unclear. Move closer.',
+                        'BLUR_DETECTED':    'Image is blurry. Hold still.',
+                        'DUPLICATE_FRAME':  'Duplicate frame — skipping.',
+                    };
+                    showFeedback(errMap[data.error] || data.error, 'error');
                 }
             })
             .catch(() => {})
@@ -292,5 +356,9 @@
         clearTimeout(feedbackEl._timer);
         feedbackEl._timer = setTimeout(() => feedbackEl.classList.add('hidden'), 3500);
     }
+
+    // ── Done CTA ───────────────────────────────────
+    // (re-declared here so it's accessible if the section was hidden on load)
+    const _doneSection = document.getElementById('done-section');
 </script>
 {% endblock %}

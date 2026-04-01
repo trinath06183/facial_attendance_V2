@@ -2,7 +2,7 @@ import json
 import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -74,12 +74,13 @@ def student_edit(request, pk):
         form = StudentForm(request.POST, instance=student)
         if form.is_valid():
             form.save()
-            messages.success(request, "Student updated.")
-            return redirect('student_detail', pk=pk)
+            audit(request, 'STUDENT_UPDATED', 'Student', str(student.id))
+            messages.success(request, f"Student {student.full_name} updated. Proceed to face enrollment.")
+            return redirect('student_enroll_face', pk=student.pk)
     else:
         form = StudentForm(instance=student)
     return render(request, 'students/register.html', {
-        'form': form, 'title': 'Edit Student', 'student': student
+        'form': form, 'title': 'Edit Student Details', 'student': student, 'is_edit': True
     })
 
 
@@ -95,7 +96,11 @@ def student_enroll_face(request, pk):
 @login_required
 @require_POST
 def upload_face_frame(request, pk):
-    """Receive a single captured frame, extract embedding, store it."""
+    """Receive a single captured frame, extract embedding, store it.
+    
+    Query param ?overwrite=1 clears all existing active embeddings first
+    (used during re-enrollment to replace old face data).
+    """
     student = get_object_or_404(Student, pk=pk)
     frame_file = request.FILES.get('frame')
     if not frame_file:
@@ -107,8 +112,17 @@ def upload_face_frame(request, pk):
     if not result['success']:
         return JsonResponse({'success': False, 'error': result['error']})
 
-    # Deduplicate by image hash
-    if Embedding.objects.filter(student=student, source_image_hash=result['image_hash']).exists():
+    # Overwrite mode: clear all existing active embeddings before the first new frame
+    overwrite = request.GET.get('overwrite') == '1'
+    if overwrite:
+        deleted_count = student.embeddings.filter(is_active=True).count()
+        student.embeddings.filter(is_active=True).delete()
+        if deleted_count:
+            audit(request, 'EMBEDDINGS_CLEARED', 'Student', str(student.id),
+                  f"Overwrite re-enrollment: {deleted_count} embeddings removed")
+
+    # Deduplicate by image hash (skip if we just cleared)
+    if not overwrite and Embedding.objects.filter(student=student, source_image_hash=result['image_hash']).exists():
         return JsonResponse({'success': False, 'error': 'DUPLICATE_FRAME'})
 
     emb = Embedding(
@@ -122,7 +136,7 @@ def upload_face_frame(request, pk):
 
     audit(request, 'EMBEDDING_ADDED', 'Embedding', str(emb.id))
 
-    # Auto-generate QR after first embedding
+    # Auto-generate / refresh QR after first embedding
     if student.embedding_count == 1:
         create_or_update_qr(student)
         audit(request, 'QR_GENERATED', 'Student', str(student.id))
@@ -161,6 +175,12 @@ def student_photo_upload(request, pk):
         privacy_consent = request.POST.get('privacy_consent') == 'on'
         is_primary = request.POST.get('is_primary') == 'on'
         
+        # If student is uploading, it requires approval and overrides is_primary request initially
+        is_approved = True
+        if request.user.role == 'STUDENT':
+            is_approved = False
+            is_primary = False 
+            
         if is_primary:
             student.photos.update(is_primary=False)
             
@@ -168,10 +188,38 @@ def student_photo_upload(request, pk):
             student=student,
             image=photo_file,
             is_primary=is_primary,
-            privacy_consent=privacy_consent
+            privacy_consent=privacy_consent,
+            is_approved=is_approved
         )
-        messages.success(request, "Photo uploaded successfully.")
+        if not is_approved:
+            messages.success(request, "Photo uploaded successfully. It is pending admin approval.")
+        else:
+            messages.success(request, "Photo uploaded successfully.")
     else:
         messages.error(request, "No file selected.")
         
+    return redirect('student_detail', pk=pk)
+
+@login_required
+@require_POST
+def student_photo_approve(request, pk, photo_id):
+    if request.user.role == 'STUDENT':
+        return HttpResponseForbidden()
+    photo = get_object_or_404(StudentPhoto, id=photo_id, student_id=pk)
+    photo.is_approved = True
+    # Auto-make primary if it's their only photo or explicitly chosen previously
+    if not photo.student.photos.filter(is_primary=True).exists():
+        photo.is_primary = True
+    photo.save(update_fields=['is_approved', 'is_primary'])
+    messages.success(request, "Photo approved successfully.")
+    return redirect('student_detail', pk=pk)
+
+@login_required
+@require_POST
+def student_photo_delete(request, pk, photo_id):
+    if request.user.role == 'STUDENT':
+        return HttpResponseForbidden()
+    photo = get_object_or_404(StudentPhoto, id=photo_id, student_id=pk)
+    photo.delete()
+    messages.success(request, "Photo deleted successfully.")
     return redirect('student_detail', pk=pk)

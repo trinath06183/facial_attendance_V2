@@ -15,8 +15,6 @@ from apps.audit.utils import audit
 from .models import AttendanceSession, AttendanceRecord, Section
 from .forms import AttendanceSessionForm
 from .analytics import get_student_analytics, get_admin_analytics
-from .export import generate_csv_export, generate_pdf_export, generate_excel_export
-from .report_export import export_report_csv, export_report_excel, export_report_pdf
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -308,19 +306,7 @@ def export_reports(request):
     """
     Generates file exports based on unified filters.
     """
-    from .api_views import get_filtered_attendance_qs
-    format_type = request.GET.get('format', 'csv')
-    
-    records, err_resp = get_filtered_attendance_qs(request)
-    if err_resp:
-        return err_resp
-
-    if format_type == 'pdf':
-        return generate_pdf_export(records)
-    elif format_type == 'excel':
-        return generate_excel_export(records)
-    else:
-        return generate_csv_export(records)
+    return JsonResponse({'success': False, 'error': 'Export feature removed.'})
 
 
 # ── Enhanced Report Dashboard ─────────────────────────────────────────────────
@@ -372,69 +358,9 @@ def report_student_detail(request, student_id):
 
     return render(request, 'attendance/report_student.html', {'student': student})
 
-
 @login_required
 def report_export_view(request):
     """
     On-demand export for the reports dashboard.
-    Reads section_id, granularity, fromDate, toDate, format from GET params.
-    Generates summary rows from reports.py and returns the formatted file.
     """
-    from .reports import get_section_student_rows, apply_relative_preset
-    from .models import AttendanceRecord
-    from datetime import datetime as dt
-
-    user = request.user
-    section_id = request.GET.get('sectionId')
-    format_type = request.GET.get('format', 'csv')
-    include_detail = request.GET.get('includeDetail', 'false') == 'true'
-
-    # Resolve section
-    if not section_id:
-        return JsonResponse({'error': 'sectionId is required.'}, status=400)
-    section = get_object_or_404(Section, pk=section_id)
-
-    # RBAC
-    if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        if not section.teachers.filter(id=user.id).exists():
-            return JsonResponse({'error': 'Access denied.'}, status=403)
-    elif user.role == 'STUDENT' or getattr(user, 'is_student', lambda: False)():
-        return JsonResponse({'error': 'Access denied.'}, status=403)
-
-    # Date resolution
-    preset = request.GET.get('preset')
-    if preset:
-        from_date, to_date = apply_relative_preset(preset)
-    else:
-        try:
-            from_date = dt.strptime(request.GET.get('fromDate', ''), '%Y-%m-%d').date() if request.GET.get('fromDate') else None
-            to_date = dt.strptime(request.GET.get('toDate', ''), '%Y-%m-%d').date() if request.GET.get('toDate') else None
-        except ValueError:
-            from_date, to_date = None, None
-
-    rows = get_section_student_rows(section, from_date=from_date, to_date=to_date)
-    label = str(section)
-    date_tag = f"{from_date or 'all'}_{to_date or 'all'}"
-    filename = f"report_{section.course_code}_{date_tag}.{format_type if format_type != 'excel' else 'xlsx'}"
-
-    from apps.audit.utils import audit
-    audit(request, 'REPORT_EXPORTED', 'SectionReport', f'{section.id} | {format_type}')
-
-    # Optional detail records
-    detail_records = None
-    if include_detail:
-        detail_records = AttendanceRecord.objects.filter(
-            session__status='CLOSED', session__section=section
-        ).select_related('student', 'session', 'session__section').order_by('-session__started_at')
-        if from_date:
-            detail_records = detail_records.filter(session__started_at__date__gte=from_date)
-        if to_date:
-            detail_records = detail_records.filter(session__started_at__date__lte=to_date)
-
-    # Dispatch export
-    if format_type == 'pdf':
-        return export_report_pdf(rows, label, detail_records=detail_records, filename=filename)
-    elif format_type == 'excel':
-        return export_report_excel(rows, label, detail_records=detail_records, filename=filename)
-    else:
-        return export_report_csv(rows, label, filename=filename)
+    return JsonResponse({'success': False, 'error': 'Export feature removed.'})

@@ -7,18 +7,26 @@
 <div class="bg-gray-50 min-h-screen">
     <!-- Breadcrumb & Header -->
     <div class="mb-8">
+        {% if request.user.role == 'STUDENT' %}
+        <a href="{% url 'dashboard' %}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        {% else %}
         <a href="{% url 'student_list' %}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2">
             <i class="fas fa-arrow-left"></i> Back to Directory
         </a>
+        {% endif %}
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div>
                 <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ student.full_name }}</h1>
                 <p class="text-gray-500 font-mono text-sm uppercase tracking-widest mt-1">ID: {{ student.student_id }} &nbsp;|&nbsp; Route: {{ student.section.course_code }}</p>
             </div>
             <div class="flex gap-2">
+                {% if request.user.role != 'STUDENT' %}
                 <a href="{% url 'student_edit' student.id %}" class="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-bold shadow-sm transition-all focus:ring focus:ring-gray-100 flex items-center gap-2">
                     <i class="fas fa-edit"></i> Edit Core Data
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -124,19 +132,49 @@
                     {% for photo in photos %}
                     <div class="relative group rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 aspect-square cursor-zoom-in"
                          onclick="openPhotoLightbox('{{ photo.image.url }}')">
-                        <img src="{{ photo.image.url }}" alt="Photo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        
+                        {% if not photo.is_approved %}
+                            <!-- Dim the image and show pending text if not approved -->
+                            <img src="{{ photo.image.url }}" alt="Photo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-50 grayscale">
+                            <div class="absolute inset-x-0 top-0 p-2">
+                                <span class="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-wider rounded shadow-sm flex items-center gap-1 w-max">
+                                    <i class="fas fa-clock"></i> Pending
+                                </span>
+                            </div>
+                        {% else %}
+                            <img src="{{ photo.image.url }}" alt="Photo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        {% endif %}
+
                         <div class="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                            <div class="flex justify-between items-center">
+                            <div class="flex justify-between items-center mb-1">
                                 <span class="text-[10px] text-white/80 font-mono">{{ photo.uploaded_at|date:"M d, y" }}</span>
                                 {% if photo.is_primary %}
                                 <span class="w-2 h-2 rounded-full bg-green-400" title="Primary Avatar"></span>
                                 {% endif %}
                             </div>
-                            <div class="absolute inset-0 flex items-center justify-center">
+                            
+                            {% if not photo.is_approved and request.user.role != 'STUDENT' %}
+                            <div class="flex gap-1 w-full" onclick="event.stopPropagation();">
+                                <form action="{% url 'student_photo_approve' student.id photo.id %}" method="post" class="flex-1">
+                                    {% csrf_token %}
+                                    <button type="submit" class="w-full py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold rounded shadow-sm transition-colors flex items-center justify-center gap-1">
+                                        <i class="fas fa-check"></i> Approve
+                                    </button>
+                                </form>
+                                <form action="{% url 'student_photo_delete' student.id photo.id %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold rounded shadow-sm transition-colors" onclick="return confirm('Delete this unapproved photo?');">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <i class="fas fa-expand text-white text-sm"></i>
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% empty %}
@@ -159,9 +197,11 @@
                         <p class="text-xs text-gray-400 mt-1">Mathematical vectors mapped by the passive AI pipeline.</p>
                     </div>
                     
+                    {% if request.user.role != 'STUDENT' %}
                     <a href="{% url 'student_enroll_face' student.id %}" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm border border-emerald-700 shrink-0">
                         <i class="fas fa-expand"></i> Launch Scanner
                     </a>
+                    {% endif %}
                 </div>
                 
                 <div class="overflow-hidden">

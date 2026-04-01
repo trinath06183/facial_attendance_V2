@@ -109,6 +109,7 @@ class StudentPhoto(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='photos')
     image = models.ImageField(upload_to='student_photos/')
     is_primary = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=True)
     privacy_consent = models.BooleanField(default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

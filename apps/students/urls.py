@@ -11,4 +11,6 @@ urlpatterns = [
     path('<uuid:pk>/qr/', views.student_qr, name='student_qr'),
     path('<uuid:pk>/qr/display/', views.student_qr_display, name='student_qr_display'),
     path('<uuid:pk>/photo/upload/', views.student_photo_upload, name='student_photo_upload'),
+    path('<uuid:pk>/photo/<uuid:photo_id>/approve/', views.student_photo_approve, name='student_photo_approve'),
+    path('<uuid:pk>/photo/<uuid:photo_id>/delete/', views.student_photo_delete, name='student_photo_delete'),
 ]

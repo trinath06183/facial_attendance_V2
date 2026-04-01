@@ -131,24 +131,36 @@ def passive_liveness_check(frame_vectors: list) -> bool:
     return False
 
 
-def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None) -> dict:
+def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None, threshold: float = None) -> dict:
     """
     Simultaneously detects QR payloads and Face bounding boxes from a single frame.
     Returns scaling coordinates relative to 640x480.
+
+    Args:
+        image_bytes: Raw JPEG/PNG bytes from the camera.
+        stored_vecs:  List of L2-normalised float32 numpy arrays (enrolled face embeddings).
+                     Pass None/empty to skip face matching (QR-only phase).
+        threshold:   Cosine-similarity threshold for face_match.
+                     Defaults to settings.FACE_MATCH_THRESHOLD (or 0.38 if not set).
     """
     _ensure_models()
-    
+
+    # Resolve threshold — fall back to 0.38 (the standard SFace cosine threshold)
+    if threshold is None:
+        threshold = getattr(settings, 'FACE_MATCH_THRESHOLD', 0.38)
+
     bgr = _pil_to_bgr(image_bytes)
     h, w = bgr.shape[:2]
-    
+
     result = {
-        'qr_data': None,
-        'qr_box': None,    # [x, y, w, h]
-        'face_box': None,  # [x, y, w, h]
-        'face_match': False,
+        'qr_data':       None,
+        'qr_box':        None,    # [x, y, w, h]
+        'face_box':      None,    # [x, y, w, h]
+        'face_match':    False,
+        'face_score':    0.0,     # live cosine similarity (for UI feedback)
         'original_dims': [w, h]
     }
-    
+
     # 1. Detect QR Code
     data, bbox, _ = _qr_detector.detectAndDecode(bgr)
     if data and bbox is not None and len(bbox) > 0:
@@ -157,21 +169,21 @@ def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None) -> dic
         x1, y1 = float(min(pts[:, 0])), float(min(pts[:, 1]))
         x2, y2 = float(max(pts[:, 0])), float(max(pts[:, 1]))
         result['qr_box'] = [x1, y1, x2 - x1, y2 - y1]
-        
+
     # 2. Detect Face
     _detector.setInputSize((w, h))
     _, faces = _detector.detect(bgr)
-    
+
     if faces is not None and len(faces) > 0:
-        # Take the most prominent face
+        # Take the most prominent (highest-confidence) face
         face = faces[0]
         confidence = float(face[-1])
-        
-        # YuNet bounding box is [x, y, w, h] in the first 4 elements
-        if confidence >= 0.70:
+
+        # Slightly relaxed threshold (0.60) for real-world scanner environments
+        if confidence >= 0.60:
             result['face_box'] = [float(face[0]), float(face[1]), float(face[2]), float(face[3])]
-            
-            # If we already have stored vecs, check for match
+
+            # If we have stored embeddings, run recognition
             if stored_vecs:
                 try:
                     aligned = _recognizer.alignCrop(bgr, face)
@@ -180,11 +192,15 @@ def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None) -> dic
                     norm = np.linalg.norm(vec)
                     if norm > 0:
                         vec = vec / norm
-                        
+
                     score = compare_embeddings(vec, stored_vecs)
-                    if score >= 0.75:
+                    result['face_score'] = round(float(score), 4)
+                    if score >= threshold:
                         result['face_match'] = True
+                    logger.debug(
+                        f"Face score={score:.4f} threshold={threshold:.4f} match={result['face_match']}"
+                    )
                 except Exception as e:
                     logger.error(f"SFace processing error: {e}")
-                    
+
     return result

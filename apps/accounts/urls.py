@@ -10,4 +10,8 @@ urlpatterns = [
     path('users/<uuid:user_id>/edit/', views.user_edit, name='user_edit'),
     path('users/<uuid:user_id>/toggle/', views.user_toggle_status, name='user_toggle_status'),
     path('api/login/biometric/', views.biometric_login_api, name='biometric_login_api'),
+    # ── Student Biometric Login Scanner (public) ──────────────
+    path('student-login/', views.student_scanner_view, name='student_scanner'),
+    path('api/student-face-login/', views.student_face_login_api, name='student_face_login_api'),
 ]
+

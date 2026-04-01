@@ -1,25 +1,40 @@
 {% extends 'base.html' %}
 
-{% block title %}Register Student — SmartAttend{% endblock %}
+{% block title %}{% if is_edit %}Edit Student: {{ student.full_name }}{% else %}Register Student{% endif %} — SmartAttend{% endblock %}
 
 {% block content %}
-<!-- ── Page Header ───────────────────────────── -->
+<!-- ── Page Header ─────────────────────────────── -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
+        {% if is_edit %}
+        <a href="{% url 'student_detail' student.id %}"
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2"
+            aria-label="Back to student profile">
+            <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i> Back to Profile
+        </a>
+        <h1 class="text-3xl font-black text-gray-900 tracking-tight">Edit Student Details</h1>
+        <p class="text-gray-400 text-sm mt-1">
+            Updating <span class="font-semibold text-gray-600">{{ student.full_name }}</span> — changes will redirect to Face Enrollment.
+        </p>
+        {% else %}
         <a href="{% url 'student_list' %}"
-            class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2">
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mb-2"
+            aria-label="Back to student directory">
             <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i> Back to Directory
         </a>
         <h1 class="text-3xl font-black text-gray-900 tracking-tight">Student Registration</h1>
-        <p class="text-gray-400 text-sm mt-1">Step 1: Enter student details and collect biometric consent.</p>
+        <p class="text-gray-400 text-sm mt-1">Step 1 of 3 — Enter student details and collect biometric consent.</p>
+        {% endif %}
     </div>
 </div>
 
 <!-- ── Progress Steps ────────────────────────── -->
 <div class="flex items-center gap-3 mb-8" aria-label="Registration steps">
     <div class="flex items-center gap-2">
-        <span class="w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-sm">1</span>
-        <span class="text-sm font-bold text-blue-700">Details &amp; Consent</span>
+        <span class="w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-sm">
+            {% if is_edit %}<i class="fas fa-pen text-[9px]"></i>{% else %}1{% endif %}
+        </span>
+        <span class="text-sm font-bold text-blue-700">{% if is_edit %}Edit Details{% else %}Details &amp; Consent{% endif %}</span>
     </div>
     <i class="fas fa-chevron-right text-gray-300 text-xs" aria-hidden="true"></i>
     <div class="flex items-center gap-2">
@@ -33,11 +48,16 @@
     </div>
 </div>
 
+
+
 <!-- ── Form Card ─────────────────────────────── -->
 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden max-w-2xl">
     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
         <i class="fas fa-user-graduate text-blue-500 text-sm" aria-hidden="true"></i>
         <h2 class="font-bold text-gray-700 text-sm">Student Information</h2>
+        {% if is_edit %}
+        <span class="ml-auto px-2.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-full">Editing</span>
+        {% endif %}
     </div>
 
     <div class="p-6 md:p-8">
@@ -102,8 +122,26 @@
                 });
             </script>
 
-            <!-- Actions -->
-            <div class="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+            <!-- ── Actions ──────────────────────────────── -->
+            <div class="flex flex-col sm:flex-row items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+                {% if is_edit %}
+                <!-- Cancel / Skip options for edit mode -->
+                <a href="{% url 'student_detail' student.id %}"
+                    class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
+                    Cancel
+                </a>
+                <a href="{% url 'student_enroll_face' student.id %}"
+                    class="px-5 py-2.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200 flex items-center gap-2">
+                    <i class="fas fa-forward-step" aria-hidden="true"></i>
+                    Skip to Face Enrollment
+                </a>
+                <button type="submit"
+                    class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-300 flex items-center gap-2">
+                    <i class="fas fa-floppy-disk" aria-hidden="true"></i>
+                    Save &amp; Continue
+                </button>
+                {% else %}
+                <!-- Standard create mode buttons -->
                 <a href="{% url 'student_list' %}"
                     class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
                     Cancel
@@ -113,6 +151,7 @@
                     <i class="fas fa-arrow-right" aria-hidden="true"></i>
                     Save &amp; Continue to Face Enrollment
                 </button>
+                {% endif %}
             </div>
         </form>
     </div>

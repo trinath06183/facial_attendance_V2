@@ -1,0 +1,449 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Face Login — SmartAttend</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height: 100vh; }
+        @keyframes pulse-ring { 0% { transform: scale(0.9); opacity: 0.8; } 100% { transform: scale(1.3); opacity: 0; } }
+        .pulse-ring::before {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            border: 3px solid #6366f1;
+            animation: pulse-ring 1.5s ease-out infinite;
+        }
+        @keyframes scanline { 0% { top: 0; } 100% { top: 100%; } }
+        .scan-line {
+            position: absolute;
+            left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #6366f1, #a855f7, #6366f1, transparent);
+            box-shadow: 0 0 12px 3px rgba(99, 102, 241, 0.6);
+            animation: scanline 2s linear infinite;
+        }
+        .corner::before, .corner::after { content: ''; position: absolute; width: 20px; height: 20px; border-color: #6366f1; border-style: solid; }
+        .corner-tl::before { top: 0; left: 0; border-width: 3px 0 0 3px; }
+        .corner-tr::after { top: 0; right: 0; border-width: 3px 3px 0 0; }
+        .corner-bl::before { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+        .corner-br::after { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .step-active { background: rgba(99,102,241,0.2); border-color: #6366f1; }
+        .step-done   { background: rgba(16,185,129,0.2); border-color: #10b981; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Back to Login -->
+    <a href="{% url 'login' %}" class="fixed top-6 left-6 z-50 flex items-center gap-2 text-white/60 hover:text-white text-sm font-semibold transition-colors">
+        <i class="fas fa-arrow-left"></i> Back to Login
+    </a>
+
+    <div class="w-full max-w-5xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
+                    <i class="fas fa-face-viewfinder text-indigo-400"></i>
+                </div>
+                <span class="text-white text-2xl font-black" style="font-family: 'Outfit', sans-serif;">SmartAttend</span>
+            </div>
+            <h1 class="text-3xl font-black text-white tracking-tight">Student Biometric Login</h1>
+            <p class="text-white/50 text-sm mt-2 font-medium">Scan your QR code then verify your face to sign in</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+            <!-- Camera Panel (3/5) -->
+            <div class="lg:col-span-3">
+                <div class="glass rounded-3xl overflow-hidden relative" style="aspect-ratio: 4/3;">
+
+                    <!-- Pre-start overlay -->
+                    <div id="cam-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-8">
+                        <div class="w-20 h-20 rounded-3xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center mb-6 relative pulse-ring">
+                            <i class="fas fa-camera-viewfinder text-indigo-400 text-3xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-white mb-2">Enable Camera</h2>
+                        <p class="text-white/50 text-sm font-medium mb-6 max-w-xs">Allow camera access to scan your QR student ID and verify your face.</p>
+                        <button id="start-cam-btn"
+                            class="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2">
+                            <i class="fas fa-unlock-keyhole"></i> Start 2-Step Login
+                        </button>
+                    </div>
+
+                    <!-- Video + Canvases -->
+                    <video id="bio-video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-0 transition-opacity duration-300"></video>
+                    <canvas id="bio-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+                    <canvas id="hidden-canvas" class="hidden"></canvas>
+
+                    <!-- Corner decorators -->
+                    <div class="absolute inset-0 pointer-events-none z-30 corner corner-tl corner-tr corner-bl corner-br"></div>
+
+                    <!-- Scan line (shown when live) -->
+                    <div id="scan-line" class="hidden z-20 absolute inset-0 overflow-hidden pointer-events-none">
+                        <div class="scan-line"></div>
+                    </div>
+
+                    <!-- LIVE badge -->
+                    <div id="live-badge" class="hidden absolute top-4 left-4 z-30 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                        <span class="text-white text-[10px] font-black tracking-widest">LIVE</span>
+                    </div>
+
+                    <!-- Mode indicator badge -->
+                    <div id="mode-badge" class="hidden absolute bottom-4 left-0 right-0 z-30 flex justify-center px-4">
+                        <div class="bg-black/70 backdrop-blur-md border border-white/10 px-5 py-2.5 rounded-2xl flex items-center gap-3 shadow-2xl">
+                            <i id="mode-icon" class="fas fa-qrcode text-cyan-400 text-lg animate-pulse"></i>
+                            <span id="mode-text" class="text-white text-sm font-bold">Waiting for QR Code...</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-center text-white/30 text-xs font-medium mt-3 tracking-wide">
+                    <i class="fas fa-lock text-white/20 mr-1"></i> End-to-End Encrypted &middot; Biometric data is not stored
+                </p>
+            </div>
+
+            <!-- Status Panel (2/5) -->
+            <div class="lg:col-span-2 flex flex-col gap-4">
+
+                <!-- Steps -->
+                <div class="glass rounded-3xl p-6 space-y-5">
+                    <h3 class="text-white font-black text-lg" style="font-family: 'Outfit', sans-serif;">Verification Steps</h3>
+                    
+                    <div id="step-1" class="flex gap-3 items-start p-3 rounded-xl border border-white/10 transition-all duration-300">
+                        <div id="step-1-icon" class="w-9 h-9 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 font-bold flex items-center justify-center text-sm shrink-0">1</div>
+                        <div>
+                            <h4 class="text-white font-bold text-sm">Scan Student QR</h4>
+                            <p class="text-white/40 text-xs mt-0.5">Hold your digital Student ID QR code to the camera.</p>
+                        </div>
+                    </div>
+
+                    <div id="step-2" class="flex gap-3 items-start p-3 rounded-xl border border-white/10 transition-all duration-300">
+                        <div id="step-2-icon" class="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/30 font-bold flex items-center justify-center text-sm shrink-0">2</div>
+                        <div>
+                            <h4 class="text-white/50 font-bold text-sm">Face Verification</h4>
+                            <p class="text-white/30 text-xs mt-0.5">Remove masks and look directly into the camera.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Card -->
+                <div id="status-card" class="glass rounded-3xl p-6 flex items-start gap-4">
+                    <div id="status-icon" class="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl text-indigo-400 shrink-0">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <div>
+                        <h4 id="status-title" class="text-white font-black text-base">Waiting for QR</h4>
+                        <p id="status-desc" class="text-white/40 text-xs font-medium mt-1">Show your student ID QR code to start.</p>
+                    </div>
+                </div>
+
+                <!-- Profile Card (hidden initially) -->
+                <div id="profile-card" class="glass rounded-3xl p-6 text-center hidden opacity-0 transition-all duration-300">
+                    <div class="w-16 h-16 rounded-full border-2 border-indigo-500/40 overflow-hidden bg-white/10 mx-auto mb-3">
+                        <img id="profile-photo" src="" alt="Student Photo" class="w-full h-full object-cover">
+                    </div>
+                    <h4 id="profile-name" class="text-white font-black text-lg leading-tight"></h4>
+                    <p id="profile-roll" class="text-indigo-300 text-xs font-bold uppercase tracking-widest mt-1"></p>
+                    <div id="face-status" class="mt-4 py-2 px-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm font-bold">
+                        <i class="fas fa-circle-notch fa-spin mr-1"></i> Scanning Face...
+                    </div>
+                </div>
+
+                <!-- Error Alert -->
+                <div id="error-alert" class="hidden glass rounded-3xl p-5 border border-red-500/30 bg-red-500/10">
+                    <h5 class="text-red-300 font-black text-sm flex items-center gap-2"><i class="fas fa-shield-virus"></i> Security Alert</h5>
+                    <p id="error-msg" class="text-red-200 text-xs font-medium mt-2"></p>
+                    <p id="error-timer" class="text-red-400 font-mono text-[10px] font-bold mt-2 uppercase tracking-widest hidden"></p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <form id="csrfForm">{% csrf_token %}</form>
+
+    <script>
+        const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const LOGIN_API_URL = "{% url 'student_face_login_api' %}";
+
+        const video       = document.getElementById('bio-video');
+        const canvasOvl   = document.getElementById('bio-canvas');
+        const hiddenCanvas= document.getElementById('hidden-canvas');
+        const ctxOvl      = canvasOvl.getContext('2d');
+        const camOverlay  = document.getElementById('cam-overlay');
+        const startBtn    = document.getElementById('start-cam-btn');
+        const liveBadge   = document.getElementById('live-badge');
+        const modeBadge   = document.getElementById('mode-badge');
+        const modeIcon    = document.getElementById('mode-icon');
+        const modeText    = document.getElementById('mode-text');
+        const scanLine    = document.getElementById('scan-line');
+
+        const step1       = document.getElementById('step-1');
+        const step1Icon   = document.getElementById('step-1-icon');
+        const step2       = document.getElementById('step-2');
+        const step2Icon   = document.getElementById('step-2-icon');
+
+        const statusCard  = document.getElementById('status-card');
+        const statusIcon  = document.getElementById('status-icon');
+        const statusTitle = document.getElementById('status-title');
+        const statusDesc  = document.getElementById('status-desc');
+
+        const profileCard = document.getElementById('profile-card');
+        const profilePhoto= document.getElementById('profile-photo');
+        const profileName = document.getElementById('profile-name');
+        const profileRoll = document.getElementById('profile-roll');
+        const faceStatus  = document.getElementById('face-status');
+
+        const errorAlert  = document.getElementById('error-alert');
+        const errorMsg    = document.getElementById('error-msg');
+        const errorTimer  = document.getElementById('error-timer');
+
+        let mode = 'IDLE';          // IDLE | QR_LOCKED | SUCCESS | LOCKED
+        let lockedQR = null;
+        let scanInterval = null;
+        let streamRef = null;
+        let lockoutTimerInterval = null;
+
+        // ─── Camera Start ───────────────────────────────────────────
+        startBtn.addEventListener('click', async () => {
+            camOverlay.innerHTML = '<i class="fas fa-circle-notch fa-spin text-indigo-400 text-3xl"></i><p class="text-white/60 font-bold mt-4 text-sm">Creating secure stream...</p>';
+            try {
+                streamRef = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                video.srcObject = streamRef;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    video.classList.remove('opacity-0');
+                    camOverlay.classList.add('hidden');
+                    liveBadge.classList.remove('hidden');
+                    modeBadge.classList.remove('hidden');
+                    scanLine.classList.remove('hidden');
+
+                    const syncCanvas = () => {
+                        const r = video.getBoundingClientRect();
+                        canvasOvl.width  = r.width;
+                        canvasOvl.height = r.height;
+                    };
+                    syncCanvas();
+                    window.addEventListener('resize', syncCanvas);
+
+                    resetUI();
+                    scanInterval = setInterval(extractAndSend, 350);
+                };
+            } catch (err) {
+                camOverlay.innerHTML = `
+                    <div class="text-red-400 glass p-5 rounded-2xl text-center border border-red-500/30">
+                        <i class="fas fa-video-slash text-3xl mb-3 block"></i>
+                        <p class="font-bold text-sm">Camera access denied</p>
+                        <p class="text-xs opacity-60 mt-1">Please allow camera permissions and refresh.</p>
+                    </div>`;
+            }
+        });
+
+        // ─── Reset ───────────────────────────────────────────────────
+        function resetUI() {
+            mode = 'IDLE';
+            lockedQR = null;
+            ctxOvl.clearRect(0, 0, canvasOvl.width, canvasOvl.height);
+
+            // Steps
+            step1.className = 'flex gap-3 items-start p-3 rounded-xl border border-indigo-500/40 bg-indigo-500/10 transition-all duration-300';
+            step1Icon.className = 'w-9 h-9 rounded-full bg-indigo-500/30 border border-indigo-400 text-indigo-300 font-bold flex items-center justify-center text-sm shrink-0';
+            step1Icon.innerHTML = '1';
+            step2.className = 'flex gap-3 items-start p-3 rounded-xl border border-white/10 transition-all duration-300';
+            step2Icon.className = 'w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/30 font-bold flex items-center justify-center text-sm shrink-0';
+            step2Icon.innerHTML = '2';
+
+            // Mode badge
+            modeIcon.className = 'fas fa-qrcode text-cyan-400 text-lg animate-pulse';
+            modeText.textContent = 'Waiting for QR Code...';
+
+            // Status
+            statusIcon.innerHTML = '<i class="fas fa-qrcode"></i>';
+            statusIcon.className = 'w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl text-indigo-400 shrink-0';
+            statusTitle.textContent = 'Waiting for QR';
+            statusDesc.textContent = 'Show your student ID QR code to start.';
+
+            profileCard.classList.add('hidden', 'opacity-0');
+            errorAlert.classList.add('hidden');
+        }
+
+        function transitionToBiometric(student) {
+            mode = 'QR_LOCKED';
+
+            // Steps
+            step1Icon.innerHTML = '<i class="fas fa-check"></i>';
+            step1Icon.className = 'w-9 h-9 rounded-full bg-emerald-500/30 border border-emerald-400 text-emerald-300 font-bold flex items-center justify-center text-sm shrink-0';
+            step1.className = 'flex gap-3 items-start p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 transition-all duration-300';
+
+            step2.className = 'flex gap-3 items-start p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 transition-all duration-300';
+            step2Icon.className = 'w-9 h-9 rounded-full bg-amber-500/30 border border-amber-400 text-amber-300 font-bold flex items-center justify-center text-sm shrink-0';
+
+            // Mode badge
+            modeIcon.className = 'fas fa-face-viewfinder text-orange-400 text-lg';
+            modeText.textContent = 'Verifying your face...';
+
+            // Status
+            statusIcon.innerHTML = '<i class="fas fa-face-viewfinder fa-beat"></i>';
+            statusIcon.className = 'w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-xl text-amber-400 shrink-0';
+            statusTitle.textContent = 'Face Verification';
+            statusDesc.textContent = 'Look directly into the camera without any mask.';
+
+            // Profile card
+            if (student) {
+                profilePhoto.src = student.photo_url || '';
+                profileName.textContent = student.full_name;
+                profileRoll.textContent = student.student_id;
+                faceStatus.className = 'mt-4 py-2 px-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm font-bold';
+                faceStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Scanning Face... <span id="live-score" class="opacity-50 text-xs font-mono ml-1"></span>';
+                profileCard.classList.remove('hidden');
+                setTimeout(() => profileCard.classList.remove('opacity-0'), 50);
+            }
+        }
+
+        function triggerSuccess() {
+            mode = 'SUCCESS';
+            clearInterval(scanInterval);
+
+            step2Icon.innerHTML = '<i class="fas fa-check"></i>';
+            step2Icon.className = 'w-9 h-9 rounded-full bg-emerald-500/30 border border-emerald-400 text-emerald-300 font-bold flex items-center justify-center text-sm shrink-0';
+            step2.className = 'flex gap-3 items-start p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 transition-all duration-300';
+
+            modeIcon.className = 'fas fa-shield-check text-emerald-400 text-lg';
+            modeText.textContent = 'Authentication Granted!';
+            modeText.className = 'text-emerald-400 text-sm font-bold';
+
+            statusIcon.innerHTML = '<i class="fas fa-check"></i>';
+            statusIcon.className = 'w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-xl text-white shrink-0';
+            statusTitle.textContent = 'Login Successful!';
+            statusDesc.textContent = 'Identity verified. Redirecting to your dashboard...';
+
+            if (!profileCard.classList.contains('hidden')) {
+                faceStatus.className = 'mt-4 py-2 px-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-sm font-bold';
+                faceStatus.innerHTML = '<i class="fas fa-shield-check mr-1"></i> Verified & Authenticated';
+            }
+        }
+
+        function showErrorAlert(msg) {
+            errorAlert.classList.remove('hidden');
+            errorMsg.textContent = msg;
+        }
+
+        function handleLockout(secs) {
+            mode = 'LOCKED';
+            ctxOvl.clearRect(0, 0, canvasOvl.width, canvasOvl.height);
+            showErrorAlert("Too many failed attempts. Identity stream locked to prevent spoofing.");
+            errorTimer.classList.remove('hidden');
+            let rem = secs;
+            if (lockoutTimerInterval) clearInterval(lockoutTimerInterval);
+            lockoutTimerInterval = setInterval(() => {
+                rem--;
+                if (rem <= 0) {
+                    clearInterval(lockoutTimerInterval);
+                    errorAlert.classList.add('hidden');
+                    errorTimer.classList.add('hidden');
+                    resetUI();
+                } else {
+                    errorTimer.textContent = 'TIMEOUT LOCK: ' + rem + 'S REMAINING';
+                }
+            }, 1000);
+        }
+
+        // ─── Frame Extraction & API Call ─────────────────────────────
+        async function extractAndSend() {
+            if (mode === 'SUCCESS' || mode === 'LOCKED') return;
+
+            const ctxH = hiddenCanvas.getContext('2d');
+            hiddenCanvas.width  = video.videoWidth;
+            hiddenCanvas.height = video.videoHeight;
+            ctxH.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+            const b64 = hiddenCanvas.toDataURL('image/jpeg', 0.7);
+
+            try {
+                const res = await fetch(LOGIN_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                    body: JSON.stringify({ frame: b64, current_qr: lockedQR })
+                });
+                if (!res.ok) return;
+                const json = await res.json();
+
+                if (json.success) {
+                    const d = json.data;
+                    ctxOvl.clearRect(0, 0, canvasOvl.width, canvasOvl.height);
+
+                    // Redirect on login success
+                    if (d.redirect_url) {
+                        triggerSuccess();
+                        setTimeout(() => window.location.href = d.redirect_url, 1500);
+                        return;
+                    }
+
+                    // QR just scanned — lock it and fetch student profile
+                    if (d.qr_data && mode === 'IDLE' && !lockedQR) {
+                        lockedQR = d.qr_data;
+                        transitionToBiometric(d.student || null);
+                    }
+
+                    // Update live similarity score in the face-status badge
+                    if (mode === 'QR_LOCKED' && typeof d.face_score === 'number' && d.face_score > 0) {
+                        const scoreEl = document.getElementById('live-score');
+                        if (scoreEl) scoreEl.textContent = `(${(d.face_score * 100).toFixed(1)}%)`;
+                    }
+
+                    // Draw bounding boxes
+                    const cw = canvasOvl.width,  ch = canvasOvl.height;
+                    const bw = d.original_dims ? d.original_dims[0] : 640;
+                    const bh = d.original_dims ? d.original_dims[1] : 480;
+
+                    const drawBox = (box, color) => {
+                        if (!box) return;
+                        const [x, y, w, h] = box;
+                        const sx = cw / bw, sy = ch / bh;
+                        const mx = (bw - x - w) * sx;
+                        const ry = y * sy, rw = w * sx, rh = h * sy;
+
+                        ctxOvl.strokeStyle = color;
+                        ctxOvl.lineWidth = 3;
+                        ctxOvl.strokeRect(mx, ry, rw, rh);
+                        // Corner accents
+                        ctxOvl.fillStyle = color;
+                        [[mx-2,ry-2,14,3],[mx-2,ry-2,3,14],[mx+rw-12,ry-2,14,3],[mx+rw-1,ry-2,3,14],
+                         [mx-2,ry+rh-1,14,3],[mx-2,ry+rh-12,3,14],[mx+rw-12,ry+rh-1,14,3],[mx+rw-1,ry+rh-12,3,14]]
+                        .forEach(([a,b,c,e]) => ctxOvl.fillRect(a,b,c,e));
+                    };
+
+                    if (d.qr_box  && mode === 'IDLE')       drawBox(d.qr_box,   '#06b6d4');
+                    if (d.face_box) {
+                        drawBox(d.face_box, d.face_match ? '#22c55e' : '#f97316');
+                    }
+
+                    // Error handling
+                    if (d.error) {
+                        if (d.error === 'ACCOUNT_LOCKED') handleLockout(d.timeout);
+                        else showErrorAlert(d.error);
+                    } else {
+                        errorAlert.classList.add('hidden');
+                    }
+
+                } else {
+                    // Top-level failure
+                    if (json.error === 'ACCOUNT_LOCKED') handleLockout(json.timeout);
+                }
+            } catch (err) {
+                console.error('Network error:', err);
+            }
+        }
+    </script>
+</body>
+</html>
