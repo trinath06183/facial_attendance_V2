@@ -76,7 +76,9 @@ class AttendanceSession(models.Model):
 
     @property
     def total_expected(self):
-        return self.section.students.filter(enrollment_status='ACTIVE').count()
+        if self.section.subject:
+            return self.section.subject.students.filter(enrollment_status='ACTIVE').count()
+        return 0
 
     @property
     def total_present(self):

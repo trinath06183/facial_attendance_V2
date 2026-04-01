@@ -96,7 +96,13 @@
 
                     <!-- Section -->
                     <td class="px-5 py-4 hidden md:table-cell">
-                        <span class="text-sm text-gray-600 font-medium">{{ student.section.course_code|default:"—" }}</span>
+                        <span class="text-sm text-gray-600 font-medium">
+                            {% for subject in student.subjects.all %}
+                                {{ subject.code }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                —
+                            {% endfor %}
+                        </span>
                     </td>
 
                     <!-- Enrollment Status -->

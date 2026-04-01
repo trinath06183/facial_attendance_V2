@@ -23,9 +23,10 @@ class Student(models.Model):
     full_name = models.CharField(max_length=200)
     email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True)
-    section = models.ForeignKey(
-        'attendance.Section', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='students'
+    subjects = models.ManyToManyField(
+        'attendance.Section',
+        blank=True, related_name='students',
+        verbose_name="Subjects (Sections)"
     )
     enrollment_status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='ACTIVE'
@@ -41,7 +42,6 @@ class Student(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = [('student_id', 'section')]
         ordering = ['full_name']
 
     def __str__(self):

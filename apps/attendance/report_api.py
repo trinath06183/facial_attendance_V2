@@ -66,13 +66,14 @@ def report_student_api(request, student_id):
             return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
 
     try:
-        student = Student.objects.select_related('section').get(id=student_id)
+        student = Student.objects.prefetch_related('subjects').get(id=student_id)
     except Student.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Student not found.'}, status=404)
 
-    # Teachers can only see students in their sections
+    # Teachers can only see students in subjects they teach
     if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        if student.section and not student.section.teachers.filter(id=user.id).exists():
+        teacher_subjects = user.sections.values_list('subject', flat=True)
+        if not student.subjects.filter(id__in=teacher_subjects).exists():
             return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
 
     from_date, to_date = _parse_dates(request)
@@ -87,7 +88,7 @@ def report_student_api(request, student_id):
                 'id': str(student.id),
                 'name': student.full_name,
                 'roll_no': student.university_roll_number or student.student_id,
-                'section': str(student.section) if student.section else None,
+                'section': ", ".join([s.name for s in student.subjects.all()]) if student.subjects.exists() else None,
             },
             'metrics': {
                 'total_offered': summary['total_offered'],

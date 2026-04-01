@@ -215,7 +215,12 @@ def student_search_api(request):
     )
     
     if section_id:
-        qs = qs.filter(section_id=section_id)
+        from apps.attendance.models import Section
+        section = Section.objects.filter(id=section_id).first()
+        if section and section.subject:
+            qs = qs.filter(subjects=section.subject)
+        else:
+            qs = qs.none()
         
     # Limit results to top 10 for performance in dropdowns
     results = qs[:10]
@@ -256,7 +261,7 @@ def manual_override_api(request, session_id):
     if session.status != 'OPEN':
         return JsonResponse({'success': False, 'error': 'Session is closed.'})
         
-    if student.section_id != session.section_id:
+    if not student.subjects.filter(id=session.section.subject_id).exists():
         return JsonResponse({'success': False, 'error': 'Student not in this section.'})
         
     record, created = AttendanceRecord.objects.get_or_create(
@@ -348,7 +353,10 @@ def attendance_session_ledger_api(request, session_id):
     records = AttendanceRecord.objects.filter(session=session).select_related('student')
     record_map = { r.student_id: r for r in records }
     
-    students = session.section.students.filter(enrollment_status='ACTIVE').order_by('full_name')
+    if session.section.subject:
+        students = session.section.subject.students.filter(enrollment_status='ACTIVE').order_by('full_name')
+    else:
+        students = Student.objects.none()
     
     roster = []
     for s in students:

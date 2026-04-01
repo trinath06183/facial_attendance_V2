@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 @login_required
 def student_list(request):
     qs = Student.objects.all()
-    section_id = request.GET.get('section')
+    subject_id = request.GET.get('subject')
     status = request.GET.get('status', 'ACTIVE')
     search = request.GET.get('search', '')
-    if section_id:
-        qs = qs.filter(section_id=section_id)
+    if subject_id:
+        qs = qs.filter(subjects__id=subject_id)
     if status:
         qs = qs.filter(enrollment_status=status)
     if search:

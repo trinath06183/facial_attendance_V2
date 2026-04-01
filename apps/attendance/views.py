@@ -250,7 +250,8 @@ def attendance_viewer(request):
         context['courses'] = Section.objects.filter(teachers=request.user).values_list('course_code', flat=True).distinct()
         # Only students in these courses
         sections = Section.objects.filter(teachers=request.user)
-        context['students'] = Student.objects.filter(section__in=sections).distinct()
+        subjects = [s.subject for s in sections if s.subject]
+        context['students'] = Student.objects.filter(subjects__in=subjects).distinct()
         
     elif request.user.role == 'STUDENT' or getattr(request.user, 'is_student', lambda: False)():
         # Course list only limited to what they're taking (which may just be one, but we provide it)

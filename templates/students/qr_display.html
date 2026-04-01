@@ -24,7 +24,7 @@
         </a>
         <h1 class="text-3xl font-black text-gray-900 tracking-tight">Digital Identity Card</h1>
         <p class="text-gray-400 text-sm mt-1">
-            {{ student.full_name }} — {{ student.section.course_name|default:"Not Enrolled" }}
+            {{ student.full_name }} — {% for subject in student.subjects.all %}{{ subject.name }}{% if not forloop.last %}, {% endif %}{% empty %}Not Enrolled{% endfor %}
         </p>
     </div>
     <button onclick="window.print()"
@@ -64,12 +64,11 @@
             <div class="text-center mb-5">
                 <h2 class="text-xl font-black text-gray-900 tracking-tight">{{ student.full_name }}</h2>
                 <p class="font-mono text-lg font-bold text-indigo-600 mt-1">{{ student.student_id }}</p>
-                {% if student.section %}
+                {% for subject in student.subjects.all %}
                 <p class="text-sm text-gray-400 font-medium mt-1">
-                    {{ student.section.course_code }}
-                    {% if student.section.section_identifier %} · {{ student.section.section_identifier }}{% endif %}
+                    {{ subject.code }} - {{ subject.name }}
                 </p>
-                {% endif %}
+                {% endfor %}
             </div>
 
             <!-- Biometric Status Badge -->

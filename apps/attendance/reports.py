@@ -57,10 +57,11 @@ def get_student_summary(student, from_date=None, to_date=None, granularity='dail
     Returns a dict with attendance metrics for a single student.
     total_classes_offered = closed sessions for student's section in period.
     """
-    section = student.section
+    subjects = student.subjects.all()
+    sections = Section.objects.filter(subject__in=subjects)
 
-    # Total classes offered (closed sessions in student's section)
-    total_offered = _closed_sessions_qs(section=section, from_date=from_date, to_date=to_date).count()
+    # Total classes offered (closed sessions in student's subjects' sections)
+    total_offered = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections).count()
 
     # Student's attendance records within those closed sessions
     records = AttendanceRecord.objects.filter(
@@ -79,15 +80,15 @@ def get_student_summary(student, from_date=None, to_date=None, granularity='dail
 
     attendance_rate = round((attended / total_offered * 100), 1) if total_offered > 0 else 0.0
 
-    # Cohort average: all students in same section, same period
-    cohort_avg = _cohort_avg_rate(section, from_date, to_date)
+    # Cohort average: all students in same sections, same period
+    cohort_avg = _cohort_avg_rate(sections, from_date, to_date)
     delta = round(attendance_rate - cohort_avg, 1)
 
     # Trend data (bucketed by granularity)
-    trend = _student_trend(student, from_date, to_date, granularity)
+    trend = _student_trend(student, sections, from_date, to_date, granularity)
 
     # Detailed history
-    all_sessions = _closed_sessions_qs(section=section, from_date=from_date, to_date=to_date).order_by('-started_at')
+    all_sessions = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections).order_by('-started_at')
     record_map = { r.session_id: r for r in records }
     
     history = []
@@ -107,7 +108,7 @@ def get_student_summary(student, from_date=None, to_date=None, granularity='dail
 
     return {
         'student': student,
-        'section': section,
+        'subjects': subjects,
         'total_offered': total_offered,
         'attended': attended,
         'late': late,
@@ -122,18 +123,20 @@ def get_student_summary(student, from_date=None, to_date=None, granularity='dail
     }
 
 
-def _cohort_avg_rate(section, from_date, to_date):
-    """Average attendance rate for all students in a section over the given period."""
-    if not section:
+def _cohort_avg_rate(sections, from_date, to_date):
+    """Average attendance rate for all students in the given sections over the given period."""
+    if not sections:
         return 0.0
-    total_offered = _closed_sessions_qs(section=section, from_date=from_date, to_date=to_date).count()
+    total_offered = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections).count()
     if total_offered == 0:
         return 0.0
 
-    students = section.students.filter(enrollment_status='ACTIVE')
+    subjects = [s.subject for s in sections if s.subject]
+    students = Student.objects.filter(subjects__in=subjects, enrollment_status='ACTIVE').distinct()
+    
     rates = []
     for s in students:
-        records = AttendanceRecord.objects.filter(student=s, session__status='CLOSED', session__section=section)
+        records = AttendanceRecord.objects.filter(student=s, session__status='CLOSED', session__section__in=sections)
         if from_date:
             records = records.filter(session__started_at__date__gte=from_date)
         if to_date:
@@ -144,14 +147,13 @@ def _cohort_avg_rate(section, from_date, to_date):
     return round(sum(rates) / len(rates), 1) if rates else 0.0
 
 
-def _student_trend(student, from_date, to_date, granularity):
+def _student_trend(student, sections, from_date, to_date, granularity):
     """Returns list of {bucket, rate, attended, total} dicts for chart rendering."""
     trunc = _trunc_fn(granularity)
-    section = student.section
 
     # Sessions bucketed
     session_counts = (
-        _closed_sessions_qs(section=section, from_date=from_date, to_date=to_date)
+        _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections)
         .annotate(bucket=trunc('started_at'))
         .values('bucket')
         .annotate(total=Count('id'))
@@ -163,8 +165,8 @@ def _student_trend(student, from_date, to_date, granularity):
         student=student,
         session__status='CLOSED',
     )
-    if section:
-        records = records.filter(session__section=section)
+    if sections:
+        records = records.filter(session__section__in=sections)
     if from_date:
         records = records.filter(session__started_at__date__gte=from_date)
     if to_date:
@@ -205,7 +207,10 @@ def get_section_student_rows(section, from_date=None, to_date=None, sort_by='ful
     Used for the "Student Overview" table tab.
     """
     total_offered = _closed_sessions_qs(section=section, from_date=from_date, to_date=to_date).count()
-    students = section.students.filter(enrollment_status='ACTIVE').order_by('full_name')
+    if section.subject:
+        students = section.subject.students.filter(enrollment_status='ACTIVE').order_by('full_name')
+    else:
+        students = Student.objects.none()
 
     rows = []
     for student in students:

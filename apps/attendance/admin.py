@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.db import models
+from django import forms
 from .models import Room, Section, AttendanceSession, AttendanceRecord
 
 
@@ -12,6 +14,14 @@ class RoomAdmin(admin.ModelAdmin):
 class SectionAdmin(admin.ModelAdmin):
     list_display = ('course_code', 'course_name', 'section_identifier')
     search_fields = ('course_code', 'course_name')
+    formfield_overrides = {
+        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    }
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "teachers":
+            kwargs["queryset"] = db_field.related_model.objects.filter(role='TEACHER')
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 @admin.register(AttendanceSession)

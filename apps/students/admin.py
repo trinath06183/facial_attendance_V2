@@ -1,13 +1,18 @@
 from django.contrib import admin
+from django.db import models
+from django import forms
 from .models import Student, Embedding, QRCodeRecord
 
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('student_id', 'full_name', 'section', 'enrollment_status', 'consent_given')
-    list_filter = ('enrollment_status', 'consent_given', 'section')
+    list_display = ('student_id', 'full_name', 'enrollment_status', 'consent_given')
+    list_filter = ('enrollment_status', 'consent_given', 'subjects')
     search_fields = ('student_id', 'full_name', 'email')
     readonly_fields = ('created_at', 'updated_at', 'consent_timestamp', 'consent_ip')
+    formfield_overrides = {
+        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    }
 
 
 @admin.register(Embedding)

@@ -18,10 +18,11 @@ class StudentForm(forms.ModelForm):
         model = Student
         fields = [
             'student_id', 'university_roll_number', 'full_name', 'email', 'phone',
-            'section', 'enrollment_status', 'consent_given'
+            'subjects', 'enrollment_status', 'consent_given'
         ]
         widgets = {
             'student_id': forms.TextInput(attrs={'placeholder': 'Internal ID (e.g. CS2024001)'}),
             'full_name': forms.TextInput(attrs={'placeholder': 'Full legal name'}),
             'email': forms.EmailInput(attrs={'placeholder': 'student@college.edu'}),
+            'subjects': forms.CheckboxSelectMultiple(),
         }
