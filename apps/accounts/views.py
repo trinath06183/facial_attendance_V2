@@ -304,7 +304,11 @@ def student_face_login_api(request):
             existing = User.objects.filter(email=student.email).first() if student.email else None
 
             if existing:
-                # Link the found user to this student
+                # Link the found user to this student and ensure the role is STUDENT
+                if existing.role != 'STUDENT':
+                    existing.role = 'STUDENT'
+                    existing.save(update_fields=['role'])
+                    logger.info(f"Corrected role to STUDENT for user {existing.username} linked to student {student.full_name}")
                 student.user = existing
                 student.save(update_fields=['user'])
                 logger.info(f"Linked existing user {existing.username} to student {student.full_name}")
@@ -336,6 +340,12 @@ def student_face_login_api(request):
                       f"Auto-created biometric-only account for student {student.full_name}")
                 logger.info(f"Auto-created user {username} for student {student.full_name}")
 
+        # Also correct the role if an already-linked user has the wrong role
+        elif student.user and student.user.role != 'STUDENT':
+            student.user.role = 'STUDENT'
+            student.user.save(update_fields=['role'])
+            logger.warning(f"Corrected role to STUDENT for already-linked user {student.user.username}")
+
         # --- Now log in ---
         if student.user and student.user.is_active:
             if not request.user.is_authenticated or request.user.id != student.user.id:
@@ -343,6 +353,8 @@ def student_face_login_api(request):
                 request.session['bio_failed_attempts'] = 0
                 audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(student.user.id),
                       f"Biometric login — score {result.get('face_score', 0):.4f}")
+            # Always redirect to the unified dashboard — dashboard_views.py
+            # will route to the correct template based on the user's role.
             result['redirect_url'] = '/dashboard/'
         else:
             result['face_match'] = False
