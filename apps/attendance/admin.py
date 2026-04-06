@@ -1,29 +1,24 @@
 from django.contrib import admin
 from django.db import models
 from django import forms
-from .models import Room, Section, AttendanceSession, AttendanceRecord, Subject, Batch
+from .models import Room, AcademicClass, AcademicYear, Subject, AttendanceSession, AttendanceRecord
 
-@admin.register(Batch)
-class BatchAdmin(admin.ModelAdmin):
-    list_display = ('name', 'year')
+@admin.register(AcademicClass)
+class AcademicClassAdmin(admin.ModelAdmin):
+    list_display = ('name',)
     search_fields = ('name',)
+
+@admin.register(AcademicYear)
+class AcademicYearAdmin(admin.ModelAdmin):
+    list_display = ('academic_class', 'year_name')
+    list_filter = ('academic_class',)
+    search_fields = ('year_name',)
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'year')
-    list_filter = ('year',)
+    list_display = ('code', 'name', 'academic_year')
+    list_filter = ('academic_year__academic_class', 'academic_year')
     search_fields = ('code', 'name')
-
-@admin.register(Room)
-class RoomAdmin(admin.ModelAdmin):
-    list_display = ('name', 'capacity')
-    search_fields = ('name',)
-
-
-@admin.register(Section)
-class SectionAdmin(admin.ModelAdmin):
-    list_display = ('course_code', 'course_name', 'section_identifier')
-    search_fields = ('course_code', 'course_name')
     formfield_overrides = {
         models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     }
@@ -33,12 +28,17 @@ class SectionAdmin(admin.ModelAdmin):
             kwargs["queryset"] = db_field.related_model.objects.filter(role='TEACHER')
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
+@admin.register(Room)
+class RoomAdmin(admin.ModelAdmin):
+    list_display = ('name', 'capacity')
+    search_fields = ('name',)
+
 
 @admin.register(AttendanceSession)
 class AttendanceSessionAdmin(admin.ModelAdmin):
-    list_display = ('section', 'room', 'teacher', 'status', 'started_at', 'closed_at')
+    list_display = ('subject', 'room', 'teacher', 'status', 'started_at', 'closed_at')
     list_filter = ('status',)
-    search_fields = ('section__course_code', 'teacher__username')
+    search_fields = ('subject__code', 'teacher__username')
     readonly_fields = ('started_at', 'closed_at')
 
 
@@ -46,5 +46,5 @@ class AttendanceSessionAdmin(admin.ModelAdmin):
 class AttendanceRecordAdmin(admin.ModelAdmin):
     list_display = ('session', 'student', 'status', 'verification_method', 'marked_at', 'face_match_score')
     list_filter = ('status', 'verification_method')
-    search_fields = ('student__full_name', 'student__student_id', 'session__section__course_code')
+    search_fields = ('student__full_name', 'student__student_id', 'session__subject__code')
     readonly_fields = ('marked_at',)

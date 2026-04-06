@@ -7,7 +7,7 @@ from django.db.models import Count, Q, Avg, FloatField, ExpressionWrapper, F
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth, TruncYear
 from django.utils import timezone
 
-from .models import AttendanceRecord, AttendanceSession, Section
+from .models import AttendanceRecord, AttendanceSession, Subject
 from apps.students.models import Student
 
 
@@ -38,11 +38,11 @@ def _trunc_fn(granularity: str):
     }.get(granularity, TruncDate)
 
 
-def _closed_sessions_qs(section=None, from_date=None, to_date=None):
-    """Base queryset of closed sessions, optionally scoped to a section and date range."""
+def _closed_sessions_qs(subject=None, from_date=None, to_date=None):
+    """Base queryset of closed sessions, optionally scoped to a subject and date range."""
     qs = AttendanceSession.objects.filter(status='CLOSED')
-    if section:
-        qs = qs.filter(section=section)
+    if subject:
+        qs = qs.filter(subject=subject)
     if from_date:
         qs = qs.filter(started_at__date__gte=from_date)
     if to_date:
@@ -55,13 +55,12 @@ def _closed_sessions_qs(section=None, from_date=None, to_date=None):
 def get_student_summary(student, from_date=None, to_date=None, granularity='daily'):
     """
     Returns a dict with attendance metrics for a single student.
-    total_classes_offered = closed sessions for student's section in period.
+    total_classes_offered = closed sessions for student's subjects in period.
     """
-    subjects = student.subjects.all()
-    sections = Section.objects.filter(subject__in=subjects)
+    subjects = student.enrolled_subjects.all()
 
-    # Total classes offered (closed sessions in student's subjects' sections)
-    total_offered = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections).count()
+    # Total classes offered (closed sessions in student's subjects)
+    total_offered = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(subject__in=subjects).count()
 
     # Student's attendance records within those closed sessions
     records = AttendanceRecord.objects.filter(
@@ -80,15 +79,15 @@ def get_student_summary(student, from_date=None, to_date=None, granularity='dail
 
     attendance_rate = round((attended / total_offered * 100), 1) if total_offered > 0 else 0.0
 
-    # Cohort average: all students in same sections, same period
-    cohort_avg = _cohort_avg_rate(sections, from_date, to_date)
+    # Cohort average: all students in same subjects, same period
+    cohort_avg = _cohort_avg_rate(subjects, from_date, to_date)
     delta = round(attendance_rate - cohort_avg, 1)
 
     # Trend data (bucketed by granularity)
-    trend = _student_trend(student, sections, from_date, to_date, granularity)
+    trend = _student_trend(student, subjects, from_date, to_date, granularity)
 
     # Detailed history
-    all_sessions = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections).order_by('-started_at')
+    all_sessions = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(subject__in=subjects).order_by('-started_at')
     record_map = { r.session_id: r for r in records }
     
     history = []
@@ -123,20 +122,19 @@ def get_student_summary(student, from_date=None, to_date=None, granularity='dail
     }
 
 
-def _cohort_avg_rate(sections, from_date, to_date):
-    """Average attendance rate for all students in the given sections over the given period."""
-    if not sections:
+def _cohort_avg_rate(subjects, from_date, to_date):
+    """Average attendance rate for all students in the given subjects over the given period."""
+    if not subjects:
         return 0.0
-    total_offered = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections).count()
+    total_offered = _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(subject__in=subjects).count()
     if total_offered == 0:
         return 0.0
 
-    subjects = [s.subject for s in sections if s.subject]
-    students = Student.objects.filter(subjects__in=subjects, enrollment_status='ACTIVE').distinct()
+    students = Student.objects.filter(enrolled_subjects__in=subjects, enrollment_status='ACTIVE').distinct()
     
     rates = []
     for s in students:
-        records = AttendanceRecord.objects.filter(student=s, session__status='CLOSED', session__section__in=sections)
+        records = AttendanceRecord.objects.filter(student=s, session__status='CLOSED', session__subject__in=subjects)
         if from_date:
             records = records.filter(session__started_at__date__gte=from_date)
         if to_date:
@@ -147,13 +145,13 @@ def _cohort_avg_rate(sections, from_date, to_date):
     return round(sum(rates) / len(rates), 1) if rates else 0.0
 
 
-def _student_trend(student, sections, from_date, to_date, granularity):
+def _student_trend(student, subjects, from_date, to_date, granularity):
     """Returns list of {bucket, rate, attended, total} dicts for chart rendering."""
     trunc = _trunc_fn(granularity)
 
     # Sessions bucketed
     session_counts = (
-        _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(section__in=sections)
+        _closed_sessions_qs(from_date=from_date, to_date=to_date).filter(subject__in=subjects)
         .annotate(bucket=trunc('started_at'))
         .values('bucket')
         .annotate(total=Count('id'))
@@ -165,8 +163,8 @@ def _student_trend(student, sections, from_date, to_date, granularity):
         student=student,
         session__status='CLOSED',
     )
-    if sections:
-        records = records.filter(session__section__in=sections)
+    if subjects:
+        records = records.filter(session__subject__in=subjects)
     if from_date:
         records = records.filter(session__started_at__date__gte=from_date)
     if to_date:
@@ -199,16 +197,16 @@ def _student_trend(student, sections, from_date, to_date, granularity):
     return result
 
 
-# ── All Students in a Section ─────────────────────────────────────────────────
+# ── All Students in a Subject ─────────────────────────────────────────────────
 
-def get_section_student_rows(section, from_date=None, to_date=None, sort_by='full_name'):
+def get_subject_student_rows(subject, from_date=None, to_date=None, sort_by='full_name'):
     """
-    Returns a list of dicts (one per student in section) with summary metrics.
+    Returns a list of dicts (one per student in subject) with summary metrics.
     Used for the "Student Overview" table tab.
     """
-    total_offered = _closed_sessions_qs(section=section, from_date=from_date, to_date=to_date).count()
-    if section.subject:
-        students = section.subject.students.filter(enrollment_status='ACTIVE').order_by('full_name')
+    total_offered = _closed_sessions_qs(subject=subject, from_date=from_date, to_date=to_date).count()
+    if subject:
+        students = subject.enrolled_students.filter(enrollment_status='ACTIVE').order_by('full_name')
     else:
         students = Student.objects.none()
 
@@ -217,7 +215,7 @@ def get_section_student_rows(section, from_date=None, to_date=None, sort_by='ful
         records = AttendanceRecord.objects.filter(
             student=student,
             session__status='CLOSED',
-            session__section=section,
+            session__subject=subject,
         )
         if from_date:
             records = records.filter(session__started_at__date__gte=from_date)
@@ -257,8 +255,8 @@ def get_section_student_rows(section, from_date=None, to_date=None, sort_by='ful
 
 # ── Top / Bottom Performers ───────────────────────────────────────────────────
 
-def get_top_bottom_performers(section, from_date=None, to_date=None, n=5):
-    rows = get_section_student_rows(section, from_date, to_date)
+def get_top_bottom_performers(subject, from_date=None, to_date=None, n=5):
+    rows = get_subject_student_rows(subject, from_date, to_date)
     rows_sorted = sorted(rows, key=lambda r: r['rate'], reverse=True)
     return {
         'top': rows_sorted[:n],
@@ -266,12 +264,12 @@ def get_top_bottom_performers(section, from_date=None, to_date=None, n=5):
     }
 
 
-# ── Section Summary ───────────────────────────────────────────────────────────
+# ── Subject Summary ───────────────────────────────────────────────────────────
 
-def get_section_summary(section, from_date=None, to_date=None):
-    total_sessions = _closed_sessions_qs(section=section, from_date=from_date, to_date=to_date).count()
+def get_subject_summary(subject, from_date=None, to_date=None):
+    total_sessions = _closed_sessions_qs(subject=subject, from_date=from_date, to_date=to_date).count()
     records = AttendanceRecord.objects.filter(
-        session__status='CLOSED', session__section=section
+        session__status='CLOSED', session__subject=subject
     )
     if from_date:
         records = records.filter(session__started_at__date__gte=from_date)
@@ -283,7 +281,7 @@ def get_section_summary(section, from_date=None, to_date=None):
     overall_rate = round((total_present / total_records * 100), 1) if total_records > 0 else 0.0
 
     return {
-        'section': section,
+        'subject': subject,
         'total_sessions': total_sessions,
         'total_records': total_records,
         'total_present': total_present,
@@ -291,16 +289,16 @@ def get_section_summary(section, from_date=None, to_date=None):
     }
 
 
-# ── Multi-Section (Admin view) ────────────────────────────────────────────────
+# ── Multi-Subject (Admin view) ────────────────────────────────────────────────
 
-def get_all_sections_summary(teacher=None, from_date=None, to_date=None):
-    """Returns list of section summaries, optionally scoped to a teacher."""
-    sections = Section.objects.all()
+def get_all_subjects_summary(teacher=None, from_date=None, to_date=None):
+    """Returns list of subject summaries, optionally scoped to a teacher."""
+    subjects = Subject.objects.all()
     if teacher:
-        sections = sections.filter(teachers=teacher)
+        subjects = subjects.filter(teachers=teacher)
 
     summaries = []
-    for sec in sections:
-        s = get_section_summary(sec, from_date, to_date)
+    for sub in subjects:
+        s = get_subject_summary(sub, from_date, to_date)
         summaries.append(s)
     return summaries

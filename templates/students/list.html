@@ -91,7 +91,7 @@
                 <tr>
                     <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80">Student</th>
                     <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 hidden sm:table-cell">ID</th>
-                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 hidden md:table-cell">Section</th>
+                    <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 hidden md:table-cell">Subject</th>
                     <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80">Status</th>
                     <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 hidden lg:table-cell">Biometrics</th>
                     <th scope="col" class="px-5 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/80 text-right">Actions</th>
@@ -124,8 +124,8 @@
                     <!-- Section -->
                     <td class="px-5 py-4 hidden md:table-cell">
                         <span class="text-sm text-gray-600 font-medium">
-                            {% for subject in student.subjects.all %}
-                                {{ subject.course_code }}{% if not forloop.last %}, {% endif %}
+                            {% for subject in student.enrolled_subjects.all %}
+                                {{ subject.code }}{% if not forloop.last %}, {% endif %}
                             {% empty %}
                                 —
                             {% endfor %}
@@ -216,8 +216,8 @@
                                         <select class="section-filter text-sm px-3 py-1.5 border border-gray-200 rounded-xl bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                                                 data-student-id="{{ student.id }}">
                                             <option value="">All Subjects</option>
-                                            {% for subject in student.subjects.all %}
-                                            <option value="{{ subject.id }}">{{ subject.course_code }} — {{ subject.course_name }}</option>
+                                            {% for subject in student.enrolled_subjects.all %}
+                                            <option value="{{ subject.id }}">{{ subject.code }} — {{ subject.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -255,7 +255,7 @@
                                                 <i class="fas fa-graduation-cap text-indigo-500 text-sm"></i>
                                             </div>
                                             <p class="text-3xl font-black text-gray-900" id="stat-enrolled-{{ student.id }}">—</p>
-                                            <p class="text-xs font-bold text-gray-400 mt-1">Sections Enrolled</p>
+                                            <p class="text-xs font-bold text-gray-400 mt-1">Subjects Enrolled</p>
                                         </div>
 
                                         <!-- Classes Occurred -->

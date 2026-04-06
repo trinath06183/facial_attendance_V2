@@ -112,7 +112,7 @@
                 
                 <div id="search-results-container" class="flex-1 overflow-y-auto pr-2 space-y-2">
                     <!-- Results populated by JS -->
-                    <div class="text-center py-8 text-gray-400 text-sm italic">Type to search students in this section...</div>
+                    <div class="text-center py-8 text-gray-400 text-sm italic">Type to search students in this subject...</div>
                 </div>
             </div>
         </div>
@@ -179,7 +179,7 @@
         const q = e.target.value;
         if(searchTimeout) clearTimeout(searchTimeout);
         if(q.length < 2) {
-            searchContainer.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm italic">Type to search students in this section...</div>';
+            searchContainer.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm italic">Type to search students in this subject...</div>';
             return;
         }
         
@@ -364,7 +364,7 @@
                 }
             } else {
                 mode = 'ERROR';
-                UI.statusDesc.textContent = data.error || "Student not found in this section.";
+                UI.statusDesc.textContent = data.error || "Student not found in this subject.";
                 updateScanUI();
                 setTimeout(resetScanner, 3000);
             }

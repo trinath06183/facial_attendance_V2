@@ -23,10 +23,18 @@ class Student(models.Model):
     full_name = models.CharField(max_length=200)
     email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True)
-    subjects = models.ManyToManyField(
-        'attendance.Section',
-        blank=True, related_name='students',
-        verbose_name="Subjects (Sections)"
+    academic_class = models.ForeignKey(
+        'attendance.AcademicClass', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='students', verbose_name="Class / Program"
+    )
+    academic_year = models.ForeignKey(
+        'attendance.AcademicYear', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='students', verbose_name="Academic Year"
+    )
+    enrolled_subjects = models.ManyToManyField(
+        'attendance.Subject',
+        blank=True, related_name='enrolled_students',
+        verbose_name="Enrolled Subjects"
     )
     enrollment_status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='ACTIVE'

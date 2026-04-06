@@ -24,7 +24,7 @@ def student_list(request):
     status = request.GET.get('status', 'ACTIVE')
     search = request.GET.get('search', '')
     if subject_id:
-        qs = qs.filter(subjects__id=subject_id)
+        qs = qs.filter(enrolled_subjects__id=subject_id)
     if status:
         qs = qs.filter(enrollment_status=status)
     if search:

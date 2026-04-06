@@ -107,7 +107,7 @@
                 <a href="{% url 'session_detail' session.id %}" class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors">
                     <div class="w-2 h-2 rounded-full {% if session.status == 'OPEN' %}bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]{% else %}bg-gray-300{% endif %}"></div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold text-gray-900 truncate">{{ session.section.course_code }}</p>
+                        <p class="text-sm font-bold text-gray-900 truncate">{{ session.subject.code }}</p>
                         <p class="text-xs text-gray-400 truncate">{{ session.started_at|date:"M d, g:i a" }}</p>
                     </div>
                     <i class="fas fa-chevron-right text-xs text-gray-300"></i>

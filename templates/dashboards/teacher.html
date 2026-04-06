@@ -64,8 +64,8 @@
                     {% for session in recent_sessions %}
                     <tr class="hover:bg-gray-50/50 transition-colors">
                         <td class="p-4">
-                            <p class="font-bold text-gray-900">{{ session.section.course_name }}</p>
-                            <p class="text-xs text-gray-500 font-mono">{{ session.section.course_code }}</p>
+                            <p class="font-bold text-gray-900">{{ session.subject.name }}</p>
+                            <p class="text-xs text-gray-500 font-mono">{{ session.subject.code }}</p>
                         </td>
                         <td class="p-4 text-gray-600">{{ session.started_at|date:"M d, Y · h:i A" }}</td>
                         <td class="p-4 hidden sm:table-cell">

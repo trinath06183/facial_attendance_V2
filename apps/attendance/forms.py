@@ -1,42 +1,55 @@
 from django.forms import ModelForm, ChoiceField, ModelChoiceField
-from .models import AttendanceSession, Subject, Section
+from .models import AttendanceSession, Subject, AcademicClass, AcademicYear
 
 class AttendanceSessionForm(ModelForm):
-    year = ChoiceField(choices=Subject.YEAR_CHOICES, label='Academic Year')
-    subject = ModelChoiceField(queryset=Subject.objects.none(), label='Subject', empty_label="--- Select Academic Year First ---")
+    academic_class = ModelChoiceField(queryset=AcademicClass.objects.all(), label='Class / Program', empty_label="--- Select Class ---")
+    academic_year = ModelChoiceField(queryset=AcademicYear.objects.none(), label='Academic Year', empty_label="--- Select Academic Year ---")
+    subject = ModelChoiceField(queryset=Subject.objects.none(), label='Subject', empty_label="--- Select Subject ---")
 
     class Meta:
         model = AttendanceSession
-        fields = ['year', 'subject', 'room']
+        fields = ['academic_class', 'academic_year', 'subject', 'room']
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        if self.user and hasattr(self.user, 'role') and self.user.role == 'TEACHER':
-            # Check if year is bound in POST data to populate subject dropdown correctly for validation
-            if 'year' in self.data:
-                try:
-                    year_val = int(self.data.get('year'))
-                    valid_subjects = Subject.objects.filter(
-                        year=year_val,
-                        sections__teachers=self.user
-                    ).distinct()
-                    self.fields['subject'].queryset = valid_subjects
-                except (ValueError, TypeError):
-                    pass
+        
+        # We need AJAX to populate year/subject normally, but we handle basic POST bound data here
+        if 'academic_class' in self.data:
+            try:
+                class_id = self.data.get('academic_class')
+                self.fields['academic_year'].queryset = AcademicYear.objects.filter(academic_class_id=class_id)
+            except (ValueError, TypeError):
+                pass
+                
+        if 'academic_year' in self.data:
+            try:
+                year_id = self.data.get('academic_year')
+                qs = Subject.objects.filter(academic_year_id=year_id)
+                if self.user and hasattr(self.user, 'role') and self.user.role == 'TEACHER':
+                    qs = qs.filter(teachers=self.user)
+                self.fields['subject'].queryset = qs
+            except (ValueError, TypeError):
+                pass
+        
+        # If we are editing an instance
+        elif self.instance.pk and self.instance.subject:
+            self.fields['academic_class'].initial = self.instance.subject.academic_year.academic_class
+            self.fields['academic_year'].initial = self.instance.subject.academic_year
+            self.fields['academic_year'].queryset = AcademicYear.objects.filter(academic_class=self.instance.subject.academic_year.academic_class)
+            
+            qs = Subject.objects.filter(academic_year=self.instance.subject.academic_year)
+            if self.user and hasattr(self.user, 'role') and self.user.role == 'TEACHER':
+                qs = qs.filter(teachers=self.user)
+            self.fields['subject'].queryset = qs
+
 
     def clean(self):
         cleaned_data = super().clean()
         subject = cleaned_data.get('subject')
         
-        if subject and self.user:
-            section = Section.objects.filter(subject=subject, teachers=self.user).first()
-            if not section:
-                self.add_error('subject', 'No class section found for this subject assigned to you.')
-            else:
-                # Attach the inferred section to the instance before saving
-                self.instance.section = section
-                cleaned_data['section'] = section
+        if subject and self.user and hasattr(self.user, 'role') and self.user.role == 'TEACHER':
+            if not subject.teachers.filter(id=self.user.id).exists():
+                self.add_error('subject', 'You are not assigned as a teacher for this subject.')
                 
         return cleaned_data
-

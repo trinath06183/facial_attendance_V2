@@ -1,7 +1,7 @@
 from django.db.models import Count, Q, Avg, F
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import AttendanceRecord, AttendanceSession, Section
+from .models import AttendanceRecord, AttendanceSession, Subject
 
 def get_student_analytics(student, start_date=None, end_date=None):
     """
@@ -54,7 +54,7 @@ def get_student_analytics(student, start_date=None, end_date=None):
         'trend_rates': trend_rates,
     }
 
-def get_admin_analytics(start_date=None, end_date=None, section_id=None, batch_id=None, subject_id=None):
+def get_admin_analytics(start_date=None, end_date=None, academic_class_id=None, academic_year_id=None, subject_id=None):
     """
     Returns system-wide or filtered analytics for Admin/Teacher dashboard.
     """
@@ -68,17 +68,17 @@ def get_admin_analytics(start_date=None, end_date=None, section_id=None, batch_i
         sessions = sessions.filter(started_at__date__lte=end_date)
         records = records.filter(session__started_at__date__lte=end_date)
         
-    if section_id:
-        sessions = sessions.filter(section_id=section_id)
-        records = records.filter(session__section_id=section_id)
+    if academic_class_id:
+        sessions = sessions.filter(subject__academic_year__academic_class_id=academic_class_id)
+        records = records.filter(session__subject__academic_year__academic_class_id=academic_class_id)
         
-    if batch_id:
-        sessions = sessions.filter(section__batch_id=batch_id)
-        records = records.filter(session__section__batch_id=batch_id)
+    if academic_year_id:
+        sessions = sessions.filter(subject__academic_year_id=academic_year_id)
+        records = records.filter(session__subject__academic_year_id=academic_year_id)
         
     if subject_id:
-        sessions = sessions.filter(section__subject_id=subject_id)
-        records = records.filter(session__section__subject_id=subject_id)
+        sessions = sessions.filter(subject_id=subject_id)
+        records = records.filter(session__subject_id=subject_id)
 
     total_sessions = sessions.count()
     total_records = records.count()

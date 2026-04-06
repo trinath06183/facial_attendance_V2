@@ -11,47 +11,40 @@ class Room(models.Model):
     def __str__(self):
         return self.name
 
-
-class Subject(models.Model):
-    YEAR_CHOICES = [
-        (1, '1st Year'),
-        (2, '2nd Year'),
-        (3, '3rd Year'),
-        (4, '4th Year'),
-    ]
+class AcademicClass(models.Model):
+    """ E.g. 'MCA', 'B.Tech CSE' """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=200)
-    year = models.IntegerField(choices=YEAR_CHOICES, default=1)
-
-    def __str__(self):
-        return f"{self.code} - {self.name}"
-
-
-class Batch(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100) # e.g., "Class of 2026" or "2024-2025"
-    year = models.IntegerField()
+    name = models.CharField(max_length=100, unique=True)
+    
+    class Meta:
+        verbose_name_plural = "Academic Classes"
 
     def __str__(self):
         return self.name
 
-
-class Section(models.Model):
+class AcademicYear(models.Model):
+    """ E.g. '1st Year', '2nd Year', mapped under an AcademicClass """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    course_code = models.CharField(max_length=20)
-    course_name = models.CharField(max_length=200)
-    section_identifier = models.CharField(max_length=10)
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='sections', null=True, blank=True)
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='sections', null=True, blank=True)
-    teachers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='sections')
+    academic_class = models.ForeignKey(AcademicClass, on_delete=models.CASCADE, related_name='years')
+    year_name = models.CharField(max_length=50) # e.g. "1st Year", "2nd Year"
 
     class Meta:
-        unique_together = [('course_code', 'section_identifier')]
+        unique_together = ['academic_class', 'year_name']
+        ordering = ['year_name']
 
     def __str__(self):
-        batch_str = f"[{self.batch.name}] " if self.batch else ""
-        return f"{batch_str}{self.course_code} - {self.course_name} ({self.section_identifier})"
+        return f"{self.academic_class.name} - {self.year_name}"
+
+class Subject(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='subjects', null=True)
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=200)
+    teachers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='subjects', blank=True)
+
+    def __str__(self):
+        yr_str = str(self.academic_year) if self.academic_year else "N/A"
+        return f"[{yr_str}] {self.code} - {self.name}"
 
 
 class AttendanceSession(models.Model):
@@ -69,7 +62,7 @@ class AttendanceSession(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='sessions')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='sessions', null=True)
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True)
     teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     started_at = models.DateTimeField(auto_now_add=True)
@@ -80,12 +73,13 @@ class AttendanceSession(models.Model):
     location_lon = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.section} on {self.started_at.strftime('%Y-%m-%d %H:%M')}"
+        subj = str(self.subject) if self.subject else "No Subject"
+        return f"{subj} on {self.started_at.strftime('%Y-%m-%d %H:%M')}"
 
     @property
     def total_expected(self):
-        if self.section.subject:
-            return self.section.subject.students.filter(enrollment_status='ACTIVE').count()
+        if self.subject:
+            return self.subject.enrolled_students.filter(enrollment_status='ACTIVE').count()
         return 0
 
     @property
@@ -126,4 +120,5 @@ class AttendanceRecord(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.student.full_name} - {self.session.section} ({self.status})"
+        subj = str(self.session.subject) if getattr(self.session, 'subject', None) else "No Subject"
+        return f"{self.student.full_name} - {subj} ({self.status})"

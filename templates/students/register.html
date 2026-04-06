@@ -120,6 +120,71 @@
                         'font-medium','text-gray-800'
                     );
                 });
+
+                // Cascading logic
+                const classSelect = document.getElementById('id_academic_class');
+                const yearSelect = document.getElementById('id_academic_year');
+                const subjectsContainer = document.getElementById('id_enrolled_subjects');
+
+                if (classSelect && yearSelect) {
+                    classSelect.addEventListener('change', async function() {
+                        const classId = this.value;
+                        yearSelect.innerHTML = '<option value="">---------</option>';
+                        if (subjectsContainer) {
+                            subjectsContainer.innerHTML = '<div class="text-xs text-gray-400 py-2">Select an academic year first.</div>';
+                        }
+                        
+                        if (!classId) return;
+
+                        try {
+                            const res = await fetch(`/attendance/api/academic-years/?class_id=${classId}`);
+                            const data = await res.json();
+                            if (data.success) {
+                                data.years.forEach(y => {
+                                    yearSelect.innerHTML += `<option value="${y.id}">${y.name}</option>`;
+                                });
+                            }
+                        } catch (err) {
+                            console.error('Error fetching years:', err);
+                        }
+                    });
+                }
+
+                if (yearSelect && subjectsContainer) {
+                    yearSelect.addEventListener('change', async function() {
+                        const yearId = this.value;
+                        subjectsContainer.innerHTML = '<div class="text-xs text-gray-400 py-2">Loading subjects...</div>';
+                        
+                        if (!yearId) {
+                            subjectsContainer.innerHTML = '<div class="text-xs text-gray-400 py-2">Select an academic year first.</div>';
+                            return;
+                        }
+
+                        try {
+                            const res = await fetch(`/attendance/api/subjects/?year_id=${yearId}`);
+                            const data = await res.json();
+                            if (data.success) {
+                                subjectsContainer.innerHTML = '';
+                                if (data.subjects.length === 0) {
+                                    subjectsContainer.innerHTML = '<div class="text-xs text-gray-400 py-2">No subjects found.</div>';
+                                } else {
+                                    data.subjects.forEach(s => {
+                                        const checkboxHTML = `
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <input type="checkbox" name="enrolled_subjects" value="${s.id}" id="id_enrolled_subjects_${s.id}" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                                                <label for="id_enrolled_subjects_${s.id}" class="text-sm font-medium text-gray-700">${s.name}</label>
+                                            </div>
+                                        `;
+                                        subjectsContainer.innerHTML += checkboxHTML;
+                                    });
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Error fetching subjects:', err);
+                            subjectsContainer.innerHTML = '<div class="text-xs text-red-500 py-2">Failed to load subjects.</div>';
+                        }
+                    });
+                }
             </script>
 
             <!-- ── Actions ──────────────────────────────── -->

@@ -9,12 +9,12 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
-from .models import AttendanceSession, Section
+from .models import AttendanceSession, Subject
 from .reports import (
     get_student_summary,
-    get_section_student_rows,
+    get_subject_student_rows,
     get_top_bottom_performers,
-    get_all_sections_summary,
+    get_all_subjects_summary,
     apply_relative_preset,
 )
 from apps.students.models import Student
@@ -40,12 +40,12 @@ def _parse_dates(request):
     return from_date, to_date
 
 
-def _section_access_check(user, section):
-    """Returns True if user is allowed to view this section's data."""
+def _subject_access_check(user, subject):
+    """Returns True if user is allowed to view this subject's data."""
     if user.role == 'ADMIN' or getattr(user, 'is_admin', lambda: False)():
         return True
     if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        return section.teachers.filter(id=user.id).exists()
+        return subject.teachers.filter(id=user.id).exists()
     return False
 
 
@@ -66,14 +66,14 @@ def report_student_api(request, student_id):
             return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
 
     try:
-        student = Student.objects.prefetch_related('subjects').get(id=student_id)
+        student = Student.objects.prefetch_related('enrolled_subjects').get(id=student_id)
     except Student.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Student not found.'}, status=404)
 
     # Teachers can only see students in subjects they teach
     if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        teacher_subjects = user.sections.values_list('subject', flat=True)
-        if not student.subjects.filter(id__in=teacher_subjects).exists():
+        teacher_subjects = user.subjects.values_list('id', flat=True)
+        if not student.enrolled_subjects.filter(id__in=teacher_subjects).exists():
             return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
 
     from_date, to_date = _parse_dates(request)
@@ -88,7 +88,7 @@ def report_student_api(request, student_id):
                 'id': str(student.id),
                 'name': student.full_name,
                 'roll_no': student.university_roll_number or student.student_id,
-                'section': ", ".join([s.name for s in student.subjects.all()]) if student.subjects.exists() else None,
+                'section': ", ".join([s.name for s in student.enrolled_subjects.all()]) if student.enrolled_subjects.exists() else None,
             },
             'metrics': {
                 'total_offered': summary['total_offered'],
@@ -106,34 +106,35 @@ def report_student_api(request, student_id):
     })
 
 
-# ── Section Students Table ────────────────────────────────────────────────────
+# ── Subject Students Table ────────────────────────────────────────────────────
 
 @login_required
 @require_GET
 def report_section_api(request, section_id):
     """
     GET /attendance/api/reports/section/<uuid>/
-    Returns all-student rows for a section (for the overview table).
+    Returns all-student rows for a subject (for the overview table).
+    Using Old section_id in URL to prevent breaking frontend right now
     """
     user = request.user
 
     try:
-        section = Section.objects.get(id=section_id)
-    except Section.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Section not found.'}, status=404)
+        subject = Subject.objects.get(id=section_id)
+    except Subject.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Subject not found.'}, status=404)
 
-    if not _section_access_check(user, section):
+    if not _subject_access_check(user, subject):
         return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
 
     from_date, to_date = _parse_dates(request)
     sort_by = request.GET.get('sort', 'name')
 
-    rows = get_section_student_rows(section, from_date=from_date, to_date=to_date, sort_by=sort_by)
+    rows = get_subject_student_rows(subject, from_date=from_date, to_date=to_date, sort_by=sort_by)
 
     return JsonResponse({
         'success': True,
         'data': {
-            'section': str(section),
+            'section': str(subject),
             'rows': rows,
             'total_students': len(rows),
         }
@@ -147,48 +148,48 @@ def report_section_api(request, section_id):
 def report_top_bottom_api(request, section_id):
     """
     GET /attendance/api/reports/top-bottom/<uuid>/
-    Returns top 5 and bottom 5 performers for a section.
+    Returns top 5 and bottom 5 performers for a subject.
     """
     user = request.user
 
     try:
-        section = Section.objects.get(id=section_id)
-    except Section.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Section not found.'}, status=404)
+        subject = Subject.objects.get(id=section_id)
+    except Subject.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Subject not found.'}, status=404)
 
-    if not _section_access_check(user, section):
+    if not _subject_access_check(user, subject):
         return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
 
     from_date, to_date = _parse_dates(request)
-    result = get_top_bottom_performers(section, from_date=from_date, to_date=to_date)
+    result = get_top_bottom_performers(subject, from_date=from_date, to_date=to_date)
 
     return JsonResponse({'success': True, 'data': result})
 
 
-# ── All Sections Summary (Admin / Teacher) ────────────────────────────────────
+# ── All Subjects Summary (Admin / Teacher) ────────────────────────────────────
 
 @login_required
 @require_GET
 def report_overview_api(request):
     """
     GET /attendance/api/reports/overview/
-    Returns section-level summary list for dashboard cards.
+    Returns subject-level summary list for dashboard cards.
     """
     user = request.user
     from_date, to_date = _parse_dates(request)
 
     if user.role == 'ADMIN' or getattr(user, 'is_admin', lambda: False)():
-        summaries = get_all_sections_summary(from_date=from_date, to_date=to_date)
+        summaries = get_all_subjects_summary(from_date=from_date, to_date=to_date)
     elif user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        summaries = get_all_sections_summary(teacher=user, from_date=from_date, to_date=to_date)
+        summaries = get_all_subjects_summary(teacher=user, from_date=from_date, to_date=to_date)
     else:
         return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
 
     data = []
     for s in summaries:
         data.append({
-            'section_id': str(s['section'].id),
-            'section_name': str(s['section']),
+            'section_id': str(s['subject'].id),
+            'section_name': str(s['subject']),
             'total_sessions': s['total_sessions'],
             'overall_rate': s['overall_rate'],
         })

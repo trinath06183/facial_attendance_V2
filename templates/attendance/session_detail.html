@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Session | {{ session.section.course_code }} — SmartAttend{% endblock %}
+{% block title %}Session | {{ session.subject.code }} — SmartAttend{% endblock %}
 
 {% block content %}
 <div class="bg-gray-50 min-h-screen pb-12">
@@ -17,7 +17,7 @@
                 <a href="{% url 'dashboard' %}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2 transition">
                     <i class="fas fa-arrow-left"></i> Back to Dashboard
                 </a>
-                <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ session.section.course_code }} Roster</h1>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ session.subject.code }} Roster</h1>
                 <p class="text-gray-500 font-mono text-sm tracking-widest mt-1 uppercase">{{ session.started_at|date:"l, M d, Y · h:i A" }}</p>
             </div>
             
@@ -139,7 +139,7 @@
     const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
     // Determine if current user can edit
-    const isTeacherAssigned = ("{% if request.user in session.section.teachers.all %}true{% endif %}" === "true");
+    const isTeacherAssigned = ("{% if request.user in session.subject.teachers.all %}true{% endif %}" === "true");
     const canEdit = (USER_ROLE === 'ADMIN') || (USER_ROLE === 'TEACHER' && SESSION_STATUS === 'OPEN' && isTeacherAssigned);
 
     // ─── UI ELEMENTS ───────────────────────────

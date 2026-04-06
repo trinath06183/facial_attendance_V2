@@ -82,9 +82,47 @@
                     );
                 });
 
-                // dynamic logic for Year -> Subject
-                const yearSelect = document.getElementById('id_year');
+                // dynamic logic for Class -> Year -> Subject
+                const classSelect = document.getElementById('id_academic_class');
+                const yearSelect = document.getElementById('id_academic_year');
                 const subjectSelect = document.getElementById('id_subject');
+
+                if (classSelect && yearSelect) {
+                    classSelect.addEventListener('change', async function() {
+                        const classId = this.value;
+                        yearSelect.innerHTML = '<option value="">--- Loading Academic Years ---</option>';
+                        yearSelect.disabled = true;
+                        if (subjectSelect) {
+                            subjectSelect.innerHTML = '<option value="">--- Select Academic Year First ---</option>';
+                            subjectSelect.disabled = true;
+                        }
+
+                        if (!classId) {
+                            yearSelect.innerHTML = '<option value="">--- Select Class First ---</option>';
+                            return;
+                        }
+
+                        try {
+                            const res = await fetch(`/attendance/api/academic-years/?class_id=${classId}`);
+                            const data = await res.json();
+                            if (data.success) {
+                                yearSelect.innerHTML = '<option value="">--- Select Academic Year ---</option>';
+                                data.years.forEach(y => {
+                                    yearSelect.innerHTML += `<option value="${y.id}">${y.name}</option>`;
+                                });
+                                yearSelect.disabled = false;
+                            } else {
+                                yearSelect.innerHTML = '<option value="">--- Error loading years ---</option>';
+                            }
+                        } catch (err) {
+                            yearSelect.innerHTML = '<option value="">--- Network Error ---</option>';
+                        }
+                    });
+                    
+                    if (classSelect.value === '') {
+                        yearSelect.disabled = true;
+                    }
+                }
                 
                 if (yearSelect && subjectSelect) {
                     yearSelect.addEventListener('change', async function() {

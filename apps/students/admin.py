@@ -7,7 +7,7 @@ from .models import Student, Embedding, QRCodeRecord
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
     list_display = ('student_id', 'full_name', 'enrollment_status', 'consent_given')
-    list_filter = ('enrollment_status', 'consent_given', 'subjects')
+    list_filter = ('enrollment_status', 'consent_given', 'enrolled_subjects')
     search_fields = ('student_id', 'full_name', 'email')
     readonly_fields = ('created_at', 'updated_at', 'consent_timestamp', 'consent_ip')
     formfield_overrides = {

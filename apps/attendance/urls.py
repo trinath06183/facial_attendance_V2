@@ -43,4 +43,6 @@ urlpatterns = [
     
     # ── Dynamic Form Endpoints ──
     path('api/teacher-subjects/', api_views.teacher_subjects_api, name='teacher_subjects_api'),
+    path('api/academic-years/', api_views.get_academic_years_api, name='academic_years_api'),
+    path('api/subjects/', api_views.get_subjects_api, name='subjects_api'),
 ]

@@ -106,7 +106,7 @@
         <table class="w-full text-left text-sm" role="table" aria-label="Recent attendance sessions">
             <thead>
                 <tr class="bg-white border-b border-gray-100">
-                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Section</th>
+                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject</th>
                     <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hidden sm:table-cell">Started At</th>
                     <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                     <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
@@ -122,8 +122,8 @@
                                 <i class="fas {% if session.status == 'OPEN' %}fa-satellite-dish{% else %}fa-calendar-check{% endif %} text-xs" aria-hidden="true"></i>
                             </div>
                             <div class="min-w-0">
-                                <p class="font-bold text-gray-900 text-sm truncate">{{ session.section.course_code }} — {{ session.section.section_identifier }}</p>
-                                <p class="text-xs text-gray-400 truncate">{{ session.section.course_name|default:"" }}</p>
+                                <p class="font-bold text-gray-900 text-sm truncate">{{ session.subject.code }}</p>
+                                <p class="text-xs text-gray-400 truncate">{{ session.subject.name|default:"" }}</p>
                             </div>
                         </div>
                     </td>

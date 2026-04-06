@@ -23,7 +23,7 @@
             <select id="filter-section" class="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none transition-shadow">
                 <option value="">All Sections</option>
                 {% for section in sections %}
-                <option value="{{ section.id }}">{{ section.course_name }} ({{ section.course_code }})</option>
+                <option value="{{ section.id }}">{{ section.name }} ({{ section.code }})</option>
                 {% endfor %}
             </select>
         </div>

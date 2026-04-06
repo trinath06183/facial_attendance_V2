@@ -12,7 +12,7 @@ from apps.students.models import Student
 from apps.students.qr_utils import verify_token
 from apps.students.face_pipeline import detect_and_embed, compare_embeddings, passive_liveness_check
 from apps.audit.utils import audit
-from .models import AttendanceSession, AttendanceRecord, Section
+from .models import AttendanceSession, AttendanceRecord, Subject, AcademicClass, AcademicYear
 from .forms import AttendanceSessionForm
 from .analytics import get_student_analytics, get_admin_analytics
 from datetime import datetime
@@ -24,7 +24,7 @@ FACE_MATCH_THRESHOLD = settings.FACE_MATCH_THRESHOLD
 @login_required
 def session_list(request):
     if request.user.role == 'TEACHER':
-        sessions = AttendanceSession.objects.filter(section__teachers=request.user)
+        sessions = AttendanceSession.objects.filter(subject__teachers=request.user)
     else:
         sessions = AttendanceSession.objects.all()
     sessions = sessions.order_by('-started_at')
@@ -44,10 +44,9 @@ def session_create(request):
         if form.is_valid():
             session = form.save(commit=False)
             session.teacher = request.user
-            # form.clean() already injected the correct session.section
             session.save()
             audit(request, 'SESSION_CREATED', 'AttendanceSession', str(session.id))
-            messages.success(request, f"Session for {session.section} created.")
+            messages.success(request, f"Session for {session.subject} created.")
             return redirect('session_detail', pk=session.id)
     else:
         form = AttendanceSessionForm(user=request.user)
@@ -59,18 +58,19 @@ def session_detail(request, pk):
     records = session.records.select_related('student').all()
     
     # Pre-populate absent records for active students in section if not exist
-    active_students = session.section.students.filter(enrollment_status='ACTIVE')
-    existing_record_student_ids = [r.student_id for r in records]
-    
-    for student in active_students:
-        if student.id not in existing_record_student_ids:
-            AttendanceRecord.objects.create(
-                session=session,
-                student=student,
-                status='ABSENT',
-                verification_method='NONE'
-            )
-            
+    if session.subject:
+        active_students = session.subject.enrolled_students.filter(enrollment_status='ACTIVE')
+        existing_record_student_ids = [r.student_id for r in records]
+        
+        for student in active_students:
+            if student.id not in existing_record_student_ids:
+                AttendanceRecord.objects.create(
+                    session=session,
+                    student=student,
+                    status='ABSENT',
+                    verification_method='NONE'
+                )
+                
     # Re-fetch after pre-populating
     records = session.records.select_related('student').order_by('student__full_name')
     
@@ -139,8 +139,6 @@ def lookup_profile(request, pk):
     if not student_id_str:
         return JsonResponse({'success': False, 'error': 'INVALID_QR'})
         
-    # get_object_or_404 might render HTML 404, we want JSON 404
-    student = None
     student = Student.objects.filter(university_roll_number=student_id_str).first()
     
     # Fallback to legacy UUID token
@@ -155,8 +153,8 @@ def lookup_profile(request, pk):
     if not student:
         return JsonResponse({'success': False, 'error': 'STUDENT_NOT_FOUND'})
 
-    if not student.subjects.filter(id=session.section_id).exists():
-        return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SECTION'})
+    if session.subject and not student.enrolled_subjects.filter(id=session.subject_id).exists():
+        return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SUBJECT'})
         
     # Determine photo URL
     primary_photo = student.photos.filter(is_primary=True).first()
@@ -172,7 +170,7 @@ def lookup_profile(request, pk):
             'id': str(student.id),
             'full_name': student.full_name,
             'student_id': student.student_id,
-            'course': getattr(session.section, 'course_code', 'N/A'),
+            'course': getattr(session.subject, 'code', 'N/A') if session.subject else 'N/A',
             'status': student.enrollment_status,
             'photo_url': photo_url,
             'already_marked': already_marked
@@ -228,8 +226,8 @@ def verify_attendance(request, pk):
         if not student:
             return JsonResponse({'success': False, 'error': 'STUDENT_NOT_FOUND'})
             
-        if not student.subjects.filter(id=session.section_id).exists():
-             return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SECTION'})
+        if session.subject and not student.enrolled_subjects.filter(id=session.subject_id).exists():
+             return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SUBJECT'})
 
         stored_embeddings = student.embeddings.filter(is_active=True)
         if not stored_embeddings.exists():
@@ -238,9 +236,9 @@ def verify_attendance(request, pk):
         stored_vecs = [e.get_vector() for e in stored_embeddings]
 
     try:
-        logger.info(f"Biometric Request: frame_size={len(image_bytes)} bytes, qr_present={bool(current_qr)}")
+        logger.info(f"Biometric Request: frame_size={{len(image_bytes)}} bytes, qr_present={{bool(current_qr)}}")
         result = process_biometric_frame(image_bytes, stored_vecs=stored_vecs, threshold=FACE_MATCH_THRESHOLD)
-        logger.info(f"Biometric Result: qr_detected={bool(result.get('qr_data'))} face_detected={bool(result.get('face_box'))}")
+        logger.info(f"Biometric Result: qr_detected={{bool(result.get('qr_data'))}} face_detected={{bool(result.get('face_box'))}}")
     except Exception as e:
         logger.error(f"Biometric Processing Crash: {e}")
         return JsonResponse({'success': False, 'error': 'SERVER_PIPELINE_ERROR', 'details': str(e)})
@@ -272,21 +270,17 @@ def attendance_viewer(request):
     context = {}
     if request.user.role == 'ADMIN' or getattr(request.user, 'is_admin', lambda: False)():
         context['teachers'] = User.objects.filter(role='TEACHER')
-        context['courses'] = Section.objects.values_list('course_code', flat=True).distinct()
+        context['courses'] = Subject.objects.values_list('code', flat=True).distinct()
         
     elif request.user.role == 'TEACHER' or getattr(request.user, 'is_teacher', lambda: False)():
-        # Only courses taught by this teacher
-        context['courses'] = Section.objects.filter(teachers=request.user).values_list('course_code', flat=True).distinct()
-        # Only students in these courses
-        sections = Section.objects.filter(teachers=request.user)
-        subjects = [s.subject for s in sections if s.subject]
-        context['students'] = Student.objects.filter(subjects__in=subjects).distinct()
+        context['courses'] = Subject.objects.filter(teachers=request.user).values_list('code', flat=True).distinct()
+        subjects = Subject.objects.filter(teachers=request.user)
+        context['students'] = Student.objects.filter(enrolled_subjects__in=subjects).distinct()
         
     elif request.user.role == 'STUDENT' or getattr(request.user, 'is_student', lambda: False)():
-        # Course list only limited to what they're taking
         if hasattr(request.user, 'student_profile'):
-            subjects = request.user.student_profile.subjects.all()
-            context['courses'] = list(subjects.values_list('course_code', flat=True).distinct())
+            subjects = request.user.student_profile.enrolled_subjects.all()
+            context['courses'] = list(subjects.values_list('code', flat=True).distinct())
         else:
             context['courses'] = []
 
@@ -294,24 +288,18 @@ def attendance_viewer(request):
 
 @login_required
 def analytics_dashboard(request):
-    """
-    Renders the HTML page holding the interactive charts and export controls.
-    """
     if not (request.user.is_admin() or request.user.is_teacher()):
         messages.error(request, "Access denied.")
         return redirect('dashboard')
     
-    sections = Section.objects.all()
-    # Assuming Batch and Subject exist or could be filtered similarly
+    subjects = Subject.objects.all()
+    # Simplified context since we dropped Section, giving raw Subjects for now
     return render(request, 'attendance/analytics.html', {
-        'sections': sections,
+        'sections': subjects, # renamed variable eventually!
     })
 
 @login_required
 def analytics_data(request):
-    """
-    Returns JSON data for charting frontend.
-    """
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
     
@@ -323,42 +311,31 @@ def analytics_data(request):
             return JsonResponse({'error': 'No profile linked'}, status=400)
             
         data = get_student_analytics(request.user.student_profile, start_date, end_date)
-        # convert QuerySet to dict for JSON
         data['recent_history'] = [{'status': r.status, 'marked_at': r.marked_at} for r in data['recent_history']]
         return JsonResponse(data)
     else:
-        # Admin or teacher
-        section_id = request.GET.get('section_id')
-        data = get_admin_analytics(start_date, end_date, section_id=section_id)
+        # Re-use academic filters if possible, but keep simple mapped equivalent
+        subject_id = request.GET.get('section_id') # Map from old JS
+        data = get_admin_analytics(start_date, end_date, subject_id=subject_id)
         return JsonResponse(data)
 
 @login_required
 def export_reports(request):
-    """
-    Generates file exports based on unified filters.
-    """
     return JsonResponse({'success': False, 'error': 'Export feature removed.'})
-
-
-# ── Enhanced Report Dashboard ─────────────────────────────────────────────────
 
 @login_required
 def reports_dashboard(request):
-    """
-    Main reports page. Provides filter options based on user role.
-    """
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
     ctx = {}
-
     if request.user.role == 'ADMIN' or getattr(request.user, 'is_admin', lambda: False)():
-        ctx['sections'] = Section.objects.all().order_by('course_code')
+        ctx['sections'] = Subject.objects.all().order_by('code')
         ctx['teachers'] = User.objects.filter(role='TEACHER')
         ctx['role'] = 'ADMIN'
 
     elif request.user.role == 'TEACHER' or getattr(request.user, 'is_teacher', lambda: False)():
-        ctx['sections'] = Section.objects.filter(teachers=request.user).order_by('course_code')
+        ctx['sections'] = Subject.objects.filter(teachers=request.user).order_by('code')
         ctx['role'] = 'TEACHER'
 
     elif request.user.role == 'STUDENT' or getattr(request.user, 'is_student', lambda: False)():
@@ -368,22 +345,17 @@ def reports_dashboard(request):
 
     return render(request, 'attendance/reports.html', ctx)
 
-
 @login_required
 def report_student_detail(request, student_id):
-    """
-    Per-student drill-down report page.
-    """
     student = get_object_or_404(Student, pk=student_id)
 
-    # RBAC
     user = request.user
     if user.role == 'STUDENT' or getattr(user, 'is_student', lambda: False)():
         if not hasattr(user, 'student_profile') or user.student_profile.id != student.id:
             messages.error(request, "Access denied.")
             return redirect('dashboard')
     elif user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        if not student.subjects.filter(teachers=user).exists():
+        if not student.enrolled_subjects.filter(teachers=user).exists():
             messages.error(request, "Access denied.")
             return redirect('dashboard')
 
@@ -391,7 +363,5 @@ def report_student_detail(request, student_id):
 
 @login_required
 def report_export_view(request):
-    """
-    On-demand export for the reports dashboard.
-    """
     return JsonResponse({'success': False, 'error': 'Export feature removed.'})
+

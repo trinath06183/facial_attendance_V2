@@ -33,7 +33,7 @@
         <table class="w-full text-left text-sm" role="table" aria-label="Attendance sessions">
             <thead>
                 <tr class="bg-white border-b border-gray-100">
-                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Course / Section</th>
+                    <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject</th>
                     <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hidden md:table-cell">Instructor</th>
                     <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hidden sm:table-cell">Started At</th>
                     <th scope="col" class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
@@ -52,8 +52,8 @@
                                 <i class="fas {% if session.status == 'OPEN' %}fa-satellite-dish{% else %}fa-calendar-check{% endif %} text-sm" aria-hidden="true"></i>
                             </div>
                             <div class="min-w-0">
-                                <p class="font-bold text-gray-900 text-sm truncate">{{ session.section.course_name|default:session.section.course_code }}</p>
-                                <p class="text-xs text-gray-400 font-mono truncate">{{ session.section.course_code }}{% if session.section.section_identifier %} · {{ session.section.section_identifier }}{% endif %}{% if session.room %} · {{ session.room.name }}{% endif %}</p>
+                                <p class="font-bold text-gray-900 text-sm truncate">{{ session.subject.name|default:session.subject.code }}</p>
+                                <p class="text-xs text-gray-400 font-mono truncate">{{ session.subject.code }}{% if session.room %} · {{ session.room.name }}{% endif %}</p>
                             </div>
                         </div>
                     </td>
@@ -93,13 +93,13 @@
                         <div class="flex items-center justify-end gap-2">
                             <a href="{% url 'session_detail' session.id %}"
                                 class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                aria-label="View session details for {{ session.section.course_code }}">
+                                aria-label="View session details for {{ session.subject.code }}">
                                 <i class="fas fa-clipboard-list" aria-hidden="true"></i> View
                             </a>
                             {% if session.status == 'OPEN' %}
                             <a href="{% url 'scanner_view' session.id %}"
                                 class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 inline-flex items-center gap-1"
-                                aria-label="Open scanner for {{ session.section.course_code }}">
+                                aria-label="Open scanner for {{ session.subject.code }}">
                                 <i class="fas fa-camera" aria-hidden="true"></i> Scan
                             </a>
                             {% endif %}

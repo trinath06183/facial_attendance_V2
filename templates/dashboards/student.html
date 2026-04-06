@@ -196,7 +196,7 @@
                         <tr>
                             <th scope="col" class="px-5 py-3.5 cursor-pointer hover:text-blue-500" data-sort="date">Date ↕</th>
                             <th scope="col" class="px-5 py-3.5 cursor-pointer hover:text-blue-500" data-sort="course">Course ↕</th>
-                            <th scope="col" class="px-5 py-3.5">Section</th>
+
                             <th scope="col" class="px-5 py-3.5 cursor-pointer hover:text-blue-500" data-sort="status">Status ↕</th>
                             <th scope="col" class="px-5 py-3.5 text-right">Duration</th>
                         </tr>
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="font-bold text-gray-900 text-sm">${r.course.code}</div>
                     <div class="text-xs text-gray-400">${r.course.name}</div>
                 </td>
-                <td class="px-5 py-4 text-gray-500 text-sm">${r.class_section}</td>
+
                 <td class="px-5 py-4">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(r.status)}">
                         ${r.status}

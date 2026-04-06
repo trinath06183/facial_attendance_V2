@@ -24,13 +24,13 @@ def dashboard(request):
 
     elif user.is_teacher():
         # Teacher Dashboard
-        my_sections = user.sections.all()
-        ctx['my_sections'] = my_sections
+        my_subjects = user.subjects.all()
+        ctx['my_sections'] = my_subjects
         ctx['open_sessions'] = AttendanceSession.objects.filter(
-            section__in=my_sections, status='OPEN'
+            subject__in=my_subjects, status='OPEN'
         )
         ctx['recent_sessions'] = AttendanceSession.objects.filter(
-            section__in=my_sections
+            subject__in=my_subjects
         ).order_by('-started_at')[:8]
         return render(request, 'dashboards/teacher.html', ctx)
 
@@ -47,9 +47,9 @@ def dashboard(request):
             ctx['log_courses'] = (
                 AttendanceRecord.objects
                 .filter(student=user.student_profile)
-                .values_list('session__section__course_code', flat=True)
+                .values_list('session__subject__code', flat=True)
                 .distinct()
-                .order_by('session__section__course_code')
+                .order_by('session__subject__code')
             )
         else:
             ctx['error'] = "No student profile linked to this account."
