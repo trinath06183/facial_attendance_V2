@@ -2,8 +2,29 @@
 
 {% block title %}Student Directory — SmartAttend{% endblock %}
 
+{% block extra_head %}
+<style>
+    .stats-drawer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.38s ease, opacity 0.25s ease;
+        opacity: 0;
+    }
+    .stats-drawer.open {
+        max-height: 700px;
+        opacity: 1;
+    }
+    .pct-ring-circle {
+        transition: stroke-dashoffset 0.65s cubic-bezier(.4,0,.2,1);
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+    }
+    tr.drawer-open > td { background-color: #EFF6FF !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- ── Page Header ───────────────────────────── -->
+<!-- ── Page Header ─────────────────────────────────────────────── -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
         <h1 class="text-3xl font-black text-gray-900 tracking-tight">Student Directory</h1>
@@ -15,7 +36,7 @@
     </a>
 </div>
 
-<!-- ── Search & Filter Bar ───────────────────── -->
+<!-- ── Search & Filter Bar ────────────────────────────────────── -->
 <div class="bg-white border border-gray-100 rounded-2xl p-5 mb-6 shadow-sm">
     <form method="get" class="flex flex-col sm:flex-row gap-3 items-end" role="search" aria-label="Filter students">
         <div class="flex-1">
@@ -52,14 +73,17 @@
     </form>
 </div>
 
-<!-- ── Results Count ─────────────────────────── -->
+<!-- ── Results Count ──────────────────────────────────────────── -->
 <div class="flex items-center justify-between mb-3 px-1">
     <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest">
         {{ students|length }} student{{ students|length|pluralize }} found
     </p>
+    <p class="text-xs text-gray-400 italic">
+        Click <i class="fas fa-chart-pie text-blue-400"></i> on any row to view attendance stats.
+    </p>
 </div>
 
-<!-- ── Student Table ─────────────────────────── -->
+<!-- ── Student Table ──────────────────────────────────────────── -->
 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-left" role="table" aria-label="Student directory">
@@ -75,7 +99,10 @@
             </thead>
             <tbody class="divide-y divide-gray-50">
                 {% for student in students %}
-                <tr class="hover:bg-gray-50/60 transition-colors group" role="row">
+
+                <!-- ── Main Row ── -->
+                <tr class="hover:bg-gray-50/60 transition-colors group" role="row" id="row-{{ student.id }}">
+
                     <!-- Name + Avatar -->
                     <td class="px-5 py-4">
                         <a href="{% url 'student_detail' student.id %}" class="flex items-center gap-3 group/link">
@@ -98,7 +125,7 @@
                     <td class="px-5 py-4 hidden md:table-cell">
                         <span class="text-sm text-gray-600 font-medium">
                             {% for subject in student.subjects.all %}
-                                {{ subject.code }}{% if not forloop.last %}, {% endif %}
+                                {{ subject.course_code }}{% if not forloop.last %}, {% endif %}
                             {% empty %}
                                 —
                             {% endfor %}
@@ -135,6 +162,15 @@
                     <!-- Actions -->
                     <td class="px-5 py-4 text-right">
                         <div class="flex items-center justify-end gap-2">
+                            <!-- Attendance Stats Toggle -->
+                            <button
+                                class="stats-toggle px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-500 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                data-student-id="{{ student.id }}"
+                                aria-expanded="false"
+                                aria-label="View attendance stats for {{ student.full_name }}"
+                                title="Attendance Stats">
+                                <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                            </button>
                             <a href="{% url 'student_detail' student.id %}"
                                 class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                                 aria-label="View {{ student.full_name }}'s profile">
@@ -161,6 +197,113 @@
                         </div>
                     </td>
                 </tr>
+
+                <!-- ── Attendance Stats Drawer ── -->
+                <tr id="drawer-{{ student.id }}" class="bg-blue-50/40">
+                    <td colspan="6" class="p-0">
+                        <div class="stats-drawer" id="stats-content-{{ student.id }}">
+                            <div class="px-6 py-5 border-t border-blue-100">
+
+                                <!-- Drawer Header -->
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                                    <div>
+                                        <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-0.5">Attendance Statistics</p>
+                                        <p class="text-base font-black text-gray-800">{{ student.full_name }}</p>
+                                    </div>
+                                    <!-- Subject filter -->
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Filter Subject:</label>
+                                        <select class="section-filter text-sm px-3 py-1.5 border border-gray-200 rounded-xl bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                                data-student-id="{{ student.id }}">
+                                            <option value="">All Subjects</option>
+                                            {% for subject in student.subjects.all %}
+                                            <option value="{{ subject.id }}">{{ subject.course_code }} — {{ subject.course_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Loading state -->
+                                <div id="stats-loading-{{ student.id }}" class="py-6 text-center text-sm text-gray-400 font-medium hidden">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i> Loading stats…
+                                </div>
+                                <!-- Error state -->
+                                <div id="stats-error-{{ student.id }}" class="py-4 text-center text-sm text-red-500 font-semibold hidden"></div>
+
+                                <!-- Stats Grid (shown after data loads) -->
+                                <div id="stats-grid-{{ student.id }}" class="hidden">
+
+                                    <!-- Summary Cards -->
+                                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+
+                                        <!-- Overall % ring card -->
+                                        <div class="lg:col-span-1 bg-white rounded-2xl border border-blue-100 p-4 flex flex-col items-center justify-center shadow-sm gap-1">
+                                            <svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true">
+                                                <circle cx="40" cy="40" r="32" fill="none" stroke="#E0E7FF" stroke-width="8"/>
+                                                <circle id="ring-{{ student.id }}" cx="40" cy="40" r="32" fill="none"
+                                                    stroke="#4F46E5" stroke-width="8" stroke-linecap="round"
+                                                    stroke-dasharray="201.06" stroke-dashoffset="201.06"
+                                                    class="pct-ring-circle"/>
+                                            </svg>
+                                            <p class="text-2xl font-black -mt-10" id="pct-display-{{ student.id }}" style="color:#4F46E5">—%</p>
+                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-8">Attendance</p>
+                                        </div>
+
+                                        <!-- Sections Enrolled -->
+                                        <div class="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col justify-between shadow-sm">
+                                            <div class="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center mb-3">
+                                                <i class="fas fa-graduation-cap text-indigo-500 text-sm"></i>
+                                            </div>
+                                            <p class="text-3xl font-black text-gray-900" id="stat-enrolled-{{ student.id }}">—</p>
+                                            <p class="text-xs font-bold text-gray-400 mt-1">Sections Enrolled</p>
+                                        </div>
+
+                                        <!-- Classes Occurred -->
+                                        <div class="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col justify-between shadow-sm">
+                                            <div class="w-9 h-9 bg-orange-50 rounded-xl flex items-center justify-center mb-3">
+                                                <i class="fas fa-calendar-check text-orange-500 text-sm"></i>
+                                            </div>
+                                            <p class="text-3xl font-black text-gray-900" id="stat-occurred-{{ student.id }}">—</p>
+                                            <p class="text-xs font-bold text-gray-400 mt-1">Classes Occurred</p>
+                                        </div>
+
+                                        <!-- Classes Attended -->
+                                        <div class="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col justify-between shadow-sm">
+                                            <div class="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center mb-3">
+                                                <i class="fas fa-user-check text-emerald-500 text-sm"></i>
+                                            </div>
+                                            <p class="text-3xl font-black text-gray-900" id="stat-attended-{{ student.id }}">—</p>
+                                            <p class="text-xs font-bold text-gray-400 mt-1">Classes Attended</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Per-Subject Breakdown Table -->
+                                    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                                        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100">
+                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject-wise Breakdown</p>
+                                        </div>
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-sm">
+                                                <thead>
+                                                    <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                        <th class="px-5 py-3 text-left">Subject</th>
+                                                        <th class="px-5 py-3 text-center">Occurred</th>
+                                                        <th class="px-5 py-3 text-center">Attended</th>
+                                                        <th class="px-5 py-3 text-center">Attendance %</th>
+                                                        <th class="px-5 py-3 text-left">Progress</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="per-section-body-{{ student.id }}" class="divide-y divide-gray-50"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                </div><!-- /stats-grid -->
+                            </div><!-- /px-6 py-5 -->
+                        </div><!-- /stats-drawer -->
+                    </td>
+                </tr>
+
                 {% empty %}
                 <tr>
                     <td colspan="6" class="px-5 py-16 text-center">
@@ -178,4 +321,161 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    const STATS_API    = '/attendance/api/stats/student/';
+    const CIRCUMFERENCE = 2 * Math.PI * 32; // ≈ 201.06
+
+    // Per-student data cache: key = "studentId|sectionId"
+    const cache = {};
+
+    function pctColor(pct) {
+        if (pct >= 75) return '#10B981';
+        if (pct >= 50) return '#F59E0B';
+        return '#EF4444';
+    }
+
+    function pctBadgeClass(pct) {
+        if (pct >= 75) return 'bg-emerald-100 text-emerald-700';
+        if (pct >= 50) return 'bg-amber-100 text-amber-700';
+        return 'bg-red-100 text-red-700';
+    }
+
+    function animateRing(studentId, pct) {
+        const ring = document.getElementById('ring-' + studentId);
+        if (!ring) return;
+        ring.style.strokeDashoffset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+        ring.style.stroke = pctColor(pct);
+    }
+
+    function renderStats(studentId, data) {
+        // Summary numbers
+        document.getElementById('stat-enrolled-' + studentId).textContent = data.sections_enrolled;
+        document.getElementById('stat-occurred-' + studentId).textContent = data.total_classes;
+        document.getElementById('stat-attended-' + studentId).textContent = data.classes_attended;
+
+        const pct = data.attendance_pct;
+        const pctEl = document.getElementById('pct-display-' + studentId);
+        pctEl.textContent  = pct.toFixed(1) + '%';
+        pctEl.style.color  = pctColor(pct);
+        animateRing(studentId, pct);
+
+        // Per-section table rows
+        const tbody = document.getElementById('per-section-body-' + studentId);
+        if (!data.per_section || data.per_section.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-6 text-center text-gray-400 text-xs">No class sessions found.</td></tr>';
+        } else {
+            tbody.innerHTML = data.per_section.map(function (s) {
+                const barW      = Math.max(2, s.pct);
+                const badgeCls  = pctBadgeClass(s.pct);
+                return `
+                <tr class="hover:bg-gray-50/60 transition-colors">
+                    <td class="px-5 py-3">
+                        <p class="font-bold text-gray-900 text-xs">${s.course_code}</p>
+                        <p class="text-[10px] text-gray-400">${s.section_name}</p>
+                    </td>
+                    <td class="px-5 py-3 text-center font-bold text-gray-700">${s.occurred}</td>
+                    <td class="px-5 py-3 text-center font-bold text-gray-700">${s.attended}</td>
+                    <td class="px-5 py-3 text-center">
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-black ${badgeCls}">${s.pct.toFixed(1)}%</span>
+                    </td>
+                    <td class="px-5 py-3 min-w-[120px]">
+                        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-2 rounded-full transition-all duration-500"
+                                 style="width:${barW}%;background:${pctColor(s.pct)};"></div>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        document.getElementById('stats-loading-' + studentId).classList.add('hidden');
+        document.getElementById('stats-grid-'    + studentId).classList.remove('hidden');
+    }
+
+    function fetchStats(studentId, sectionId) {
+        const key = studentId + '|' + (sectionId || '');
+        if (cache[key]) { renderStats(studentId, cache[key]); return; }
+
+        var loadEl  = document.getElementById('stats-loading-' + studentId);
+        var gridEl  = document.getElementById('stats-grid-'    + studentId);
+        var errorEl = document.getElementById('stats-error-'   + studentId);
+
+        loadEl.classList.remove('hidden');
+        gridEl.classList.add('hidden');
+        errorEl.classList.add('hidden');
+
+        var url = STATS_API + studentId + '/';
+        if (sectionId) url += '?section_id=' + sectionId;
+
+        fetch(url)
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                if (!json.success) throw new Error(json.error || 'Unknown error');
+                cache[key] = json.data;
+                renderStats(studentId, json.data);
+            })
+            .catch(function (err) {
+                loadEl.classList.add('hidden');
+                errorEl.textContent = 'Failed to load stats: ' + err.message;
+                errorEl.classList.remove('hidden');
+            });
+    }
+
+    function openDrawer(sid, btn) {
+        document.getElementById('stats-content-' + sid).classList.add('open');
+        document.getElementById('row-' + sid).classList.add('drawer-open');
+        btn.setAttribute('aria-expanded', 'true');
+        btn.classList.replace('bg-blue-50',  'bg-blue-200');
+        btn.classList.replace('text-blue-500','text-blue-700');
+        fetchStats(sid, '');
+    }
+
+    function closeDrawer(sid, btn) {
+        document.getElementById('stats-content-' + sid).classList.remove('open');
+        document.getElementById('row-' + sid).classList.remove('drawer-open');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.classList.replace('bg-blue-200',  'bg-blue-50');
+        btn.classList.replace('text-blue-700','text-blue-500');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // Toggle each drawer
+        document.querySelectorAll('.stats-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var sid      = btn.dataset.studentId;
+                var expanded = btn.getAttribute('aria-expanded') === 'true';
+                if (expanded) {
+                    closeDrawer(sid, btn);
+                } else {
+                    // Close all others first
+                    document.querySelectorAll('.stats-toggle[aria-expanded="true"]').forEach(function (other) {
+                        if (other !== btn) closeDrawer(other.dataset.studentId, other);
+                    });
+                    openDrawer(sid, btn);
+                }
+            });
+        });
+
+        // Subject filter drop-downs inside each drawer
+        document.querySelectorAll('.section-filter').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                var sid = sel.dataset.studentId;
+                // Bust cache for this student on filter change
+                Object.keys(cache).forEach(function (k) {
+                    if (k.startsWith(sid + '|')) delete cache[k];
+                });
+                fetchStats(sid, sel.value);
+            });
+        });
+    });
+
+})();
+</script>
 {% endblock %}

@@ -81,6 +81,47 @@
                         'font-medium','text-gray-800'
                     );
                 });
+
+                // dynamic logic for Year -> Subject
+                const yearSelect = document.getElementById('id_year');
+                const subjectSelect = document.getElementById('id_subject');
+                
+                if (yearSelect && subjectSelect) {
+                    yearSelect.addEventListener('change', async function() {
+                        const year = this.value;
+                        
+                        // Reset subject options
+                        subjectSelect.innerHTML = '<option value="">--- Loading Subjects ---</option>';
+                        subjectSelect.disabled = true;
+                        
+                        if (!year) {
+                            subjectSelect.innerHTML = '<option value="">--- Select Academic Year First ---</option>';
+                            return;
+                        }
+                        
+                        try {
+                            const res = await fetch(`/attendance/api/teacher-subjects/?year=${year}`);
+                            const data = await res.json();
+                            
+                            if (data.success) {
+                                subjectSelect.innerHTML = '<option value="">--- Select Subject ---</option>';
+                                data.subjects.forEach(sub => {
+                                    subjectSelect.innerHTML += `<option value="${sub.id}">${sub.name}</option>`;
+                                });
+                                subjectSelect.disabled = false;
+                            } else {
+                                subjectSelect.innerHTML = '<option value="">--- Error loading subjects ---</option>';
+                            }
+                        } catch (err) {
+                            subjectSelect.innerHTML = '<option value="">--- Network Error ---</option>';
+                        }
+                    });
+                    
+                    // If year is not yet selected, lock subject
+                    if (yearSelect.value === '') {
+                        subjectSelect.disabled = true;
+                    }
+                }
             </script>
 
             <!-- Actions -->

@@ -15,7 +15,7 @@
         </div>
     </div>
     {% else %}
-    
+
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
             <h1 class="text-3xl font-black text-gray-900 tracking-tight">Hello, {{ student.full_name }}</h1>
@@ -23,9 +23,14 @@
         </div>
         <div class="flex gap-3">
 
-            <button onclick="document.getElementById('qr-modal').classList.remove('hidden')" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-200 transition-all flex items-center gap-2">
+            <button onclick="document.getElementById('qr-modal').classList.remove('hidden')"
+                class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-200 transition-all flex items-center gap-2">
                 <i class="fas fa-qrcode"></i> Show ID Card
             </button>
+            <a href="{% url 'student_change_password' %}"
+                class="px-5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                <i class="fas fa-key text-indigo-500"></i> Change Password
+            </a>
         </div>
     </header>
 
@@ -35,33 +40,36 @@
             <p class="text-indigo-600 text-xs font-bold uppercase tracking-widest mb-1">Average Presence</p>
             <p class="text-5xl font-black text-indigo-900">{{ presence_percentage|default:"--" }}%</p>
             <div class="w-full bg-indigo-200/50 h-2 mt-4 rounded-full overflow-hidden">
-                <div class="bg-indigo-600 h-full rounded-full" style="width: {{ presence_percentage|default:0 }}%;"></div>
+                <div class="bg-indigo-600 h-full rounded-full" style="width: {{ presence_percentage|default:0 }}%;">
+                </div>
             </div>
         </div>
-        
+
         <div class="bg-orange-50 border border-orange-100 p-8 rounded-3xl flex flex-col justify-center">
             <p class="text-orange-600 text-xs font-bold uppercase tracking-widest mb-1">Classes Missed</p>
             <p class="text-5xl font-black text-orange-900">{{ classes_missed|default:"0" }}</p>
-            <p class="text-orange-800/60 text-sm font-medium mt-2">Requires attention if > 5</p>
+            <!-- <p class="text-orange-800/60 text-sm font-medium mt-2">Requires attention if > 5</p> -->
         </div>
-        
+
         <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm">
             <h3 class="font-bold text-gray-800 mb-4">Biometric Status</h3>
             <div class="space-y-4">
                 <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-500 font-medium">Digital ID Token</span>
                     {% if student.qr_ready %}
-                        <span class="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-md">Ready</span>
+                    <span class="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-md">Ready</span>
                     {% else %}
-                        <span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-1 rounded-md">Pending</span>
+                    <span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-1 rounded-md">Pending</span>
                     {% endif %}
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-500 font-medium">Face Templates</span>
-                    <span class="text-xs font-bold bg-gray-100 text-gray-700 px-2 py-1 rounded-md">{{ student.embedding_count }}/5</span>
+                    <span class="text-sm text-gray-500 font-medium">Registered Photos</span>
+                    <span
+                        class="text-xs font-bold bg-gray-100 text-gray-700 px-2 py-1 rounded-md">{{student.embedding_count}}/30</span>
                 </div>
                 <div class="pt-4 border-t border-gray-100">
-                    <a href="{% url 'student_detail' student.id %}" class="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <a href="{% url 'student_detail' student.id %}"
+                        class="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
                         Manage Biometrics & Photos <i class="fas fa-arrow-right text-xs"></i>
                     </a>
                 </div>
@@ -69,71 +77,370 @@
         </div>
     </div>
 
-    <!-- History Chart & Table -->
+    <!-- Recent History — Full Attendance Logs Viewer -->
     <div class="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm relative">
+
+        <!-- Section Header + Export Buttons -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
                 <i class="fas fa-history text-blue-500"></i> Recent History
             </h3>
-            <div class="text-sm text-gray-500 flex gap-4">
-                <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-green-500"></div> Present</div>
-                <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-red-500"></div> Absent</div>
+            <div class="flex gap-2 flex-wrap">
+                <button id="btn-export-csv"
+                    class="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-200 transition-colors">
+                    Export CSV
+                </button>
+                <button id="btn-export-excel"
+                    class="px-3 py-1.5 bg-green-500 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-green-600 transition-all">
+                    Export Excel
+                </button>
+                <button id="btn-export-pdf"
+                    class="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-red-600 transition-all">
+                    Export PDF
+                </button>
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <div class="flex items-center gap-2 min-w-max pb-4">
-                {% for record in recent_attendance reversed %}
-                    <div class="group relative cursor-help">
-                        <!-- Heatmap Block -->
-                        <div class="w-12 h-16 rounded-xl flex items-center justify-center font-bold text-xs transition border
-                            {% if record.status == 'PRESENT' %}
-                                bg-green-100 border-green-200 text-green-700 group-hover:bg-green-200
-                            {% elif record.status == 'LATE' %}
-                                bg-yellow-100 border-yellow-200 text-yellow-700 group-hover:bg-yellow-200
-                            {% else %}
-                                bg-red-100 border-red-200 text-red-700 group-hover:bg-red-200
-                            {% endif %}">
-                            {{ record.marked_at|date:"d M" }}
+        <!-- Filters -->
+        <div class="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">From Date</label>
+                    <input type="date" id="filter-from_date"
+                        class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">To Date</label>
+                    <input type="date" id="filter-to_date"
+                        class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Course</label>
+                    <select id="filter-course"
+                        class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2">
+                        <option value="">All Courses</option>
+                        {% for c in log_courses %}
+                        <option value="{{ c }}">{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
+                    <select id="filter-status"
+                        class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2">
+                        <option value="">All Statuses</option>
+                        <option value="PRESENT">Present</option>
+                        <option value="ABSENT">Absent</option>
+                        <option value="LATE">Late</option>
+                        <option value="EXCUSED">Excused</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button id="btn-apply-filters"
+                    class="px-4 py-2 bg-blue-500 text-white text-xs font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-sm">
+                    Apply
+                </button>
+                <button id="btn-clear-filters"
+                    class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-colors">
+                    Clear <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary Bar -->
+        <div id="summary-bar" class="bg-gray-50 rounded-2xl p-4 mb-5 border border-gray-100">
+            <div id="summary-loading" class="flex items-center gap-2 text-sm text-gray-400 font-medium">
+                <i class="fas fa-spinner fa-spin"></i> Calculating attendance…
+            </div>
+            <div id="summary-stats" class="hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex flex-wrap gap-5">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Records</span>
+                            <span id="sum-total" class="text-2xl font-black text-gray-900">—</span>
                         </div>
-                        <!-- Tooltip -->
-                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-gray-900 text-white text-[10px] font-medium px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition z-10">
-                            {{ record.status }} <br>
-                            {{ record.marked_at|time:"h:i A" }}
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Present</span>
+                            <span id="sum-present" class="text-2xl font-black text-emerald-600">—</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black text-red-400 uppercase tracking-widest">Absent</span>
+                            <span id="sum-absent" class="text-2xl font-black text-red-500">—</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black text-amber-500 uppercase tracking-widest">Late</span>
+                            <span id="sum-late" class="text-2xl font-black text-amber-600">—</span>
                         </div>
                     </div>
-                {% empty %}
-                    <p class="text-gray-400 text-sm py-4">No recent attendance records to chart.</p>
-                {% endfor %}
+                    <div class="flex items-center gap-4 min-w-[200px]">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-xs font-bold text-gray-500">Attendance Rate</span>
+                                <span id="sum-pct-label" class="text-sm font-black">—%</span>
+                            </div>
+                            <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="sum-pct-bar" class="h-2.5 rounded-full transition-all duration-700" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap">
+                    <thead class="text-xs text-gray-400 tracking-wider uppercase bg-gray-50 font-black">
+                        <tr>
+                            <th scope="col" class="px-5 py-3.5 cursor-pointer hover:text-blue-500" data-sort="date">Date ↕</th>
+                            <th scope="col" class="px-5 py-3.5 cursor-pointer hover:text-blue-500" data-sort="course">Course ↕</th>
+                            <th scope="col" class="px-5 py-3.5">Section</th>
+                            <th scope="col" class="px-5 py-3.5 cursor-pointer hover:text-blue-500" data-sort="status">Status ↕</th>
+                            <th scope="col" class="px-5 py-3.5 text-right">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" aria-live="polite">
+                        <tr>
+                            <td colspan="5" class="px-5 py-8 text-center text-gray-400 font-medium">Loading data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 bg-gray-50/50">
+                <p class="text-xs text-gray-500 font-medium" id="pagination-info">Showing 0 results</p>
+                <div class="flex items-center gap-2">
+                    <button id="btn-prev"
+                        class="px-3 py-1 bg-white border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">Previous</button>
+                    <span id="page-num"
+                        class="px-3 py-1 font-bold text-gray-900 border border-gray-200 bg-white rounded-lg text-xs">1</span>
+                    <button id="btn-next"
+                        class="px-3 py-1 bg-white border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- QR Modal -->
-    <div id="qr-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div id="qr-modal"
+        class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200">
-            <button onclick="document.getElementById('qr-modal').classList.add('hidden')" class="absolute top-6 right-6 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition">
+            <button onclick="document.getElementById('qr-modal').classList.add('hidden')"
+                class="absolute top-6 right-6 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition">
                 <i class="fas fa-times"></i>
             </button>
-            
+
             <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mx-auto flex items-center justify-center text-2xl mb-4 border border-blue-100">
+                <div
+                    class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mx-auto flex items-center justify-center text-2xl mb-4 border border-blue-100">
                     <i class="fas fa-user-graduate"></i>
                 </div>
                 <h3 class="text-xl font-bold text-gray-900">{{ student.full_name }}</h3>
                 <p class="font-mono text-gray-500 mt-1 uppercase tracking-widest text-sm">{{ student.student_id }}</p>
             </div>
-            
-            <div class="mx-auto w-48 h-48 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
-                <img src="/students/{{ student.id }}/qr/token.png" alt="Dynamic QR Token" class="w-full h-full object-contain mix-blend-multiply" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="text-xs text-gray-400 text-center px-4" style="display:none;">QR Not Generated. See Profile.</span>
+
+            <div
+                class="mx-auto w-48 h-48 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                <img src="{% url 'student_qr' student.id %}" alt="Dynamic QR Token"
+                    class="w-full h-full object-contain mix-blend-multiply"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="text-xs text-gray-400 text-center px-4" style="display:none;">QR Not Generated. See
+                    Profile.</span>
             </div>
-            
-            <p class="text-center text-[10px] text-gray-400 uppercase tracking-widest font-bold mt-6 flex items-center justify-center gap-1.5 opacity-50">
+
+            <p
+                class="text-center text-[10px] text-gray-400 uppercase tracking-widest font-bold mt-6 flex items-center justify-center gap-1.5 opacity-50">
                 <i class="fas fa-shield-check"></i> Cryptographically Signed
             </p>
         </div>
     </div>
     {% endif %}
 </div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let currentPage = 1;
+    const pageSize = 25;
+    let currentSort = '-date';
+
+    const API_URL     = '/attendance/api/attendances/?';
+    const SUMMARY_URL = '/attendance/api/summary/?';
+    const EXPORT_URL  = '/attendance/api/export/?';
+
+    const tbody          = document.getElementById('table-body');
+    const paginationInfo = document.getElementById('pagination-info');
+    const pageNumDisplay = document.getElementById('page-num');
+    const btnPrev        = document.getElementById('btn-prev');
+    const btnNext        = document.getElementById('btn-next');
+
+    const sumLoading  = document.getElementById('summary-loading');
+    const sumStats    = document.getElementById('summary-stats');
+    const sumTotal    = document.getElementById('sum-total');
+    const sumPresent  = document.getElementById('sum-present');
+    const sumAbsent   = document.getElementById('sum-absent');
+    const sumLate     = document.getElementById('sum-late');
+    const sumPctLabel = document.getElementById('sum-pct-label');
+    const sumPctBar   = document.getElementById('sum-pct-bar');
+
+    function pctColor(pct) {
+        if (pct >= 75) return '#10B981';
+        if (pct >= 50) return '#F59E0B';
+        return '#EF4444';
+    }
+
+    function getFilterParams(includeStatus = true) {
+        const params = new URLSearchParams();
+        params.append('page', currentPage);
+        params.append('pageSize', pageSize);
+        params.append('sort', currentSort);
+
+        const fromDate = document.getElementById('filter-from_date')?.value;
+        const toDate   = document.getElementById('filter-to_date')?.value;
+        const course   = document.getElementById('filter-course')?.value;
+        const status   = document.getElementById('filter-status')?.value;
+
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate)   params.append('toDate', toDate);
+        if (course)   params.append('courseId', course);
+        if (includeStatus && status) params.append('status', status);
+
+        return params;
+    }
+
+    function fetchSummary() {
+        sumLoading.classList.remove('hidden');
+        sumStats.classList.add('hidden');
+
+        const params = getFilterParams(false);
+        params.delete('page');
+        params.delete('pageSize');
+        params.delete('sort');
+
+        fetch(SUMMARY_URL + params.toString())
+            .then(r => r.json())
+            .then(json => {
+                if (!json.success) return;
+                const d = json.data;
+                sumTotal.textContent   = d.total;
+                sumPresent.textContent = d.present;
+                sumAbsent.textContent  = d.absent;
+                sumLate.textContent    = d.late;
+
+                const pct   = d.pct;
+                const color = pctColor(pct);
+                sumPctLabel.textContent    = pct.toFixed(1) + '%';
+                sumPctLabel.style.color    = color;
+                sumPctBar.style.width      = Math.min(pct, 100) + '%';
+                sumPctBar.style.background = color;
+
+                sumLoading.classList.add('hidden');
+                sumStats.classList.remove('hidden');
+            })
+            .catch(() => { sumLoading.textContent = 'Could not load summary.'; });
+    }
+
+    function fetchLogs() {
+        const params = getFilterParams();
+        tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 font-medium">Loading data...</td></tr>';
+
+        fetch(API_URL + params.toString())
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-red-500 font-bold">${data.error}</td></tr>`;
+                    return;
+                }
+                const d = data.data;
+                renderTable(d.records);
+                paginationInfo.innerText = `Showing ${d.records.length} of ${d.pagination.totalRecords} results`;
+                pageNumDisplay.innerText = d.pagination.page;
+                btnPrev.disabled = d.pagination.page <= 1;
+                btnNext.disabled = d.pagination.page >= d.pagination.totalPages;
+            })
+            .catch(() => {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-8 text-center text-red-500 font-bold">Failed to load data.</td></tr>';
+            });
+    }
+
+    function getStatusColor(status) {
+        switch (status) {
+            case 'PRESENT': return 'bg-green-100 text-green-700';
+            case 'ABSENT':  return 'bg-red-100 text-red-700';
+            case 'EXCUSED': return 'bg-yellow-100 text-yellow-700';
+            case 'LATE':    return 'bg-orange-100 text-orange-700';
+            default:        return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    function renderTable(records) {
+        if (!records || records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 font-medium tracking-wide">No records found matching filters.</td></tr>';
+            return;
+        }
+        let html = '';
+        records.forEach(r => {
+            const dateObj = new Date(r.date);
+            const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            html += `
+            <tr class="bg-white border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
+                <td class="px-5 py-4 font-medium text-gray-900 text-sm">${dateStr}</td>
+                <td class="px-5 py-4">
+                    <div class="font-bold text-gray-900 text-sm">${r.course.code}</div>
+                    <div class="text-xs text-gray-400">${r.course.name}</div>
+                </td>
+                <td class="px-5 py-4 text-gray-500 text-sm">${r.class_section}</td>
+                <td class="px-5 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(r.status)}">
+                        ${r.status}
+                    </span>
+                </td>
+                <td class="px-5 py-4 text-right text-gray-500 text-sm">${r.duration}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // Event listeners
+    document.getElementById('filter-course')?.addEventListener('change', () => { currentPage = 1; fetchSummary(); fetchLogs(); });
+    document.getElementById('btn-apply-filters').addEventListener('click', () => { currentPage = 1; fetchSummary(); fetchLogs(); });
+    document.getElementById('btn-clear-filters').addEventListener('click', () => {
+        document.querySelectorAll('input[id^="filter-"], select[id^="filter-"]').forEach(el => el.value = '');
+        currentPage = 1; fetchSummary(); fetchLogs();
+    });
+    btnPrev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; fetchLogs(); } });
+    btnNext.addEventListener('click', () => { currentPage++; fetchLogs(); });
+
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+        th.addEventListener('click', () => {
+            const field = th.getAttribute('data-sort');
+            currentSort = currentSort === field ? '-' + field : field;
+            currentPage = 1;
+            fetchLogs();
+        });
+    });
+
+    // Exports
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+        const params = getFilterParams(); params.delete('page'); params.delete('pageSize');
+        params.append('format', 'csv'); window.location.href = EXPORT_URL + params.toString();
+    });
+    document.getElementById('btn-export-excel').addEventListener('click', () => {
+        const params = getFilterParams(); params.delete('page'); params.delete('pageSize');
+        params.append('format', 'excel'); window.location.href = EXPORT_URL + params.toString();
+    });
+    document.getElementById('btn-export-pdf').addEventListener('click', () => {
+        const params = getFilterParams(); params.delete('page'); params.delete('pageSize');
+        params.append('format', 'pdf'); window.location.href = EXPORT_URL + params.toString();
+    });
+
+    // Initial load
+    fetchSummary();
+    fetchLogs();
+});
+</script>
+{% endblock %}
 {% endblock %}

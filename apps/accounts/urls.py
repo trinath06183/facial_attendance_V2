@@ -13,5 +13,22 @@ urlpatterns = [
     # ── Student Biometric Login Scanner (public) ──────────────
     path('student-login/', views.student_scanner_view, name='student_scanner'),
     path('api/student-face-login/', views.student_face_login_api, name='student_face_login_api'),
-]
+    # ── Browser-close auto-logout (sendBeacon) ──────────────────────
+    path('api/browser-logout/', views.browser_logout_api, name='browser_logout_api'),
+    
+    # ── OTP Password Reset (Admin / Teacher) ──────────────────────
+    path('password-reset/', views.password_reset_request, name='password_reset_request'),
+    path('password-reset/verify/', views.password_reset_verify, name='password_reset_verify'),
+    path('password-reset/confirm/', views.password_reset_confirm, name='password_reset_confirm'),
 
+    # ── Student Password Login ──────────────────────
+    path('student-login/password/', views.student_password_login, name='student_password_login'),
+
+    # ── Student OTP Password Reset ──────────────────────
+    path('student/password-reset/', views.student_password_reset_request, name='student_password_reset_request'),
+    path('student/password-reset/verify/', views.student_password_reset_verify, name='student_password_reset_verify'),
+    path('student/password-reset/confirm/', views.student_password_reset_confirm, name='student_password_reset_confirm'),
+
+    # ── Student Change Password (logged in) ──────────────────────
+    path('student/change-password/', views.student_change_password, name='student_change_password'),
+]

@@ -32,19 +32,25 @@ def session_list(request):
 
 @login_required
 def session_create(request):
+    # Prevent teachers from creating a new session if they already have an active one
+    if request.user.role == 'TEACHER':
+        active_session = AttendanceSession.objects.filter(teacher=request.user, status='OPEN').first()
+        if active_session:
+            messages.warning(request, "You currently have an active session open. Please close it before creating a new one.")
+            return redirect('session_detail', pk=active_session.id)
+
     if request.method == 'POST':
-        form = AttendanceSessionForm(request.POST)
+        form = AttendanceSessionForm(request.POST, user=request.user)
         if form.is_valid():
             session = form.save(commit=False)
             session.teacher = request.user
+            # form.clean() already injected the correct session.section
             session.save()
             audit(request, 'SESSION_CREATED', 'AttendanceSession', str(session.id))
             messages.success(request, f"Session for {session.section} created.")
             return redirect('session_detail', pk=session.id)
     else:
-        form = AttendanceSessionForm()
-        if request.user.role == 'TEACHER':
-            form.fields['section'].queryset = request.user.sections.all()
+        form = AttendanceSessionForm(user=request.user)
     return render(request, 'attendance/session_form.html', {'form': form, 'title': 'Create Session'})
 
 @login_required
@@ -82,6 +88,22 @@ def session_close(request, pk):
         session.save()
         audit(request, 'SESSION_CLOSED', 'AttendanceSession', str(session.id))
         messages.success(request, "Session closed.")
+    return redirect('session_detail', pk=pk)
+
+@login_required
+def session_reopen(request, pk):
+    if getattr(request.user, 'role', '') != 'ADMIN':
+        messages.error(request, "Only administrators can reopen a closed session.")
+        return redirect('session_detail', pk=pk)
+        
+    session = get_object_or_404(AttendanceSession, pk=pk)
+    if session.status == 'CLOSED':
+        # Re-open the session
+        session.status = 'OPEN'
+        session.closed_at = None
+        session.save()
+        audit(request, 'SESSION_REOPENED', 'AttendanceSession', str(session.id))
+        messages.success(request, "Session has been successfully reopened.")
     return redirect('session_detail', pk=pk)
 
 @login_required

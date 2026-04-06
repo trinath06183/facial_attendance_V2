@@ -52,11 +52,22 @@ def _ensure_models():
 
 
 def _pil_to_bgr(image_bytes: bytes) -> np.ndarray:
-    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    # Use thumbnail to maintain aspect ratio and avoid squashing QR codes.
-    # YuNet works well up to ~960px. Using 800 for balance.
+    """
+    Decode raw image bytes to a contiguous uint8 BGR ndarray.
+    Raises ValueError if the bytes cannot be decoded or produce a zero-size image.
+    """
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    except Exception as e:
+        raise ValueError(f'Cannot open image: {e}') from e
+    # Use thumbnail to maintain aspect ratio; YuNet works well up to ~960 px.
     img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-    return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    # np.ascontiguousarray + explicit uint8 prevents the OpenCV assertion
+    # "(flags & FIXED_TYPE) != 0" that fires on non-contiguous or mis-typed arrays.
+    arr = np.ascontiguousarray(np.array(img, dtype=np.uint8))
+    if arr.ndim != 3 or arr.shape[2] != 3 or arr.shape[0] == 0 or arr.shape[1] == 0:
+        raise ValueError(f'Decoded image has unexpected shape: {arr.shape}')
+    return cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
 
 
 def detect_and_embed(image_bytes: bytes) -> dict:
@@ -149,11 +160,23 @@ def process_biometric_frame(image_bytes: bytes, stored_vecs: list = None, thresh
     _ensure_models()
     logger.info("Processing biometric frame...")
 
-    # Resolve threshold — fall back to 0.38 (the standard SFace cosine threshold)
+    # Resolve threshold — fall back to 0.65 (the standard SFace cosine threshold)
     if threshold is None:
         threshold = getattr(settings, 'FACE_MATCH_THRESHOLD', 0.65)
 
-    bgr = _pil_to_bgr(image_bytes)
+    # Decode and validate the frame — a bad/empty frame returns a structured result
+    # instead of crashing with an OpenCV assertion error.
+    try:
+        bgr = _pil_to_bgr(image_bytes)
+    except ValueError as e:
+        logger.warning(f'Bad frame rejected: {e}')
+        return {
+            'qr_data':  None, 'qr_box': None,
+            'face_box': None, 'face_match': False,
+            'face_score': 0.0, 'original_dims': [0, 0],
+            'error': 'INVALID_FRAME',
+        }
+
     h, w = bgr.shape[:2]
 
     result = {

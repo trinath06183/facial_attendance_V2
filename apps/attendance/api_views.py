@@ -2,7 +2,7 @@ import math
 import logging
 import json
 from datetime import datetime
-from django.utils.timezone import now
+from django.utils.timezone import now, localtime
 
 from django.core.paginator import Paginator, EmptyPage
 from django.http import JsonResponse
@@ -199,6 +199,62 @@ def attendances_api(request):
         }
     })
 
+
+@login_required
+@require_GET
+def attendance_summary_api(request):
+    """
+    GET /attendance/api/summary/
+    Returns aggregate attendance counts for the current filter set.
+    Accepts the same filter params as attendances_api (courseId, fromDate, toDate, etc.)
+    but IGNORES the status filter so the percentage is always (present / total).
+
+    Response:
+        { success, data: { total, present, absent, late, excused, pct } }
+    """
+    # Clone the GET params, stripping status so pct = present / ALL records
+    from django.http import QueryDict
+    mutable = request.GET.copy()
+    mutable.pop('status', None)
+
+    # Temporarily swap request.GET so the shared helper uses our stripped params
+    original_get = request.GET
+    request.GET  = mutable
+    qs, err_resp = get_filtered_attendance_qs(request)
+    request.GET  = original_get   # always restore
+
+    if err_resp:
+        return err_resp
+
+    from django.db.models import Count
+    agg = qs.aggregate(
+        total   = Count('id'),
+        present = Count('id', filter=Q(status='PRESENT')),
+        absent  = Count('id', filter=Q(status='ABSENT')),
+        late    = Count('id', filter=Q(status='LATE')),
+        excused = Count('id', filter=Q(status='EXCUSED')),
+    )
+
+    total   = agg['total']   or 0
+    present = agg['present'] or 0
+    absent  = agg['absent']  or 0
+    late    = agg['late']    or 0
+    excused = agg['excused'] or 0
+    pct     = round((present / total) * 100, 1) if total > 0 else 0.0
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'total':   total,
+            'present': present,
+            'absent':  absent,
+            'late':    late,
+            'excused': excused,
+            'pct':     pct,
+        }
+    })
+
+
 @login_required
 @require_GET
 def student_search_api(request):
@@ -342,6 +398,103 @@ def attendance_record_edit_api(request, record_id):
 
 @login_required
 @require_GET
+def student_attendance_stats_api(request, student_id):
+    """
+    GET /attendance/api/stats/student/<uuid>/
+    Returns attendance percentage statistics for a student.
+
+    Optional query param:
+        section_id (uuid) — if provided, filter stats to only that section.
+
+    Response includes:
+        sections_enrolled   — total sections the student is enrolled in (filtered if section_id given)
+        total_classes       — total sessions that occurred (CLOSED or OPEN) across those sections
+        classes_attended    — sessions where student has a PRESENT record
+        attendance_pct      — classes_attended / total_classes * 100 (or 0 if no classes)
+        per_section         — breakdown list [{section_id, section_name, occurred, attended, pct}]
+    """
+    from apps.students.models import Student
+    from .models import AttendanceSession, AttendanceRecord, Section
+
+    user = request.user
+
+    # RBAC: students can only see themselves
+    if user.role == 'STUDENT' or getattr(user, 'is_student', lambda: False)():
+        if not hasattr(user, 'student_profile') or str(user.student_profile.id) != str(student_id):
+            return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
+
+    try:
+        student = Student.objects.prefetch_related('subjects').get(id=student_id)
+    except Student.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Student not found.'}, status=404)
+
+    # Teachers may only view students in their sections
+    if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
+        teacher_section_ids = user.sections.values_list('id', flat=True)
+        if not student.subjects.filter(id__in=teacher_section_ids).exists():
+            return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
+
+    section_id_filter = request.GET.get('section_id')
+
+    # Sections this student is enrolled in
+    enrolled_sections = student.subjects.all()
+    if section_id_filter:
+        enrolled_sections = enrolled_sections.filter(id=section_id_filter)
+
+    per_section = []
+    total_occurred = 0
+    total_attended = 0
+
+    for section in enrolled_sections:
+        # Sessions that actually occurred (CLOSED or OPEN)
+        occurred_sessions = AttendanceSession.objects.filter(
+            section=section,
+            status__in=['CLOSED', 'OPEN']
+        )
+        occurred_count = occurred_sessions.count()
+
+        # Sessions where student has a PRESENT record in this section
+        attended_count = AttendanceRecord.objects.filter(
+            session__section=section,
+            student=student,
+            status='PRESENT'
+        ).count()
+
+        pct = round((attended_count / occurred_count) * 100, 1) if occurred_count > 0 else 0.0
+
+        per_section.append({
+            'section_id': str(section.id),
+            'section_name': str(section),
+            'course_code': section.course_code,
+            'occurred': occurred_count,
+            'attended': attended_count,
+            'pct': pct,
+        })
+
+        total_occurred += occurred_count
+        total_attended += attended_count
+
+    overall_pct = round((total_attended / total_occurred) * 100, 1) if total_occurred > 0 else 0.0
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'student': {
+                'id': str(student.id),
+                'name': student.full_name,
+                'roll_no': student.university_roll_number or student.student_id,
+            },
+            'sections_enrolled': enrolled_sections.count(),
+            'total_classes': total_occurred,
+            'classes_attended': total_attended,
+            'attendance_pct': overall_pct,
+            'per_section': per_section,
+        }
+    })
+
+
+@login_required
+@require_GET
 def attendance_session_ledger_api(request, session_id):
     """
     Returns an unpaginated JSON of all students assigned to this session along with 
@@ -364,6 +517,14 @@ def attendance_session_ledger_api(request, session_id):
     roster = []
     for s in students:
         rec = record_map.get(s.id)
+        
+        marked_at_str = None
+        if rec and rec.marked_at:
+            # Only show time marked if they are not default-absent, 
+            # OR if they were manually edited to be absent.
+            if rec.status != 'ABSENT' or rec.edited_by is not None:
+                marked_at_str = localtime(rec.marked_at).strftime('%I:%M:%S %p')
+                
         roster.append({
             'record_id': str(rec.id) if rec else None,
             'student_id': str(s.id),
@@ -372,7 +533,7 @@ def attendance_session_ledger_api(request, session_id):
             'photo_url': s.photos.filter(is_primary=True).first().image.url if s.photos.filter(is_primary=True).exists() else None,
             'status': rec.status if rec else 'ABSENT',
             'method': rec.verification_method if rec else None,
-            'marked_at': rec.marked_at.strftime('%I:%M:%S %p') if rec else None,
+            'marked_at': marked_at_str,
             'face_match_score': rec.face_match_score if rec else None,
             'edited_by': rec.edited_by.username if rec and rec.edited_by else None,
             'has_reason': bool(rec.reason) if rec else False
@@ -387,3 +548,75 @@ def attendance_session_ledger_api(request, session_id):
             'roster': roster
         }
     })
+
+
+# ── Browser-close: auto-close open attendance sessions ───────────────────────
+
+@require_POST
+def close_open_sessions_api(request):
+    """
+    POST /attendance/api/browser-close-sessions/
+    Called via navigator.sendBeacon() when the browser/tab is closed.
+    Finds every OPEN AttendanceSession the current user started and closes it.
+
+    Works for TEACHER and ADMIN roles.
+    Anonymous and STUDENT calls are silently ignored (no error).
+    CSRF is enforced via the @require_POST decorator and Django middleware.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'reason': 'anonymous'})
+
+    from .models import AttendanceSession
+
+    # Only teachers/admins have OPEN sessions to close
+    role = getattr(request.user, 'role', '')
+    if role not in ('TEACHER', 'ADMIN'):
+        return JsonResponse({'success': True, 'closed': 0})
+
+    filter_kwargs = {'status': 'OPEN'}
+    if role == 'TEACHER':
+        filter_kwargs['teacher'] = request.user
+
+    open_sessions = AttendanceSession.objects.filter(**filter_kwargs)
+    count = open_sessions.count()
+
+    open_sessions.update(
+        status='CLOSED',
+        closed_at=now(),
+    )
+
+    logger.info(
+        f'[browser-close] {request.user} ({role}): auto-closed {count} open session(s).'
+    )
+    return JsonResponse({'success': True, 'closed': count})
+
+
+@login_required
+@require_GET
+def teacher_subjects_api(request):
+    """
+    GET /attendance/api/teacher-subjects/?year=1
+    Returns JSON list of subjects assigned to this teacher for the provided year.
+    Used dynamically in the AttendanceSessionForm.
+    """
+    year = request.GET.get('year')
+    if not year:
+        return JsonResponse({'success': False, 'error': 'No year provided'})
+        
+    try:
+        year_int = int(year)
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid year'})
+        
+    if getattr(request.user, 'role', '') != 'TEACHER':
+        return JsonResponse({'success': True, 'subjects': []})
+        
+    from .models import Subject
+    subjects = Subject.objects.filter(
+        year=year_int,
+        sections__teachers=request.user
+    ).distinct()
+    
+    data = [{'id': str(s.id), 'name': f"{s.code} - {s.name}"} for s in subjects]
+    return JsonResponse({'success': True, 'subjects': data})
+

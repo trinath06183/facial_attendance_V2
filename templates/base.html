@@ -9,44 +9,49 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ─── DESIGN TOKENS ─────────────────────────────── */
         :root {
-            --primary:        #4F46E5;
-            --primary-hover:  #4338CA;
-            --primary-light:  #EEF2FF;
-            --secondary:      #10B981;
-            --secondary-hover:#059669;
-            --secondary-light:#D1FAE5;
-            --warning:        #F59E0B;
-            --warning-light:  #FEF3C7;
-            --danger:         #EF4444;
-            --danger-hover:   #DC2626;
-            --danger-light:   #FEE2E2;
-            --info:           #3B82F6;
-            --info-light:     #DBEAFE;
-            --bg-body:        #F3F4F6;
-            --bg-card:        #FFFFFF;
-            --text-main:      #111827;
-            --text-muted:     #6B7280;
-            --border:         #E5E7EB;
-            --border-focus:   #4F46E5;
-            --radius-sm:      0.375rem;
-            --radius-md:      0.5rem;
-            --radius-lg:      1rem;
-            --radius-xl:      1.5rem;
-            --shadow-sm:      0 1px 2px rgba(0,0,0,0.06);
-            --shadow:         0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-            --shadow-lg:      0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-            --transition:     all 0.2s ease-in-out;
-            --sidebar-width:  260px;
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --primary-light: #EEF2FF;
+            --secondary: #10B981;
+            --secondary-hover: #059669;
+            --secondary-light: #D1FAE5;
+            --warning: #F59E0B;
+            --warning-light: #FEF3C7;
+            --danger: #EF4444;
+            --danger-hover: #DC2626;
+            --danger-light: #FEE2E2;
+            --info: #3B82F6;
+            --info-light: #DBEAFE;
+            --bg-body: #F3F4F6;
+            --bg-card: #FFFFFF;
+            --text-main: #111827;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --border-focus: #4F46E5;
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 1rem;
+            --radius-xl: 1.5rem;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: all 0.2s ease-in-out;
+            --sidebar-width: 260px;
         }
 
         /* ─── BASE ──────────────────────────────────────── */
-        *, *::before, *::after { box-sizing: border-box; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -70,7 +75,10 @@
             z-index: 9999;
             transition: top 0.2s;
         }
-        .skip-link:focus { top: 0.5rem; }
+
+        .skip-link:focus {
+            top: 0.5rem;
+        }
 
         /* ─── CARD COMPONENT ────────────────────────────── */
         .card {
@@ -101,25 +109,68 @@
             white-space: nowrap;
             letter-spacing: 0.01em;
         }
-        .btn:hover         { background-color: var(--primary-hover); color: white; transform: translateY(-1px); box-shadow: var(--shadow); }
-        .btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
-        .btn:active        { transform: translateY(0); }
-        .btn:disabled      { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-        .btn-secondary { background-color: #FFFFFF; color: var(--text-main); border: 1px solid var(--border); }
-        .btn-secondary:hover { background-color: #F9FAFB; border-color: #D1D5DB; color: var(--text-main); }
+        .btn:hover {
+            background-color: var(--primary-hover);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
 
-        .btn-success { background-color: var(--secondary); }
-        .btn-success:hover { background-color: var(--secondary-hover); }
+        .btn:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 2px;
+        }
 
-        .btn-danger { background-color: var(--danger); }
-        .btn-danger:hover { background-color: var(--danger-hover); }
+        .btn:active {
+            transform: translateY(0);
+        }
 
-        .btn-sm { padding: 0.375rem 0.875rem; font-size: 0.75rem; }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background-color: #FFFFFF;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background-color: #F9FAFB;
+            border-color: #D1D5DB;
+            color: var(--text-main);
+        }
+
+        .btn-success {
+            background-color: var(--secondary);
+        }
+
+        .btn-success:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .btn-sm {
+            padding: 0.375rem 0.875rem;
+            font-size: 0.75rem;
+        }
 
         /* ─── FORM COMPONENTS ───────────────────────────── */
-        .form-group        { margin-bottom: 1.25rem; }
-        .form-group label  {
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
             display: block;
             margin-bottom: 0.375rem;
             font-weight: 600;
@@ -127,6 +178,7 @@
             color: #374151;
             letter-spacing: 0.01em;
         }
+
         .form-control {
             width: 100%;
             padding: 0.6875rem 0.875rem;
@@ -139,14 +191,24 @@
             transition: border-color 0.15s, box-shadow 0.15s;
             appearance: none;
         }
-        .form-control:hover { border-color: #D1D5DB; }
+
+        .form-control:hover {
+            border-color: #D1D5DB;
+        }
+
         .form-control:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
         }
-        .form-control::placeholder { color: #9CA3AF; }
-        .form-control.error { border-color: var(--danger); }
+
+        .form-control::placeholder {
+            color: #9CA3AF;
+        }
+
+        .form-control.error {
+            border-color: var(--danger);
+        }
 
         /* ─── TABLE COMPONENT ───────────────────────────── */
         table {
@@ -154,6 +216,7 @@
             border-collapse: collapse;
             font-size: 0.9rem;
         }
+
         th {
             background: #F9FAFB;
             border-bottom: 2px solid var(--border);
@@ -165,14 +228,21 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
         }
+
         td {
             padding: 1rem 1.25rem;
             border-bottom: 1px solid #F3F4F6;
             color: var(--text-main);
             vertical-align: middle;
         }
-        tbody tr:hover { background-color: #FAFAFA; }
-        tbody tr:last-child td { border-bottom: none; }
+
+        tbody tr:hover {
+            background-color: #FAFAFA;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
 
         /* ─── BADGE COMPONENT ───────────────────────────── */
         .badge {
@@ -186,19 +256,28 @@
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }
-        .badge-active, .badge-present, .badge-open {
+
+        .badge-active,
+        .badge-present,
+        .badge-open {
             background-color: var(--secondary-light);
             color: #065F46;
         }
-        .badge-absent, .badge-closed, .badge-inactive {
+
+        .badge-absent,
+        .badge-closed,
+        .badge-inactive {
             background-color: var(--danger-light);
             color: #991B1B;
         }
+
         .badge-graduated {
             background-color: var(--info-light);
             color: #1E3A8A;
         }
-        .badge-warning, .badge-late {
+
+        .badge-warning,
+        .badge-late {
             background-color: var(--warning-light);
             color: #92400E;
         }
@@ -214,21 +293,25 @@
             gap: 0.625rem;
             border: 1px solid transparent;
         }
+
         .alert-success {
             background-color: var(--secondary-light);
             border-color: #A7F3D0;
             color: #065F46;
         }
+
         .alert-error {
             background-color: var(--danger-light);
             border-color: #FECACA;
             color: #991B1B;
         }
+
         .alert-warning {
             background-color: var(--warning-light);
             border-color: #FDE68A;
             color: #92400E;
         }
+
         .alert-info {
             background-color: var(--info-light);
             border-color: #BFDBFE;
@@ -244,6 +327,7 @@
             gap: 1rem;
             margin-bottom: 2rem;
         }
+
         .page-title {
             font-size: 1.875rem;
             font-weight: 900;
@@ -265,17 +349,24 @@
             font-weight: 500;
             transition: background-color 0.15s, color 0.15s;
         }
+
         .sidebar-link:hover {
             background-color: #EFF6FF;
             color: #2563EB;
         }
-        .sidebar-link i { width: 1.125rem; text-align: center; flex-shrink: 0; }
+
+        .sidebar-link i {
+            width: 1.125rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
 
         .active-link {
             background-color: #EFF6FF;
             color: #2563EB;
             font-weight: 600;
         }
+
         /* Accent bar on active link */
         .active-link::before {
             content: '';
@@ -287,29 +378,55 @@
             background: #2563EB;
             border-radius: 3px 0 0 3px;
         }
-        .sidebar-link { position: relative; }
+
+        .sidebar-link {
+            position: relative;
+        }
 
         /* ─── SCROLLBAR ─────────────────────────────────── */
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #E5E7EB;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #D1D5DB;
+        }
 
         /* ─── MOBILE OVERLAY ────────────────────────────── */
         #sidebar-overlay {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0, 0, 0, 0.4);
             z-index: 35;
             backdrop-filter: blur(2px);
         }
-        #sidebar-overlay.active { display: block; }
+
+        #sidebar-overlay.active {
+            display: block;
+        }
 
         /* ─── PRINT ─────────────────────────────────────── */
         @media print {
-            aside, #mobile-header { display: none !important; }
-            main { padding: 0 !important; }
+
+            aside,
+            #mobile-header {
+                display: none !important;
+            }
+
+            main {
+                padding: 0 !important;
+            }
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -325,23 +442,27 @@
     <div id="sidebar-overlay" role="presentation" aria-hidden="true"></div>
 
     <!-- ── MOBILE TOP BAR ────────────────────── -->
-    <div id="mobile-header" class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center sticky top-0 z-50 w-full shadow-sm" role="banner">
-        <a href="{% url 'dashboard' %}" class="text-base font-black text-blue-600 flex items-center gap-2 truncate min-w-0" aria-label="SmartAttend home">
-            <i class="fas fa-camera-retro shrink-0" aria-hidden="true"></i>
+    <div id="mobile-header"
+        class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center sticky top-0 z-50 w-full shadow-sm"
+        role="banner">
+        <a href="{% url 'dashboard' %}"
+            class="text-base font-black text-blue-600 flex items-center gap-2 truncate min-w-0"
+            aria-label="SmartAttend home">
+            <img src="{% static 'logo.png' %}" alt="Logo" class="w-6 h-6 rounded shrink-0" aria-hidden="true">
             <span class="truncate">SmartAttend</span>
         </a>
         <div class="flex items-center gap-1 shrink-0 ml-2">
             <form action="{% url 'logout' %}" method="post" style="display:inline;">
                 {% csrf_token %}
-                <button type="submit" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-red-300" title="Logout" aria-label="Logout">
+                <button type="submit"
+                    class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-red-300"
+                    title="Logout" aria-label="Logout">
                     <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
                 </button>
             </form>
             <button id="mobile-menu-btn"
                 class="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all"
-                aria-controls="main-sidebar"
-                aria-expanded="false"
-                aria-label="Toggle navigation menu">
+                aria-controls="main-sidebar" aria-expanded="false" aria-label="Toggle navigation menu">
                 <i class="fas fa-bars text-lg" aria-hidden="true"></i>
             </button>
         </div>
@@ -350,15 +471,13 @@
     <!-- ── SIDEBAR ────────────────────────────── -->
     <aside id="main-sidebar"
         class="w-64 bg-white border-r border-gray-150 flex-col h-screen shrink-0 hidden md:flex fixed md:static z-40 bottom-0 overflow-y-auto shadow-lg md:shadow-none"
-        role="navigation"
-        aria-label="Main navigation">
+        role="navigation" aria-label="Main navigation">
 
         <!-- Brand -->
         <div class="px-6 py-5 hidden md:flex items-center gap-2">
-            <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
-                <i class="fas fa-camera-retro text-white text-sm" aria-hidden="true"></i>
-            </div>
-            <a href="{% url 'dashboard' %}" class="text-lg font-black text-gray-900 tracking-tight hover:text-blue-600 transition-colors">
+            <img src="{% static 'logo.png' %}" alt="Logo" class="w-8 h-8 rounded-xl shadow-sm">
+            <a href="{% url 'dashboard' %}"
+                class="text-lg font-black text-gray-900 tracking-tight hover:text-blue-600 transition-colors">
                 SmartAttend
             </a>
         </div>
@@ -383,12 +502,7 @@
             <a href="{% url 'user_list' %}" class="sidebar-link">
                 <i class="fas fa-users-cog" aria-hidden="true"></i> User Accounts
             </a>
-            <a href="{% url 'analytics_dashboard' %}" class="sidebar-link">
-                <i class="fas fa-chart-line" aria-hidden="true"></i> Live Analytics
-            </a>
-            <a href="{% url 'reports_dashboard' %}" class="sidebar-link">
-                <i class="fas fa-chart-pie" aria-hidden="true"></i> Advanced Reports
-            </a>
+
 
             {% elif user.is_teacher %}
             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-2 mt-2">Teacher Panel</p>
@@ -399,9 +513,7 @@
             <a href="{% url 'attendance_viewer' %}" class="sidebar-link">
                 <i class="fas fa-list" aria-hidden="true"></i> My Class Logs
             </a>
-            <a href="{% url 'reports_dashboard' %}" class="sidebar-link">
-                <i class="fas fa-chart-pie" aria-hidden="true"></i> Advanced Reports
-            </a>
+
             <a href="{% url 'session_list' %}" class="sidebar-link">
                 <i class="fas fa-calendar-check" aria-hidden="true"></i> My Sessions
             </a>
@@ -415,12 +527,7 @@
             <a href="{% url 'dashboard' %}" class="sidebar-link">
                 <i class="fas fa-chart-bar" aria-hidden="true"></i> My Attendance
             </a>
-            <a href="{% url 'attendance_viewer' %}" class="sidebar-link">
-                <i class="fas fa-list" aria-hidden="true"></i> My Logs
-            </a>
-            <a href="{% url 'reports_dashboard' %}" class="sidebar-link">
-                <i class="fas fa-chart-pie" aria-hidden="true"></i> Advanced Reports
-            </a>
+
             {% if request.user.is_student %}
             <a href="{% url 'student_detail' request.user.student_profile.id %}" class="sidebar-link">
                 <i class="fas fa-id-badge" aria-hidden="true"></i> My Profile &amp; QR
@@ -439,7 +546,8 @@
             <!-- Scanner Active Indicator -->
             <div id="hardware-control-section" class="hidden mb-3">
                 <div class="bg-red-50 border border-red-100 rounded-2xl p-3">
-                    <p class="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1 text-center flex items-center justify-center gap-1">
+                    <p
+                        class="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1 text-center flex items-center justify-center gap-1">
                         <span class="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Scanner Active
                     </p>
                 </div>
@@ -448,7 +556,8 @@
             <!-- User Card -->
             <div class="bg-gray-50 rounded-2xl p-3 border border-gray-100">
                 <div class="flex items-center gap-3 mb-3">
-                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm uppercase shadow-sm flex-shrink-0" aria-hidden="true">
+                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm uppercase shadow-sm flex-shrink-0"
+                        aria-hidden="true">
                         {{ user.username|slice:":1" }}
                     </div>
                     <div class="flex flex-col min-w-0">
@@ -460,7 +569,9 @@
                 </div>
                 <form action="{% url 'logout' %}" method="post">
                     {% csrf_token %}
-                    <button type="submit" class="w-full flex justify-center items-center gap-2 px-3 py-2 rounded-xl text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-200" aria-label="Logout from SmartAttend">
+                    <button type="submit"
+                        class="w-full flex justify-center items-center gap-2 px-3 py-2 rounded-xl text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-200"
+                        aria-label="Logout from SmartAttend">
                         <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Logout
                     </button>
                 </form>
@@ -486,8 +597,7 @@
                 {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-100
                 {% elif message.tags == 'warning' %}bg-amber-50 text-amber-700 border border-amber-100
                 {% elif message.tags == 'debug' %}bg-gray-50 text-gray-700 border border-gray-100
-                {% else %}bg-emerald-50 text-emerald-700 border border-emerald-100{% endif %}"
-                role="alert">
+                {% else %}bg-emerald-50 text-emerald-700 border border-emerald-100{% endif %}" role="alert">
                 <div class="flex items-start gap-3">
                     <i class="fas
                         {% if message.tags == 'error' %}fa-exclamation-circle
@@ -536,8 +646,8 @@
 
             // ── Mobile Menu Toggle ──
             const mobileBtn = document.getElementById('mobile-menu-btn');
-            const sidebar   = document.getElementById('main-sidebar');
-            const overlay   = document.getElementById('sidebar-overlay');
+            const sidebar = document.getElementById('main-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
 
             function openSidebar() {
                 sidebar.classList.remove('hidden');
@@ -570,6 +680,59 @@
                 }
             });
         });
+
+        // ─── Browser/Tab Closure Auto-Logout & Session Closure ─────────────────
+        (function () {
+            let isNavigating = false;
+
+            // Allow normal links and forms without triggering auto-logout
+            document.addEventListener('click', function (e) {
+                if (e.target.closest('a') !== null || e.target.closest('button[type="submit"]') !== null) {
+                    isNavigating = true;
+                }
+            });
+            document.addEventListener('submit', function () {
+                isNavigating = true;
+            });
+            window.addEventListener('beforeunload', function () {
+                // Not ideal but F5 reload shouldn't strictly require a logout, but browser limits us
+                // If they truly wanted safe close only, this is as close as standard JS gets
+                // We'll rely on pagehide
+            });
+
+            window.addEventListener('pagehide', function (e) {
+                if (!isNavigating) {
+                    // This sends a fire-and-forget POST request right as the tab closes.
+                    const csrfElements = document.getElementsByName('csrfmiddlewaretoken');
+                    if (csrfElements.length > 0) {
+                        const token = csrfElements[0].value;
+                        const fd = new FormData();
+                        fd.append('csrfmiddlewaretoken', token);
+
+                        // Close any attendance sessions left open
+                        navigator.sendBeacon('/attendance/api/browser-close-sessions/', fd);
+
+                        // Log out the user
+                        navigator.sendBeacon('/accounts/api/browser-logout/', fd);
+                    }
+                }
+            });
+        })();
+    </script>
+    <script>
+        function togglePasswordVisibility(btn) {
+            const input = btn.parentElement.querySelector('input');
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
     </script>
     {% block extra_js %}{% endblock %}
 </body>

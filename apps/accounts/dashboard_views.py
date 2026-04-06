@@ -42,6 +42,15 @@ def dashboard(request):
             ctx['classes_missed'] = analytics['absent_classes']
             ctx['recent_attendance'] = analytics['recent_history']
             ctx['student'] = user.student_profile
+            # Courses for the embedded logs viewer filter
+            from apps.attendance.models import AttendanceRecord
+            ctx['log_courses'] = (
+                AttendanceRecord.objects
+                .filter(student=user.student_profile)
+                .values_list('session__section__course_code', flat=True)
+                .distinct()
+                .order_by('session__section__course_code')
+            )
         else:
             ctx['error'] = "No student profile linked to this account."
             

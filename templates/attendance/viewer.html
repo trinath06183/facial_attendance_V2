@@ -109,6 +109,50 @@
     </div>
 </div>
 
+<!-- ── Attendance Summary Bar ──────────────────────────────── -->
+<div id="summary-bar" class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 mb-6">
+    <!-- Loading shimmer -->
+    <div id="summary-loading" class="flex items-center gap-2 text-sm text-gray-400 font-medium">
+        <i class="fas fa-spinner fa-spin"></i> Calculating attendance…
+    </div>
+    <!-- Stats (hidden until data loads) -->
+    <div id="summary-stats" class="hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <!-- Left: labels -->
+            <div class="flex flex-wrap gap-5">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Records</span>
+                    <span id="sum-total" class="text-2xl font-black text-gray-900">—</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Present</span>
+                    <span id="sum-present" class="text-2xl font-black text-emerald-600">—</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black text-red-400 uppercase tracking-widest">Absent</span>
+                    <span id="sum-absent" class="text-2xl font-black text-red-500">—</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black text-amber-500 uppercase tracking-widest">Late</span>
+                    <span id="sum-late" class="text-2xl font-black text-amber-600">—</span>
+                </div>
+            </div>
+            <!-- Right: percentage pill + progress bar -->
+            <div class="flex items-center gap-4 min-w-[220px]">
+                <div class="flex-1">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-bold text-gray-500">Attendance Rate</span>
+                        <span id="sum-pct-label" class="text-sm font-black">—%</span>
+                    </div>
+                    <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div id="sum-pct-bar" class="h-3 rounded-full transition-all duration-700" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Results Table -->
 <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
     <div class="overflow-x-auto">
@@ -156,38 +200,94 @@
         const pageSize = 25;
         let currentSort = '-date';
 
-        const API_URL = '/attendance/api/attendances/?';
-        const EXPORT_URL = '/attendance/api/export/?';
+        const API_URL     = '/attendance/api/attendances/?';
+        const SUMMARY_URL = '/attendance/api/summary/?';
+        const EXPORT_URL  = '/attendance/api/export/?';
 
-        const tbody = document.getElementById('table-body');
-        const paginationInfo = document.getElementById('pagination-info');
-        const pageNumDisplay = document.getElementById('page-num');
-        const btnPrev = document.getElementById('btn-prev');
-        const btnNext = document.getElementById('btn-next');
+        const tbody           = document.getElementById('table-body');
+        const paginationInfo  = document.getElementById('pagination-info');
+        const pageNumDisplay  = document.getElementById('page-num');
+        const btnPrev         = document.getElementById('btn-prev');
+        const btnNext         = document.getElementById('btn-next');
 
-        function getFilterParams() {
+        // ── Summary elements ──────────────────────────
+        const sumLoading  = document.getElementById('summary-loading');
+        const sumStats    = document.getElementById('summary-stats');
+        const sumTotal    = document.getElementById('sum-total');
+        const sumPresent  = document.getElementById('sum-present');
+        const sumAbsent   = document.getElementById('sum-absent');
+        const sumLate     = document.getElementById('sum-late');
+        const sumPctLabel = document.getElementById('sum-pct-label');
+        const sumPctBar   = document.getElementById('sum-pct-bar');
+
+        function pctColor(pct) {
+            if (pct >= 75) return '#10B981';
+            if (pct >= 50) return '#F59E0B';
+            return '#EF4444';
+        }
+
+        function getFilterParams(includeStatus = true) {
             const params = new URLSearchParams();
             params.append('page', currentPage);
             params.append('pageSize', pageSize);
             params.append('sort', currentSort);
 
-            const fromDate = document.getElementById('filter-from_date')?.value;
-            const toDate = document.getElementById('filter-to_date')?.value;
-            const teacher = document.getElementById('filter-teacher')?.value;
+            const fromDate    = document.getElementById('filter-from_date')?.value;
+            const toDate      = document.getElementById('filter-to_date')?.value;
+            const teacher     = document.getElementById('filter-teacher')?.value;
             const studentName = document.getElementById('filter-student_name')?.value;
             const studentRoll = document.getElementById('filter-student_roll')?.value;
-            const course = document.getElementById('filter-course')?.value;
-            const status = document.getElementById('filter-status')?.value;
+            const course      = document.getElementById('filter-course')?.value;
+            const status      = document.getElementById('filter-status')?.value;
 
-            if (fromDate) params.append('fromDate', fromDate);
-            if (toDate) params.append('toDate', toDate);
-            if (teacher) params.append('teacherId', teacher);
+            if (fromDate)    params.append('fromDate', fromDate);
+            if (toDate)      params.append('toDate', toDate);
+            if (teacher)     params.append('teacherId', teacher);
             if (studentName) params.append('studentName', studentName);
             if (studentRoll) params.append('studentRoll', studentRoll);
-            if (course) params.append('courseId', course);
-            if (status) params.append('status', status);
+            if (course)      params.append('courseId', course);
+            // For summary we intentionally omit the status filter so pct = present/total
+            if (includeStatus && status) params.append('status', status);
 
             return params;
+        }
+
+        // ── Fetch summary stats ───────────────────────
+        function fetchSummary() {
+            sumLoading.classList.remove('hidden');
+            sumStats.classList.add('hidden');
+
+            // Summary ignores status filter — always computes over all statuses
+            const params = getFilterParams(false);
+            // Remove pagination params not needed by summary
+            params.delete('page');
+            params.delete('pageSize');
+            params.delete('sort');
+
+            fetch(SUMMARY_URL + params.toString())
+                .then(r => r.json())
+                .then(json => {
+                    if (!json.success) return;
+                    const d = json.data;
+
+                    sumTotal.textContent   = d.total;
+                    sumPresent.textContent = d.present;
+                    sumAbsent.textContent  = d.absent;
+                    sumLate.textContent    = d.late;
+
+                    const pct   = d.pct;
+                    const color = pctColor(pct);
+                    sumPctLabel.textContent  = pct.toFixed(1) + '%';
+                    sumPctLabel.style.color  = color;
+                    sumPctBar.style.width    = Math.min(pct, 100) + '%';
+                    sumPctBar.style.background = color;
+
+                    sumLoading.classList.add('hidden');
+                    sumStats.classList.remove('hidden');
+                })
+                .catch(() => {
+                    sumLoading.textContent = 'Could not load summary.';
+                });
         }
 
         function fetchLogs() {
@@ -205,14 +305,13 @@
                     const d = data.data;
                     renderTable(d.records);
 
-                    // Update pagination
                     paginationInfo.innerText = `Showing ${d.records.length} of ${d.pagination.totalRecords} results`;
                     pageNumDisplay.innerText = d.pagination.page;
 
                     btnPrev.disabled = d.pagination.page <= 1;
                     btnNext.disabled = d.pagination.page >= d.pagination.totalPages;
                 })
-                .catch(err => {
+                .catch(() => {
                     tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-500 font-bold">Failed to load data.</td></tr>`;
                 });
         }
@@ -220,10 +319,10 @@
         function getStatusColor(status) {
             switch (status) {
                 case 'PRESENT': return 'bg-green-100 text-green-700';
-                case 'ABSENT': return 'bg-red-100 text-red-700';
+                case 'ABSENT':  return 'bg-red-100 text-red-700';
                 case 'EXCUSED': return 'bg-yellow-100 text-yellow-700';
-                case 'LATE': return 'bg-orange-100 text-orange-700';
-                default: return 'bg-gray-100 text-gray-700';
+                case 'LATE':    return 'bg-orange-100 text-orange-700';
+                default:        return 'bg-gray-100 text-gray-700';
             }
         }
 
@@ -265,23 +364,30 @@
             tbody.innerHTML = html;
         }
 
-        // Listeners
+        // ── Event Listeners ──────────────────────────
+
+        // Course dropdown — update summary immediately on change
+        document.getElementById('filter-course')?.addEventListener('change', () => {
+            currentPage = 1;
+            fetchSummary();
+            fetchLogs();
+        });
+
         document.getElementById('btn-apply-filters').addEventListener('click', () => {
-            currentPage = 1; // reset on filter
+            currentPage = 1;
+            fetchSummary();
             fetchLogs();
         });
 
         document.getElementById('btn-clear-filters').addEventListener('click', () => {
             document.querySelectorAll('input[id^="filter-"], select[id^="filter-"]').forEach(el => el.value = '');
             currentPage = 1;
+            fetchSummary();
             fetchLogs();
         });
 
         btnPrev.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                fetchLogs();
-            }
+            if (currentPage > 1) { currentPage--; fetchLogs(); }
         });
 
         btnNext.addEventListener('click', () => {
@@ -293,11 +399,7 @@
         document.querySelectorAll('th[data-sort]').forEach(th => {
             th.addEventListener('click', () => {
                 const field = th.getAttribute('data-sort');
-                if (currentSort === field) {
-                    currentSort = '-' + field; // toggle reverse
-                } else {
-                    currentSort = field;
-                }
+                currentSort = currentSort === field ? '-' + field : field;
                 currentPage = 1;
                 fetchLogs();
             });
@@ -306,29 +408,27 @@
         // Exports
         document.getElementById('btn-export-csv').addEventListener('click', () => {
             const params = getFilterParams();
-            params.delete('page');
-            params.delete('pageSize');
+            params.delete('page'); params.delete('pageSize');
             params.append('format', 'csv');
             window.location.href = EXPORT_URL + params.toString();
         });
 
         document.getElementById('btn-export-excel').addEventListener('click', () => {
             const params = getFilterParams();
-            params.delete('page');
-            params.delete('pageSize');
+            params.delete('page'); params.delete('pageSize');
             params.append('format', 'excel');
             window.location.href = EXPORT_URL + params.toString();
         });
 
         document.getElementById('btn-export-pdf').addEventListener('click', () => {
             const params = getFilterParams();
-            params.delete('page');
-            params.delete('pageSize');
+            params.delete('page'); params.delete('pageSize');
             params.append('format', 'pdf');
             window.location.href = EXPORT_URL + params.toString();
         });
 
-        // Initial fetch
+        // ── Initial load ─────────────────────────────
+        fetchSummary();
         fetchLogs();
     });
 </script>

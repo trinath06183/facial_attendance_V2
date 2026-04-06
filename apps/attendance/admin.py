@@ -1,8 +1,18 @@
 from django.contrib import admin
 from django.db import models
 from django import forms
-from .models import Room, Section, AttendanceSession, AttendanceRecord
+from .models import Room, Section, AttendanceSession, AttendanceRecord, Subject, Batch
 
+@admin.register(Batch)
+class BatchAdmin(admin.ModelAdmin):
+    list_display = ('name', 'year')
+    search_fields = ('name',)
+
+@admin.register(Subject)
+class SubjectAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'year')
+    list_filter = ('year',)
+    search_fields = ('code', 'name')
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):

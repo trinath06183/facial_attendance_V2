@@ -36,6 +36,14 @@
                     <span class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-black uppercase tracking-widest rounded-xl shadow-inner border border-gray-300">
                         <i class="fas fa-lock text-gray-500 mr-1"></i> Session Closed
                     </span>
+                    {% if user.role == 'ADMIN' %}
+                    <form method="post" action="{% url 'session_reopen' session.id %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="px-5 py-2.5 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 text-yellow-600 rounded-xl text-sm font-bold shadow-sm transition-all focus:ring focus:ring-yellow-100 flex items-center gap-2" onclick="return confirm('Reopen this session?')">
+                            <i class="fas fa-lock-open"></i> Reopen
+                        </button>
+                    </form>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>

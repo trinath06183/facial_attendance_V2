@@ -210,7 +210,6 @@
                             <tr>
                                 <th class="p-3">Environment</th>
                                 <th class="p-3">Score</th>
-                                <th class="p-3 hidden sm:table-cell">Model</th>
                                 <th class="p-3 text-right">Time Registered</th>
                             </tr>
                         </thead>
@@ -227,12 +226,11 @@
                                     {{ emb.quality_score|floatformat:2 }}
                                     </span>
                                 </td>
-                                <td class="p-3 hidden sm:table-cell text-gray-500 text-xs">{{ emb.model_name }}</td>
                                 <td class="p-3 text-right text-gray-500 text-xs">{{ emb.created_at|date:"M d, P" }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="4" class="p-6 text-center text-gray-400">
+                                <td colspan="3" class="p-6 text-center text-gray-400">
                                     No facial data enrolled. The student is restricted from logging attendance.
                                 </td>
                             </tr>

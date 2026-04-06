@@ -4,14 +4,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import login
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
 import json
 import base64
 import time
+import logging
 
 from .forms import CustomUserCreationForm, CustomUserChangeForm
 from .models import CustomUser
+
+logger = logging.getLogger(__name__)
 
 
 def is_admin(user):
@@ -199,11 +202,11 @@ def student_face_login_api(request):
         - Run process_biometric_frame with stored_vecs to match face.
         - On match, log the student in and return redirect_url.
     """
-    # ── Lockout check ────────────────────────────────────────────
-    lockout_until = request.session.get('bio_lockout_until')
-    if lockout_until and time.time() < lockout_until:
-        remaining = int(lockout_until - time.time())
-        return JsonResponse({'success': False, 'error': 'ACCOUNT_LOCKED', 'timeout': remaining})
+    # ── Lockout check (DISABLED) ───────────────────────────────
+    # lockout_until = request.session.get('bio_lockout_until')
+    # if lockout_until and time.time() < lockout_until:
+    #     remaining = int(lockout_until - time.time())
+    #     return JsonResponse({'success': False, 'error': 'ACCOUNT_LOCKED', 'timeout': remaining})
 
     # ── Parse request ────────────────────────────────────────────
     try:
@@ -335,29 +338,307 @@ def student_face_login_api(request):
 
         # --- Now log in ---
         if student.user and student.user.is_active:
-            login(request, student.user)
-            request.session['bio_failed_attempts'] = 0
-            audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(student.user.id),
-                  f"Biometric login — score {result.get('face_score', 0):.4f}")
+            if not request.user.is_authenticated or request.user.id != student.user.id:
+                login(request, student.user, backend='django.contrib.auth.backends.ModelBackend')
+                request.session['bio_failed_attempts'] = 0
+                audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(student.user.id),
+                      f"Biometric login — score {result.get('face_score', 0):.4f}")
             result['redirect_url'] = '/dashboard/'
         else:
             result['face_match'] = False
             result['error'] = 'ACCOUNT_INACTIVE'
 
     elif result.get('face_box') and not result.get('face_match'):
-        # Track failed frames for lockout
-        fails = request.session.get('bio_failed_attempts', 0) + 1
-        request.session['bio_failed_attempts'] = fails
-        if fails >= 5:
-            request.session['bio_lockout_until'] = time.time() + 60
-            from apps.audit.utils import audit
-            audit(request, 'BIO_AUTH_LOCKED', 'Student', str(student.id),
-                  "5 consecutive failed face matches on scanner page")
-            result['error'] = 'ACCOUNT_LOCKED'
-            result['timeout'] = 60
-        else:
-            from apps.audit.utils import audit
-            audit(request, 'BIO_AUTH_FAILED', 'Student', str(student.id),
-                  f"Frame {fails}/5 – Face match failed on scanner page")
+        # Lockout system disabled
+        from apps.audit.utils import audit
+        audit(request, 'BIO_AUTH_FAILED', 'Student', str(student.id), "Face match failed on scanner page")
 
     return JsonResponse({'success': True, 'data': result})
+
+
+# ── Browser-close: auto-logout via sendBeacon ────────────────────────────────
+
+@require_POST
+def browser_logout_api(request):
+    """
+    POST /accounts/api/browser-logout/
+    Called via navigator.sendBeacon() when the browser/tab is closed.
+    Explicitly logs the user out so the server-side session is destroyed
+    immediately, working for tab close as well as full browser close.
+    Anonymous calls are safely ignored.
+    """
+    from django.contrib.auth import logout as auth_logout
+    if request.user.is_authenticated:
+        logger.info(f'[browser-close] Auto-logout: {request.user} ({getattr(request.user, "role", "?")})')
+        auth_logout(request)
+    return JsonResponse({'success': True})
+# ── Email OTP Password Reset Flow ─────────────────────────────────────────────
+
+import random
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import PasswordResetOTP
+
+def password_reset_request(request):
+    """Step 1: User enters their email to request an OTP."""
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        user = CustomUser.objects.filter(email=email).first()
+        
+        # Security: Only allow ADMIN and TEACHER to use this flow.
+        if user and user.role in ['ADMIN', 'TEACHER']:
+            # Generate 6-digit OTP
+            otp_code = str(random.randint(100000, 999999))
+            
+            # Save OTP to DB
+            PasswordResetOTP.objects.create(user=user, otp=otp_code)
+            
+            # Send Email
+            subject = "SmartAttend - Password Reset Verification Code"
+            message = f"Hello {user.get_full_name()},\n\nYour password reset OTP code is: {otp_code}\nThis code will expire in 10 minutes.\n\nIf you did not request this, please ignore this email."
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+                request.session['reset_email'] = user.email
+                return redirect('password_reset_verify')
+            except Exception as e:
+                logger.error(f"Failed to send OTP email: {e}")
+                messages.error(request, f"SMTP Error: {e}")
+        else:
+            # Vague message for security (don't reveal if email exists)
+            messages.info(request, "If an Admin or Teacher account exists with that email, an OTP has been sent.")
+            # Even if it failed, redirect to verification for security obscurity, 
+            # or just show a message.
+            request.session['reset_email'] = email
+            return redirect('password_reset_verify')
+            
+    return render(request, 'accounts/password_reset_email.html')
+
+
+def password_reset_verify(request):
+    """Step 2: User enters the OTP received in email."""
+    email = request.session.get('reset_email')
+    if not email:
+        return redirect('password_reset_request')
+        
+    if request.method == 'POST':
+        otp_input = request.POST.get('otp', '').strip()
+        user = CustomUser.objects.filter(email=email).first()
+        
+        if user:
+            # Get the latest OTP for this user
+            valid_otp = PasswordResetOTP.objects.filter(user=user).order_by('-created_at').first()
+            if valid_otp and valid_otp.otp == otp_input:
+                if valid_otp.is_valid():
+                    # Success
+                    request.session['reset_verified_user_id'] = str(user.id)
+                    return redirect('password_reset_confirm')
+                else:
+                    messages.error(request, "This OTP has expired. Please request a new one.")
+            else:
+                messages.error(request, "Invalid Verification Code.")
+        else:
+            messages.error(request, "Invalid Request.")
+
+    return render(request, 'accounts/password_reset_otp.html', {'email': email})
+
+def password_reset_confirm(request):
+    """Step 3: User resets their password after verifying OTP."""
+    user_id = request.session.get('reset_verified_user_id')
+    if not user_id:
+        return redirect('password_reset_request')
+        
+    user = get_object_or_404(CustomUser, id=user_id)
+    
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        password_confirm = request.POST.get('password_confirm')
+        
+        if password and password == password_confirm:
+            if len(password) >= 8:
+                user.set_password(password)
+                user.save()
+                
+                # Cleanup session variables
+                del request.session['reset_verified_user_id']
+                if 'reset_email' in request.session:
+                    del request.session['reset_email']
+                    
+                messages.success(request, "Password has been reset successfully. You may now log in.")
+                return redirect('login')
+            else:
+                messages.error(request, "Password must be at least 8 characters long.")
+        else:
+            messages.error(request, "Passwords do not match.")
+            
+    return render(request, 'accounts/password_reset_confirm.html', {'user': user})
+
+
+# ── Student Password Login ─────────────────────────────────────────────────────
+
+@require_POST
+def student_password_login(request):
+    """
+    POST handler for the student roll-number + password login form on the main login page.
+    Authenticates via the linked CustomUser account on the Student model.
+    """
+    from apps.students.models import Student
+    from django.contrib.auth import authenticate
+
+    roll_number = request.POST.get('roll_number', '').strip()
+    password = request.POST.get('password', '')
+
+    student = Student.objects.filter(university_roll_number__iexact=roll_number).select_related('user').first()
+
+    if student and student.user:
+        user = authenticate(request, username=student.user.username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
+        else:
+            messages.error(request, "Invalid password. Please try again.")
+    else:
+        messages.error(request, "No student account found with that Roll Number.")
+
+    return redirect('login')
+
+
+# ── Student OTP Password Reset ─────────────────────────────────────────────────
+
+def student_password_reset_request(request):
+    """
+    Step 1: Student enters their University Roll Number.
+    System finds their registered email and dispatches an OTP.
+    """
+    from apps.students.models import Student
+
+    if request.method == 'POST':
+        roll_number = request.POST.get('roll_number', '').strip()
+        student = Student.objects.filter(university_roll_number__iexact=roll_number).select_related('user').first()
+
+        if student and student.user and student.email:
+            otp_code = str(random.randint(100000, 999999))
+            PasswordResetOTP.objects.create(user=student.user, otp=otp_code)
+
+            subject = "SmartAttend - Password Reset Verification Code"
+            message = (
+                f"Hello {student.full_name},\n\n"
+                f"Your password reset OTP code is: {otp_code}\n"
+                f"This code will expire in 10 minutes.\n\n"
+                f"If you did not request this, please ignore this email."
+            )
+            try:
+                send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [student.email], fail_silently=False)
+                request.session['student_reset_roll'] = roll_number
+                return redirect('student_password_reset_verify')
+            except Exception as e:
+                logger.error(f"Failed to send student OTP email: {e}")
+                messages.error(request, f"SMTP Error: {e}")
+        else:
+            # Vague error for security
+            messages.info(request, "If a student account exists with that Roll Number, an OTP has been sent to the registered email.")
+            request.session['student_reset_roll'] = roll_number
+            return redirect('student_password_reset_verify')
+
+    return render(request, 'accounts/student_password_reset_request.html')
+
+
+def student_password_reset_verify(request):
+    """Step 2: Student enters the 6-digit OTP sent to their email."""
+    from apps.students.models import Student
+
+    roll_number = request.session.get('student_reset_roll')
+    if not roll_number:
+        return redirect('student_password_reset_request')
+
+    student = Student.objects.filter(university_roll_number__iexact=roll_number).select_related('user').first()
+
+    if request.method == 'POST':
+        otp_input = request.POST.get('otp', '').strip()
+        if student and student.user:
+            valid_otp = PasswordResetOTP.objects.filter(user=student.user).order_by('-created_at').first()
+            if valid_otp and valid_otp.otp == otp_input:
+                if valid_otp.is_valid():
+                    request.session['student_reset_verified_user_id'] = str(student.user.id)
+                    return redirect('student_password_reset_confirm')
+                else:
+                    messages.error(request, "This OTP has expired. Please request a new one.")
+            else:
+                messages.error(request, "Invalid verification code.")
+        else:
+            messages.error(request, "Invalid request.")
+
+    # Mask the email for display
+    masked_email = ''
+    if student and student.email:
+        parts = student.email.split('@')
+        masked_email = parts[0][:2] + '****@' + parts[1] if len(parts) == 2 else '****'
+
+    return render(request, 'accounts/student_password_reset_otp.html', {'masked_email': masked_email, 'roll_number': roll_number})
+
+
+def student_password_reset_confirm(request):
+    """Step 3: Student sets a new password."""
+    user_id = request.session.get('student_reset_verified_user_id')
+    if not user_id:
+        return redirect('student_password_reset_request')
+
+    user = get_object_or_404(CustomUser, id=user_id)
+
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        password_confirm = request.POST.get('password_confirm')
+
+        if password and password == password_confirm:
+            if len(password) >= 8:
+                user.set_password(password)
+                user.save()
+                del request.session['student_reset_verified_user_id']
+                if 'student_reset_roll' in request.session:
+                    del request.session['student_reset_roll']
+                messages.success(request, "Password updated! You can now log in with your Roll Number and new password.")
+                return redirect('login')
+            else:
+                messages.error(request, "Password must be at least 8 characters long.")
+        else:
+            messages.error(request, "Passwords do not match.")
+
+    return render(request, 'accounts/student_password_reset_confirm.html', {'user': user})
+
+
+# ── Student Change Password (logged in) ────────────────────────────────────────
+
+@login_required
+def student_change_password(request):
+    """Allows a logged-in STUDENT to change their password."""
+    from django.contrib.auth import update_session_auth_hash
+
+    if request.user.role != 'STUDENT':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        current_password = request.POST.get('current_password')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if not request.user.check_password(current_password):
+            messages.error(request, "Your current password is incorrect.")
+        elif new_password != confirm_password:
+            messages.error(request, "New passwords do not match.")
+        elif len(new_password) < 8:
+            messages.error(request, "Password must be at least 8 characters long.")
+        else:
+            request.user.set_password(new_password)
+            request.user.save()
+            # Keep the user logged in after password change
+            update_session_auth_hash(request, request.user)
+            messages.success(request, "Your password has been changed successfully!")
+            return redirect('dashboard')
+
+    return render(request, 'accounts/student_change_password.html')

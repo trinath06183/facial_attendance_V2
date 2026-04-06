@@ -13,9 +13,16 @@ class Room(models.Model):
 
 
 class Subject(models.Model):
+    YEAR_CHOICES = [
+        (1, '1st Year'),
+        (2, '2nd Year'),
+        (3, '3rd Year'),
+        (4, '4th Year'),
+    ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=200)
+    year = models.IntegerField(choices=YEAR_CHOICES, default=1)
 
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -43,7 +50,8 @@ class Section(models.Model):
         unique_together = [('course_code', 'section_identifier')]
 
     def __str__(self):
-        return f"{self.course_code} - {self.course_name} ({self.section_identifier})"
+        batch_str = f"[{self.batch.name}] " if self.batch else ""
+        return f"{batch_str}{self.course_code} - {self.course_name} ({self.section_identifier})"
 
 
 class AttendanceSession(models.Model):

@@ -100,3 +100,21 @@ ML_MODELS_DIR = BASE_DIR / 'ml_models'
 
 # Message storage
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
+# ── Session / Browser-close settings ────────────────────────────────────────
+# Session cookie is a "browser-session" cookie (no explicit expiry date).
+# The browser discards it when all browser windows are closed, which
+# automatically invalidates the Django session → auto-logout for all roles.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Safety net: even persistent sessions max out at 8 hours of inactivity.
+SESSION_COOKIE_AGE = 10800   # 3 hours in seconds
+
+# ── Email Settings for OTP ──────────────────────────────────────────────────
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+# Must configure these in .env file!
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='your-email@gmail.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your-app-password')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='SmartAttend <your-email@gmail.com>')
