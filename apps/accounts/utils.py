@@ -26,3 +26,20 @@ def is_user_already_active(user, request):
         return True
 
     return False
+
+def terminate_user_session(user):
+    """
+    Terminates the user's active session if it exists in the database.
+    """
+    if not user or not user.active_session_key:
+        return
+
+    old_key = user.active_session_key
+    old_session = Session.objects.filter(session_key=old_key).first()
+    
+    if old_session:
+        old_session.delete()
+        logger.info(f"[session-mgmt] Terminated previous session for '{user.username}'.")
+    
+    user.active_session_key = None
+    user.save(update_fields=['active_session_key'])

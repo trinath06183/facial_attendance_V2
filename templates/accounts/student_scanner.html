@@ -413,8 +413,7 @@
                         if (d.error === 'ACCOUNT_LOCKED') handleLockout(d.timeout);
                         else if (d.error === 'STUDENT_NOT_FOUND') handleLockout(5, "QR code not valid, contact administration.");
                         else if (d.error === 'USER_ALREADY_ACTIVE') {
-                            showErrorAlert("User already active on another device.");
-                            setTimeout(resetUI, 3000);
+                            showSessionConflictOptions();
                         }
                         else showErrorAlert(d.error);
                     } else { errorAlert.classList.add('hidden'); }
@@ -423,11 +422,60 @@
                     if (json.error === 'ACCOUNT_LOCKED') handleLockout(json.timeout);
                     else if (json.error === 'STUDENT_NOT_FOUND') handleLockout(5, "QR code not valid, contact administration.");
                     else if (json.error === 'USER_ALREADY_ACTIVE') {
-                        showErrorAlert("User already active on another device.");
-                        setTimeout(resetUI, 3000);
+                        showSessionConflictOptions();
                     }
                 }
             } catch (err) { console.error('Network error:', err); }
+        }
+
+        function showSessionConflictOptions() {
+            clearInterval(scanInterval);
+            errorAlert.classList.remove('hidden');
+            errorMsg.innerHTML = `
+                Active session detected on another device.
+                <div class="mt-3">
+                    <button id="force-login-btn" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm text-xs font-bold transition-all w-full flex items-center justify-center gap-2">
+                        <i class="fas fa-power-off"></i> Terminate Previous Session & Log In
+                    </button>
+                    <button id="cancel-login-btn" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg shadow-sm text-xs font-bold transition-all w-full mt-2">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('force-login-btn').addEventListener('click', async () => {
+                errorAlert.classList.add('hidden');
+                camOverlay.classList.remove('hidden');
+                camOverlay.innerHTML = '<div class="flex flex-col items-center gap-3"><i class="fas fa-circle-notch fa-spin text-indigo-500 text-3xl"></i><p class="text-gray-500 font-bold text-sm">Terminating previous session...</p></div>';
+                
+                const ctxH = hiddenCanvas.getContext('2d');
+                const b64 = hiddenCanvas.toDataURL('image/jpeg', 0.7);
+                
+                try {
+                    const res = await fetch(LOGIN_API_URL, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                        body: JSON.stringify({ frame: b64, current_qr: lockedQR, force_login: true })
+                    });
+                    if (res.ok) {
+                        const dat = await res.json();
+                        if (dat.success && dat.data && dat.data.redirect_url) {
+                            camOverlay.classList.add('hidden');
+                            triggerSuccess();
+                            setTimeout(() => window.location.href = dat.data.redirect_url, 1500);
+                        } else {
+                            setTimeout(resetUI, 1000);
+                            scanInterval = setInterval(extractAndSend, 350);
+                        }
+                    }
+                } catch(e) {}
+            });
+            
+            document.getElementById('cancel-login-btn').addEventListener('click', () => {
+                setTimeout(resetUI, 300);
+                scanInterval = setInterval(extractAndSend, 350);
+            });
         }
     </script>
 </body>

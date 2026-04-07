@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
-from apps.accounts.utils import is_user_already_active
+from apps.accounts.utils import is_user_already_active, terminate_user_session
 from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
 import json
@@ -26,18 +26,26 @@ class CustomLoginView(LoginView):
 
     def form_valid(self, form):
         user = form.get_user()
+        force_login = self.request.POST.get('force_login') == 'true'
+
         if is_user_already_active(user, self.request):
-            messages.error(self.request, "User already active.")
-            # Log failed login attempt
-            from apps.audit.utils import log_event
-            log_event(
-                event_type='LOGIN_FAILED',
-                auth_method='password',
-                request=self.request,
-                user=user,
-                context={'reason': 'USER_ALREADY_ACTIVE'},
-            )
-            return redirect('login')
+            if force_login:
+                terminate_user_session(user)
+            else:
+                # Log failed login attempt because of conflict
+                from apps.audit.utils import log_event
+                log_event(
+                    event_type='LOGIN_FAILED',
+                    auth_method='password',
+                    request=self.request,
+                    user=user,
+                    context={'reason': 'USER_ALREADY_ACTIVE'},
+                )
+                return self.render_to_response(self.get_context_data(
+                    form=form,
+                    admin_teacher_already_active=True
+                ))
+
         # Tell the signal which auth method was used
         self.request.session['_auth_method'] = 'password'
         return super().form_valid(form)
@@ -168,8 +176,12 @@ def biometric_login_api(request):
     # If we have a successful face match and a student, log them in!
     if result.get('face_match') and student and hasattr(student, 'user') and student.user:
         if student.user.is_active:
+            force_login = data.get('force_login') is True
             if is_user_already_active(student.user, request):
-                return JsonResponse({'success': False, 'error': 'USER_ALREADY_ACTIVE'})
+                if force_login:
+                    terminate_user_session(student.user)
+                else:
+                    return JsonResponse({'success': False, 'error': 'USER_ALREADY_ACTIVE'})
 
             request.session['_auth_method'] = 'facial_recognition'
             login(request, student.user)
@@ -378,8 +390,12 @@ def student_face_login_api(request):
 
         # --- Now log in ---
         if student.user and student.user.is_active:
+            force_login = data.get('force_login') is True
             if is_user_already_active(student.user, request):
-                return JsonResponse({'success': False, 'error': 'USER_ALREADY_ACTIVE'})
+                if force_login:
+                    terminate_user_session(student.user)
+                else:
+                    return JsonResponse({'success': False, 'error': 'USER_ALREADY_ACTIVE'})
 
             if not request.user.is_authenticated or request.user.id != student.user.id:
                 login(request, student.user, backend='django.contrib.auth.backends.ModelBackend')
@@ -536,9 +552,18 @@ def student_password_login(request):
     if student and student.user:
         user = authenticate(request, username=student.user.username, password=password)
         if user is not None:
+            force_login = request.POST.get('force_login') == 'true'
             if is_user_already_active(user, request):
-                messages.error(request, "User already active.")
-                return redirect('login')
+                if force_login:
+                    terminate_user_session(user)
+                else:
+                    from apps.accounts.forms import CustomAuthenticationForm
+                    return render(request, 'accounts/login.html', {
+                        'form': CustomAuthenticationForm(),
+                        'student_already_active': True,
+                        'roll_number': roll_number,
+                        'password': password
+                    })
 
             request.session['_auth_method'] = 'password'
             login(request, user)
