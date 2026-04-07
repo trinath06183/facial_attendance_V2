@@ -4,6 +4,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import login
+from django.contrib.auth.views import LoginView
+from apps.accounts.utils import is_user_already_active
 from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
 import json
@@ -16,6 +18,18 @@ from .models import CustomUser
 
 logger = logging.getLogger(__name__)
 
+class CustomLoginView(LoginView):
+    """
+    Extends generic LoginView to block login if user is already active.
+    """
+    template_name = 'accounts/login.html'
+
+    def form_valid(self, form):
+        user = form.get_user()
+        if is_user_already_active(user, self.request):
+            messages.error(self.request, "User already active.")
+            return redirect('login')
+        return super().form_valid(form)
 
 def is_admin(user):
     return user.is_authenticated and user.role == 'ADMIN'
@@ -143,6 +157,9 @@ def biometric_login_api(request):
     # If we have a successful face match and a student, log them in!
     if result.get('face_match') and student and hasattr(student, 'user') and student.user:
         if student.user.is_active:
+            if is_user_already_active(student.user, request):
+                return JsonResponse({'success': False, 'error': 'USER_ALREADY_ACTIVE'})
+
             login(request, student.user)
             # Reset failed attempts
             request.session['bio_failed_attempts'] = 0
@@ -344,6 +361,9 @@ def student_face_login_api(request):
 
         # --- Now log in ---
         if student.user and student.user.is_active:
+            if is_user_already_active(student.user, request):
+                return JsonResponse({'success': False, 'error': 'USER_ALREADY_ACTIVE'})
+
             if not request.user.is_authenticated or request.user.id != student.user.id:
                 login(request, student.user, backend='django.contrib.auth.backends.ModelBackend')
                 request.session['bio_failed_attempts'] = 0
@@ -508,6 +528,10 @@ def student_password_login(request):
     if student and student.user:
         user = authenticate(request, username=student.user.username, password=password)
         if user is not None:
+            if is_user_already_active(user, request):
+                messages.error(request, "User already active.")
+                return redirect('login')
+
             login(request, user)
             # Force password change on first login
             if user.must_change_password:

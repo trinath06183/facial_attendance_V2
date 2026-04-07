@@ -21,18 +21,10 @@ logger = logging.getLogger(__name__)
 @receiver(user_logged_in)
 def enforce_single_active_session(sender, request, user, **kwargs):
     """
-    Fires immediately after django.contrib.auth.login() for ANY login method
-    (biometric, roll-number/password, Django admin, etc.).
-
-    Algorithm:
-        old_key = user.active_session_key
-        new_key = request.session.session_key
-        if old_key exists AND old_key != new_key:
-            Session.objects.filter(session_key=old_key).delete()
-        user.active_session_key = new_key
+    Fires immediately after django.contrib.auth.login() for ANY login method.
+    We just record the active_session_key here.
+    The rejection of the new login is handled in views/forms.
     """
-    from django.contrib.sessions.models import Session
-
     new_key = request.session.session_key
 
     if not new_key:
@@ -40,22 +32,6 @@ def enforce_single_active_session(sender, request, user, **kwargs):
             f"[session-mgmt] No session key found after login for '{user.username}'. Skipping."
         )
         return
-
-    old_key = user.active_session_key
-
-    if old_key and old_key != new_key:
-        deleted, _ = Session.objects.filter(session_key=old_key).delete()
-        if deleted:
-            logger.info(
-                f"[session-mgmt] Invalidated old session '{old_key[:8]}…' "
-                f"for user '{user.username}' — replaced by new session '{new_key[:8]}…'"
-            )
-        else:
-            # Session had already expired / been cleaned — harmless
-            logger.debug(
-                f"[session-mgmt] Old session '{old_key[:8]}…' for '{user.username}' "
-                "not found in store (may have already expired)."
-            )
 
     # Record the new active session key
     user.active_session_key = new_key

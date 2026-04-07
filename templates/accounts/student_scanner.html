@@ -204,6 +204,7 @@
         let scanInterval = null;
         let streamRef = null;
         let lockoutTimerInterval = null;
+        let qrScanTimeout = null;
 
         startBtn.addEventListener('click', async () => {
             camOverlay.innerHTML = '<div class="flex flex-col items-center gap-3"><i class="fas fa-circle-notch fa-spin text-indigo-500 text-3xl"></i><p class="text-gray-500 font-bold text-sm">Creating secure stream...</p></div>';
@@ -243,6 +244,8 @@
             mode = 'IDLE'; lockedQR = null;
             ctxOvl.clearRect(0, 0, canvasOvl.width, canvasOvl.height);
 
+            if (qrScanTimeout) { clearTimeout(qrScanTimeout); qrScanTimeout = null; }
+
             step1.className = 'flex gap-3 items-start p-3 rounded-xl bg-indigo-50 border border-indigo-200 transition-all duration-300';
             step1Icon.className = 'w-9 h-9 rounded-full bg-indigo-100 border-2 border-indigo-400 text-indigo-600 font-bold flex items-center justify-center text-sm shrink-0';
             step1Icon.innerHTML = '1';
@@ -265,6 +268,14 @@
 
         function transitionToBiometric(student) {
             mode = 'QR_LOCKED';
+
+            if (qrScanTimeout) clearTimeout(qrScanTimeout);
+            qrScanTimeout = setTimeout(() => {
+                if (mode === 'QR_LOCKED') {
+                    showErrorAlert("QR code authentication timed out. Please scan again.");
+                    setTimeout(resetUI, 2000);
+                }
+            }, 10000);
 
             step1Icon.innerHTML = '<i class="fas fa-check"></i>';
             step1Icon.className = 'w-9 h-9 rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 font-bold flex items-center justify-center text-sm shrink-0';
@@ -295,6 +306,7 @@
 
         function triggerSuccess() {
             mode = 'SUCCESS'; clearInterval(scanInterval);
+            if (qrScanTimeout) { clearTimeout(qrScanTimeout); qrScanTimeout = null; }
 
             step2Icon.innerHTML = '<i class="fas fa-check"></i>';
             step2Icon.className = 'w-9 h-9 rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 font-bold flex items-center justify-center text-sm shrink-0';
@@ -320,10 +332,11 @@
             errorMsg.textContent = msg;
         }
 
-        function handleLockout(secs) {
+        function handleLockout(secs, customMsg) {
             mode = 'LOCKED';
             ctxOvl.clearRect(0, 0, canvasOvl.width, canvasOvl.height);
-            showErrorAlert("Too many failed attempts. Identity stream locked to prevent spoofing.");
+            if (qrScanTimeout) { clearTimeout(qrScanTimeout); qrScanTimeout = null; }
+            showErrorAlert(customMsg || "Too many failed attempts. Identity stream locked to prevent spoofing.");
             errorTimer.classList.remove('hidden');
             let rem = secs;
             if (lockoutTimerInterval) clearInterval(lockoutTimerInterval);
@@ -398,11 +411,21 @@
 
                     if (d.error) {
                         if (d.error === 'ACCOUNT_LOCKED') handleLockout(d.timeout);
+                        else if (d.error === 'STUDENT_NOT_FOUND') handleLockout(5, "QR code not valid, contact administration.");
+                        else if (d.error === 'USER_ALREADY_ACTIVE') {
+                            showErrorAlert("User already active on another device.");
+                            setTimeout(resetUI, 3000);
+                        }
                         else showErrorAlert(d.error);
                     } else { errorAlert.classList.add('hidden'); }
 
                 } else {
                     if (json.error === 'ACCOUNT_LOCKED') handleLockout(json.timeout);
+                    else if (json.error === 'STUDENT_NOT_FOUND') handleLockout(5, "QR code not valid, contact administration.");
+                    else if (json.error === 'USER_ALREADY_ACTIVE') {
+                        showErrorAlert("User already active on another device.");
+                        setTimeout(resetUI, 3000);
+                    }
                 }
             } catch (err) { console.error('Network error:', err); }
         }
