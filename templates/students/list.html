@@ -237,16 +237,18 @@
                                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
 
                                         <!-- Overall % ring card -->
-                                        <div class="lg:col-span-1 bg-white rounded-2xl border border-blue-100 p-4 flex flex-col items-center justify-center shadow-sm gap-1">
-                                            <svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true">
-                                                <circle cx="40" cy="40" r="32" fill="none" stroke="#E0E7FF" stroke-width="8"/>
-                                                <circle id="ring-{{ student.id }}" cx="40" cy="40" r="32" fill="none"
-                                                    stroke="#4F46E5" stroke-width="8" stroke-linecap="round"
-                                                    stroke-dasharray="201.06" stroke-dashoffset="201.06"
-                                                    class="pct-ring-circle"/>
-                                            </svg>
-                                            <p class="text-2xl font-black -mt-10" id="pct-display-{{ student.id }}" style="color:#4F46E5">—%</p>
-                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-8">Attendance</p>
+                                        <div class="lg:col-span-1 bg-white rounded-2xl border border-blue-100 py-5 px-4 flex flex-col items-center justify-center shadow-sm">
+                                            <div class="relative flex items-center justify-center mb-1">
+                                                <svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true" class="flex-shrink-0">
+                                                    <circle cx="40" cy="40" r="32" fill="none" stroke="#E0E7FF" stroke-width="8"/>
+                                                    <circle id="ring-{{ student.id }}" cx="40" cy="40" r="32" fill="none"
+                                                        stroke="#4F46E5" stroke-width="8" stroke-linecap="round"
+                                                        stroke-dasharray="201.06" stroke-dashoffset="201.06"
+                                                        class="pct-ring-circle"/>
+                                                </svg>
+                                                <p class="absolute text-[1.1rem] font-black" id="pct-display-{{ student.id }}" style="color:#4F46E5">—%</p>
+                                            </div>
+                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2 mt-auto text-center">Attendance</p>
                                         </div>
 
                                         <!-- Sections Enrolled -->

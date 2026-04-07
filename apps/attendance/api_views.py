@@ -398,9 +398,8 @@ def student_attendance_stats_api(request, student_id):
         return JsonResponse({'success': False, 'error': 'Student not found.'}, status=404)
 
     if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        teacher_subject_ids = user.subjects.values_list('id', flat=True)
-        if not student.enrolled_subjects.filter(id__in=teacher_subject_ids).exists():
-            return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
+        # Teachers can view stats of any student in the directory.
+        pass
 
     section_id_filter = request.GET.get('section_id') # actually subject_id
 
