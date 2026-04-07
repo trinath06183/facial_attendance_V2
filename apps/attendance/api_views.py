@@ -560,8 +560,6 @@ def teacher_subjects_api(request):
         
     from .models import Subject
     qs = Subject.objects.filter(academic_year_id=year)
-    if getattr(request.user, 'role', '') == 'TEACHER':
-        qs = qs.filter(teachers=request.user)
     subjects = qs.distinct()
     
     data = [{'id': str(s.id), 'name': f"{s.code} - {s.name}"} for s in subjects]

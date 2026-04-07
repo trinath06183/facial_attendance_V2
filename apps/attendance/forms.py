@@ -26,8 +26,6 @@ class AttendanceSessionForm(ModelForm):
             try:
                 year_id = self.data.get('academic_year')
                 qs = Subject.objects.filter(academic_year_id=year_id)
-                if self.user and hasattr(self.user, 'role') and self.user.role == 'TEACHER':
-                    qs = qs.filter(teachers=self.user)
                 self.fields['subject'].queryset = qs
             except (ValueError, TypeError):
                 pass
@@ -39,17 +37,9 @@ class AttendanceSessionForm(ModelForm):
             self.fields['academic_year'].queryset = AcademicYear.objects.filter(academic_class=self.instance.subject.academic_year.academic_class)
             
             qs = Subject.objects.filter(academic_year=self.instance.subject.academic_year)
-            if self.user and hasattr(self.user, 'role') and self.user.role == 'TEACHER':
-                qs = qs.filter(teachers=self.user)
             self.fields['subject'].queryset = qs
 
 
     def clean(self):
         cleaned_data = super().clean()
-        subject = cleaned_data.get('subject')
-        
-        if subject and self.user and hasattr(self.user, 'role') and self.user.role == 'TEACHER':
-            if not subject.teachers.filter(id=self.user.id).exists():
-                self.add_error('subject', 'You are not assigned as a teacher for this subject.')
-                
         return cleaned_data

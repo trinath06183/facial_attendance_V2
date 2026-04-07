@@ -24,7 +24,7 @@ FACE_MATCH_THRESHOLD = settings.FACE_MATCH_THRESHOLD
 @login_required
 def session_list(request):
     if request.user.role == 'TEACHER':
-        sessions = AttendanceSession.objects.filter(subject__teachers=request.user)
+        sessions = AttendanceSession.objects.filter(teacher=request.user)
     else:
         sessions = AttendanceSession.objects.all()
     sessions = sessions.order_by('-started_at')
