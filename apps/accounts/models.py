@@ -17,6 +17,12 @@ class CustomUser(AbstractUser):
         default=False,
         help_text="If True, the user will be forced to change their password on next login."
     )
+    active_session_key = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        help_text="Session key of the user's current active session. A new login invalidates the previous one."
+    )
 
     def is_admin(self):
         return self.role == 'ADMIN' or self.is_superuser

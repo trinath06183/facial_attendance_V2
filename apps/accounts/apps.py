@@ -5,3 +5,7 @@ class AccountsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.accounts'
     label = 'accounts'
+
+    def ready(self):
+        # Import signals so the @receiver decorators are registered at startup.
+        import apps.accounts.signals  # noqa: F401
