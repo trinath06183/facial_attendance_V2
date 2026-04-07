@@ -4,3 +4,6 @@ numpy==1.26.4
 Pillow==10.4.0
 qrcode==7.4.2
 python-decouple==3.8
+apscheduler>=3.10
+user-agents>=2.2
+pytz>=2024.1

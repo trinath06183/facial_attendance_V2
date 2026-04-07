@@ -1,0 +1,519 @@
+{% extends 'base.html' %}
+{% load static audit_tags %}
+
+{% block title %}System Logs — SmartAttend{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Log Panel Styles ────────────────────────────────────────────────── */
+  .log-panel { font-family: 'Inter', sans-serif; }
+
+  /* Filter bar */
+  .filter-bar {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 1rem;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 0.75rem;
+    align-items: end;
+  }
+  .filter-bar label {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.3rem;
+  }
+  .filter-bar select,
+  .filter-bar input[type="text"],
+  .filter-bar input[type="date"] {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1.5px solid #E5E7EB;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    font-family: inherit;
+    background: #F9FAFB;
+    color: #111827;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .filter-bar select:focus,
+  .filter-bar input:focus { outline: none; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,.1); background:#fff; }
+
+  /* Event-type badges */
+  .badge-ev {
+    display: inline-block;
+    padding: .18rem .6rem;
+    border-radius: 999px;
+    font-size: .65rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .badge-success  { background:#D1FAE5; color:#065F46; }
+  .badge-danger   { background:#FEE2E2; color:#991B1B; }
+  .badge-warning  { background:#FEF3C7; color:#92400E; }
+  .badge-info     { background:#DBEAFE; color:#1E40AF; }
+  .badge-secondary{ background:#F3F4F6; color:#374151; }
+
+  /* Auth-method pill */
+  .auth-pill {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .15rem .55rem; border-radius: 999px;
+    font-size: .65rem; font-weight: 700;
+    background: #EEF2FF; color: #3730A3;
+    white-space: nowrap;
+  }
+
+  /* Table */
+  .log-table { width: 100%; border-collapse: collapse; }
+  .log-table th {
+    background: #F9FAFB;
+    border-bottom: 2px solid #E5E7EB;
+    padding: .75rem 1rem;
+    font-size: .68rem; font-weight: 800; color: #6B7280;
+    text-transform: uppercase; letter-spacing: .07em;
+    text-align: left; white-space: nowrap;
+  }
+  .log-table td {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid #F3F4F6;
+    font-size: .825rem;
+    color: #111827;
+    vertical-align: middle;
+  }
+  .log-table tbody tr { cursor: pointer; transition: background .12s; }
+  .log-table tbody tr:hover { background: #F5F3FF; }
+  .log-table tbody tr:last-child td { border-bottom: none; }
+  .mono { font-family: 'Fira Code', 'Consolas', monospace; font-size: .78rem; }
+  .text-muted { color: #9CA3AF; }
+
+  /* Detail drawer */
+  #detail-drawer {
+    position: fixed; top: 0; right: -520px; width: 480px; max-width: 96vw;
+    height: 100vh; background: #fff;
+    border-left: 1px solid #E5E7EB;
+    box-shadow: -8px 0 40px rgba(0,0,0,.12);
+    z-index: 200; overflow-y: auto;
+    transition: right .3s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column;
+  }
+  #detail-drawer.open { right: 0; }
+  #detail-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+    z-index:199; backdrop-filter:blur(2px);
+  }
+  #detail-overlay.show { display:block; }
+  .drawer-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid #E5E7EB; flex-shrink: 0;
+  }
+  .drawer-body { padding: 1.5rem; flex: 1; }
+  .detail-row { margin-bottom: 1rem; }
+  .detail-label {
+    font-size: .68rem; font-weight: 800; color: #6B7280;
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: .25rem;
+  }
+  .detail-value { font-size: .875rem; color: #111827; word-break: break-all; }
+  .json-block {
+    background: #0F172A; color: #A5F3FC;
+    border-radius: .75rem; padding: 1rem;
+    font-family: 'Fira Code','Consolas', monospace;
+    font-size: .75rem; line-height: 1.6;
+    overflow-x: auto; white-space: pre-wrap;
+    word-break: break-word; margin-top: .5rem;
+  }
+  .integrity-ok  { color:#10B981; font-weight:700; }
+  .integrity-bad { color:#EF4444; font-weight:700; }
+
+  /* Pagination */
+  .pagination { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .page-btn {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:2.25rem; height:2.25rem; padding:0 .75rem;
+    border:1.5px solid #E5E7EB; border-radius:.5rem;
+    font-size:.8rem; font-weight:600; color:#374151;
+    text-decoration:none; transition: all .15s;
+  }
+  .page-btn:hover { border-color:#4F46E5; color:#4F46E5; background:#EEF2FF; }
+  .page-btn.active { background:#4F46E5; border-color:#4F46E5; color:#fff; }
+  .page-btn.disabled { opacity:.4; pointer-events:none; }
+
+  /* Loading spinner for detail */
+  .spin { animation: spin .8s linear infinite; display:inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="log-panel">
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+        <i class="fas fa-shield-alt text-indigo-500"></i> System Logs
+      </h1>
+      <p class="text-gray-400 text-xs mt-1">
+        Showing <strong>{{ total|default:0 }}</strong> entries &mdash;
+        sorted newest first &mdash; auto-purged after 48 h
+      </p>
+    </div>
+    <a id="export-btn" href="#" class="btn btn-secondary flex items-center gap-2 text-sm"
+       title="Download filtered results as CSV">
+      <i class="fas fa-file-csv text-green-600"></i> Export CSV
+    </a>
+  </header>
+
+  <!-- ── Filter Bar ─────────────────────────────────────────────────── -->
+  <form id="filter-form" method="get" action="{% url 'system_logs' %}">
+    <div class="filter-bar">
+
+      <div>
+        <label for="f-event">Event Type</label>
+        <select id="f-event" name="event_type">
+          <option value="">All Events</option>
+          {% for val, label in event_types %}
+            <option value="{{ val }}" {% if f_event_type == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="f-auth">Auth Method</label>
+        <select id="f-auth" name="auth_method">
+          <option value="">All Methods</option>
+          {% for val, label in auth_methods %}
+            <option value="{{ val }}" {% if f_auth_method == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="f-role">Role</label>
+        <select id="f-role" name="actor_role">
+          <option value="">All Roles</option>
+          {% for val, label in role_choices %}
+            <option value="{{ val }}" {% if f_actor_role == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="f-user">User / ID</label>
+        <input id="f-user" type="text" name="user_q" value="{{ f_user_q }}" placeholder="username or UUID…">
+      </div>
+
+      <div>
+        <label for="f-ip">IP Address</label>
+        <input id="f-ip" type="text" name="ip_q" value="{{ f_ip_q }}" placeholder="e.g. 192.168.…">
+      </div>
+
+      <div>
+        <label for="f-search">Full-Text Search</label>
+        <input id="f-search" type="text" name="search" value="{{ f_search }}" placeholder="browser, error, reason…">
+      </div>
+
+      <div>
+        <label for="f-from">Date From</label>
+        <input id="f-from" type="date" name="date_from" value="{{ f_date_from }}">
+      </div>
+
+      <div>
+        <label for="f-to">Date To</label>
+        <input id="f-to" type="date" name="date_to" value="{{ f_date_to }}">
+      </div>
+
+      <!-- Buttons span full width on last row -->
+      <div class="flex gap-2 items-end sm:col-span-2 lg:col-span-1">
+        <button type="submit"
+          class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors">
+          <i class="fas fa-filter"></i> Apply
+        </button>
+        <a href="{% url 'system_logs' %}"
+           class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition-colors">
+          <i class="fas fa-times"></i> Clear
+        </a>
+      </div>
+
+    </div>
+  </form>
+
+  <!-- ── Log Table ──────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+    {% if page_obj %}
+    <div class="overflow-x-auto">
+      <table class="log-table" id="log-table">
+        <thead>
+          <tr>
+            <th>Timestamp (IST)</th>
+            <th>Event</th>
+            <th>Auth Method</th>
+            <th>User</th>
+            <th>IP Address</th>
+            <th>Device</th>
+            <th>Context</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in page_obj %}
+          <tr data-id="{{ log.id }}" class="log-row">
+            <td class="mono text-gray-500 whitespace-nowrap">
+              {{ log.timestamp|date:"d M Y H:i:s" }}
+            </td>
+            <td>
+              {% with c=log.event_display_color %}
+              <span class="badge-ev badge-{{ c }}">{{ log.event_type }}</span>
+              {% endwith %}
+            </td>
+            <td>
+              <span class="auth-pill">
+                {% if log.auth_method == 'facial_recognition' %}<i class="fas fa-eye"></i>
+                {% elif log.auth_method == 'password' %}<i class="fas fa-key"></i>
+                {% elif log.auth_method == 'otp' %}<i class="fas fa-mobile-alt"></i>
+                {% elif log.auth_method == 'mfa' %}<i class="fas fa-shield-alt"></i>
+                {% else %}<i class="fas fa-cog"></i>{% endif %}
+                {{ log.auth_method|title }}
+              </span>
+            </td>
+            <td>
+              {% if log.actor_username %}
+                <span class="font-semibold">{{ log.actor_username }}</span>
+                <span class="text-muted text-xs block">{{ log.actor_role }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="mono">{{ log.ip_address|default:"—" }}</td>
+            <td class="text-xs text-gray-500">
+              {% if log.browser %}{{ log.browser }} <br><span class="text-gray-400">{{ log.os }}</span>{% else %}—{% endif %}
+            </td>
+            <td class="text-xs text-gray-500 max-w-xs truncate">
+              {{ log.context_summary }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+      <i class="fas fa-scroll text-4xl mb-4 opacity-30"></i>
+      <p class="font-semibold text-gray-500">No log entries found.</p>
+      <p class="text-sm mt-1">Try adjusting your filters or date range.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Pagination ─────────────────────────────────────────────────── -->
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+    <p class="text-sm text-gray-500">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+      &nbsp;–&nbsp; {{ total }} entries total
+    </p>
+    <nav class="pagination" aria-label="Log pagination">
+      {% if page_obj.has_previous %}
+        <a class="page-btn" href="?{% url_replace page=1 %}"><i class="fas fa-angle-double-left"></i></a>
+        <a class="page-btn" href="?{% url_replace page=page_obj.previous_page_number %}"><i class="fas fa-angle-left"></i></a>
+      {% else %}
+        <span class="page-btn disabled"><i class="fas fa-angle-double-left"></i></span>
+        <span class="page-btn disabled"><i class="fas fa-angle-left"></i></span>
+      {% endif %}
+
+      {% for i in page_obj.paginator.page_range %}
+        {% if page_obj.number == i %}
+          <span class="page-btn active">{{ i }}</span>
+        {% elif i >= page_obj.number|add:"-3" and i <= page_obj.number|add:"3" %}
+          <a class="page-btn" href="?{% url_replace page=i %}">{{ i }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a class="page-btn" href="?{% url_replace page=page_obj.next_page_number %}"><i class="fas fa-angle-right"></i></a>
+        <a class="page-btn" href="?{% url_replace page=page_obj.paginator.num_pages %}"><i class="fas fa-angle-double-right"></i></a>
+      {% else %}
+        <span class="page-btn disabled"><i class="fas fa-angle-right"></i></span>
+        <span class="page-btn disabled"><i class="fas fa-angle-double-right"></i></span>
+      {% endif %}
+    </nav>
+  </div>
+  {% endif %}
+
+</div><!-- /log-panel -->
+
+<!-- ── Detail Overlay + Drawer ─────────────────────────────────────── -->
+<div id="detail-overlay"></div>
+<aside id="detail-drawer" role="dialog" aria-modal="true" aria-label="Log entry detail">
+  <div class="drawer-header">
+    <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+      <i class="fas fa-info-circle text-indigo-500"></i>
+      <span id="drawer-event-title">Log Detail</span>
+    </h2>
+    <button id="close-drawer" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 focus:outline-none" aria-label="Close detail">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawer-body">
+    <div class="flex justify-center py-12 text-gray-400">
+      <i class="fas fa-circle-notch fa-2x spin"></i>
+    </div>
+  </div>
+</aside>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  // ── Export CSV link — preserve current filter params ──────────────────────
+  const exportBtn = document.getElementById('export-btn');
+  if (exportBtn) {
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.delete('page');
+    exportBtn.href = '{% url "system_logs_export" %}?' + currentParams.toString();
+  }
+
+  // ── Detail drawer ─────────────────────────────────────────────────────────
+  const drawer  = document.getElementById('detail-drawer');
+  const overlay = document.getElementById('detail-overlay');
+  const closeBtn = document.getElementById('close-drawer');
+  const drawerBody = document.getElementById('drawer-body');
+  const drawerTitle = document.getElementById('drawer-event-title');
+
+  function openDrawer() {
+    drawer.classList.add('open');
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    closeBtn.focus();
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    overlay.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  closeBtn && closeBtn.addEventListener('click', closeDrawer);
+  overlay  && overlay.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+  function colorClass(evt) {
+    const danger  = ['LOGIN_FAILED','BIO_LOGIN_FAILED','BIO_AUTH_LOCKED','ACCESS_DENIED','CSRF_FAILURE','ERROR','OTP_FAILED'];
+    const warning = ['PASSWORD_RESET_REQ','OTP_SENT','SESSION_EXPIRED'];
+    const success = ['LOGIN','BIO_LOGIN','OTP_VERIFIED','PASSWORD_CHANGE'];
+    if (danger.includes(evt))  return 'badge-danger';
+    if (warning.includes(evt)) return 'badge-warning';
+    if (success.includes(evt)) return 'badge-success';
+    return 'badge-info';
+  }
+
+  function authIcon(method) {
+    const icons = {
+      facial_recognition: 'fa-eye',
+      password: 'fa-key',
+      otp: 'fa-mobile-alt',
+      mfa: 'fa-shield-alt',
+      system: 'fa-cog',
+    };
+    return icons[method] || 'fa-question-circle';
+  }
+
+  function renderDrawer(d) {
+    const integrity = d.checksum_valid
+      ? '<span class="integrity-ok"><i class="fas fa-check-circle"></i> Verified — Tamper-Free</span>'
+      : '<span class="integrity-bad"><i class="fas fa-exclamation-triangle"></i> CHECKSUM MISMATCH — Possible Tampering!</span>';
+
+    drawerTitle.innerHTML = `<span class="badge-ev ${colorClass(d.event_type)}">${d.event_type}</span>`;
+
+    drawerBody.innerHTML = `
+      <div class="detail-row">
+        <div class="detail-label">Timestamp (IST)</div>
+        <div class="detail-value mono">${d.timestamp_ist}</div>
+      </div>
+      <div class="detail-row" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div>
+          <div class="detail-label">Auth Method</div>
+          <div class="detail-value">
+            <span class="auth-pill"><i class="fas ${authIcon(d.auth_method)}"></i> ${d.auth_method}</span>
+          </div>
+        </div>
+        <div>
+          <div class="detail-label">Device Type</div>
+          <div class="detail-value">${d.device_type}</div>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">User</div>
+        <div class="detail-value">
+          ${d.actor_username ? `<strong>${d.actor_username}</strong> <span class="text-muted">(${d.actor_role})</span>` : '—'}
+        </div>
+        ${d.actor_user_id ? `<div class="detail-value mono text-xs text-gray-400 mt-1">ID: ${d.actor_user_id}</div>` : ''}
+      </div>
+      <div class="detail-row" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div>
+          <div class="detail-label">IP Address</div>
+          <div class="detail-value mono">${d.ip_address}</div>
+        </div>
+        <div>
+          <div class="detail-label">Browser</div>
+          <div class="detail-value text-sm">${d.browser}</div>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Operating System</div>
+        <div class="detail-value text-sm">${d.os}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">User-Agent</div>
+        <div class="detail-value mono text-xs text-gray-500" style="word-break:break-all;">${d.user_agent}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Context Payload</div>
+        <div class="json-block">${JSON.stringify(d.context, null, 2)}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Integrity Check</div>
+        <div class="detail-value">${integrity}</div>
+        <div class="detail-value mono text-xs text-gray-400 mt-1" style="word-break:break-all;" title="HMAC-SHA256 checksum">${d.checksum}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Log ID</div>
+        <div class="detail-value mono text-xs text-gray-400">${d.id}</div>
+      </div>
+    `;
+  }
+
+  // ── Row click → fetch detail ───────────────────────────────────────────────
+  document.querySelectorAll('.log-row').forEach(row => {
+    row.addEventListener('click', async function() {
+      const id = this.dataset.id;
+      drawerTitle.textContent = 'Loading…';
+      drawerBody.innerHTML = '<div class="flex justify-center py-12 text-gray-400"><i class="fas fa-circle-notch fa-2x spin"></i></div>';
+      openDrawer();
+
+      try {
+        const resp = await fetch(`/audit/logs/${id}/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        renderDrawer(data);
+      } catch(err) {
+        drawerBody.innerHTML = `<div class="text-red-500 py-8 text-center"><i class="fas fa-times-circle text-2xl mb-2 block"></i>Failed to load detail.<br><small>${err.message}</small></div>`;
+      }
+    });
+
+    // Keyboard access
+    row.setAttribute('tabindex', '0');
+    row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') row.click(); });
+  });
+
+})();
+</script>
+{% endblock %}

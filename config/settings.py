@@ -98,6 +98,11 @@ FACE_MATCH_THRESHOLD = config('FACE_MATCH_THRESHOLD', default=0.65, cast=float)
 HMAC_SIGNING_KEY = config('HMAC_SIGNING_KEY', default='dev-hmac-key-change-in-production')
 ML_MODELS_DIR = BASE_DIR / 'ml_models'
 
+# ── Audit / Logging Settings ─────────────────────────────────────────────────
+# Entries older than this many hours are automatically purged.
+AUDIT_LOG_RETENTION_HOURS = config('AUDIT_LOG_RETENTION_HOURS', default=48, cast=int)
+# Re-use HMAC_SIGNING_KEY for audit checksum — no extra secret needed.
+
 # Message storage
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 

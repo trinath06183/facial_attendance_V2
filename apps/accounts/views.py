@@ -28,7 +28,18 @@ class CustomLoginView(LoginView):
         user = form.get_user()
         if is_user_already_active(user, self.request):
             messages.error(self.request, "User already active.")
+            # Log failed login attempt
+            from apps.audit.utils import log_event
+            log_event(
+                event_type='LOGIN_FAILED',
+                auth_method='password',
+                request=self.request,
+                user=user,
+                context={'reason': 'USER_ALREADY_ACTIVE'},
+            )
             return redirect('login')
+        # Tell the signal which auth method was used
+        self.request.session['_auth_method'] = 'password'
         return super().form_valid(form)
 
 def is_admin(user):
@@ -160,13 +171,16 @@ def biometric_login_api(request):
             if is_user_already_active(student.user, request):
                 return JsonResponse({'success': False, 'error': 'USER_ALREADY_ACTIVE'})
 
+            request.session['_auth_method'] = 'facial_recognition'
             login(request, student.user)
             # Reset failed attempts
             request.session['bio_failed_attempts'] = 0
             
             # Log the biometric login in the audit system
-            from apps.audit.utils import audit
-            audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(student.user.id), "Biometric verification successful")
+            from apps.audit.utils import log_event
+            log_event(request=request, event_type='BIO_LOGIN', auth_method='facial_recognition',
+                      context={'score': result.get('face_score', 0),
+                               'student_id': str(student.user.id)})
             result['redirect_url'] = '/dashboard/'
         else:
             result['face_match'] = False
@@ -175,17 +189,20 @@ def biometric_login_api(request):
         # Failed match while looking at a face
         fails = request.session.get('bio_failed_attempts', 0) + 1
         request.session['bio_failed_attempts'] = fails
-        if fails >= 5: # Lockout after 5 continuous failed face frames
+        if fails >= 5:
             import time
-            request.session['bio_lockout_until'] = time.time() + 60 # 60 second lockout
-            from apps.audit.utils import audit
-            audit(request, 'BIO_AUTH_LOCKED', 'Student', str(student.id), "5 consecutive failed face matches")
+            request.session['bio_lockout_until'] = time.time() + 60
+            from apps.audit.utils import log_event
+            log_event(event_type='BIO_AUTH_LOCKED', auth_method='facial_recognition',
+                      request=request,
+                      context={'student_id': str(student.id), 'reason': '5 consecutive failed face matches'})
             result['error'] = 'ACCOUNT_LOCKED'
             result['timeout'] = 60
         else:
-            # Simple failure log
-            from apps.audit.utils import audit
-            audit(request, 'BIO_AUTH_FAILED', 'Student', str(student.id), f"Frame {fails}/5 - Face match failed")
+            from apps.audit.utils import log_event
+            log_event(event_type='BIO_LOGIN_FAILED', auth_method='facial_recognition',
+                      request=request,
+                      context={'student_id': str(student.id), 'attempt': f"{fails}/5"})
             
     return JsonResponse({'success': True, 'data': result})
 
@@ -386,22 +403,7 @@ def student_face_login_api(request):
     return JsonResponse({'success': True, 'data': result})
 
 
-# ── Browser-close: auto-logout via sendBeacon ────────────────────────────────
-
-@require_POST
-def browser_logout_api(request):
-    """
-    POST /accounts/api/browser-logout/
-    Called via navigator.sendBeacon() when the browser/tab is closed.
-    Explicitly logs the user out so the server-side session is destroyed
-    immediately, working for tab close as well as full browser close.
-    Anonymous calls are safely ignored.
-    """
-    from django.contrib.auth import logout as auth_logout
-    if request.user.is_authenticated:
-        logger.info(f'[browser-close] Auto-logout: {request.user} ({getattr(request.user, "role", "?")})')
-        auth_logout(request)
-    return JsonResponse({'success': True})
+# Removed destructive browser_logout_api endpoint that caused erratic auto-logouts
 # ── Email OTP Password Reset Flow ─────────────────────────────────────────────
 
 import random
@@ -434,6 +436,9 @@ def password_reset_request(request):
                     [user.email],
                     fail_silently=False,
                 )
+                from apps.audit.utils import log_event
+                log_event(event_type='OTP_SENT', auth_method='otp', request=request, user=user,
+                          context={'flow': 'admin_teacher_password_reset', 'email_masked': user.email[:3]+'***'})
                 request.session['reset_email'] = user.email
                 return redirect('password_reset_verify')
             except Exception as e:
@@ -498,7 +503,10 @@ def password_reset_confirm(request):
                 del request.session['reset_verified_user_id']
                 if 'reset_email' in request.session:
                     del request.session['reset_email']
-                    
+                
+                from apps.audit.utils import log_event
+                log_event(event_type='PASSWORD_CHANGE', auth_method='otp', request=request, user=user,
+                          context={'flow': 'admin_teacher_otp_reset'})
                 messages.success(request, "Password has been reset successfully. You may now log in.")
                 return redirect('login')
             else:
@@ -532,6 +540,7 @@ def student_password_login(request):
                 messages.error(request, "User already active.")
                 return redirect('login')
 
+            request.session['_auth_method'] = 'password'
             login(request, user)
             # Force password change on first login
             if user.must_change_password:
@@ -539,6 +548,10 @@ def student_password_login(request):
             return redirect('dashboard')
         else:
             messages.error(request, "Invalid password. Please try again.")
+            from apps.audit.utils import log_event
+            log_event(event_type='LOGIN_FAILED', auth_method='password',
+                      request=request,
+                      context={'roll_number': roll_number, 'reason': 'INVALID_PASSWORD'})
     else:
         messages.error(request, "No student account found with that Roll Number.")
 
@@ -714,9 +727,9 @@ def student_first_login_change_password(request):
             request.user.must_change_password = False
             request.user.save()
             update_session_auth_hash(request, request.user)
-            from apps.audit.utils import audit
-            audit(request, 'PASSWORD_CHANGED_FIRST_LOGIN', 'User', str(request.user.id),
-                  "Student changed default password on first login")
+            from apps.audit.utils import log_event
+            log_event(event_type='PASSWORD_CHANGE', auth_method='password', request=request,
+                      context={'flow': 'student_first_login', 'forced': True})
             messages.success(request, "Password updated! Welcome to SmartAttend.")
             return redirect('dashboard')
 

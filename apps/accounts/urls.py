@@ -13,8 +13,7 @@ urlpatterns = [
     # ── Student Biometric Login Scanner (public) ──────────────
     path('student-login/', views.student_scanner_view, name='student_scanner'),
     path('api/student-face-login/', views.student_face_login_api, name='student_face_login_api'),
-    # ── Browser-close auto-logout (sendBeacon) ──────────────────────
-    path('api/browser-logout/', views.browser_logout_api, name='browser_logout_api'),
+    # ── Browser-close auto-logout feature removed ──────────────────────
     
     # ── OTP Password Reset (Admin / Teacher) ──────────────────────
     path('password-reset/', views.password_reset_request, name='password_reset_request'),

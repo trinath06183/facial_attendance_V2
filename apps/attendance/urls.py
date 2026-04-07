@@ -38,8 +38,7 @@ urlpatterns = [
     # ── Attendance Stats per Student ──
     path('api/stats/student/<uuid:student_id>/', api_views.student_attendance_stats_api, name='student_attendance_stats_api'),
     
-    # ── Browser-close auto-close open sessions (sendBeacon) ──────────────────────
-    path('api/browser-close-sessions/', api_views.close_open_sessions_api, name='close_open_sessions_api'),
+    # ── Auto-close sessions api removed ──────────────────────
     
     # ── Dynamic Form Endpoints ──
     path('api/teacher-subjects/', api_views.teacher_subjects_api, name='teacher_subjects_api'),

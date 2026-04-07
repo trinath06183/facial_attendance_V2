@@ -515,34 +515,7 @@ def attendance_session_ledger_api(request, session_id):
     })
 
 
-@require_POST
-def close_open_sessions_api(request):
-    """
-    POST /attendance/api/browser-close-sessions/
-    """
-    if not request.user.is_authenticated:
-        return JsonResponse({'success': False, 'reason': 'anonymous'})
-
-    from .models import AttendanceSession
-
-    role = getattr(request.user, 'role', '')
-    if role not in ('TEACHER', 'ADMIN'):
-        return JsonResponse({'success': True, 'closed': 0})
-
-    filter_kwargs = {'status': 'OPEN'}
-    if role == 'TEACHER':
-        filter_kwargs['teacher'] = request.user
-
-    open_sessions = AttendanceSession.objects.filter(**filter_kwargs)
-    count = open_sessions.count()
-
-    open_sessions.update(
-        status='CLOSED',
-        closed_at=now(),
-    )
-
-    logger.info(f'[browser-close] {request.user} ({role}): auto-closed {count} open session(s).')
-    return JsonResponse({'success': True, 'closed': count})
+# Auto-close sessions api removed
 
 
 @login_required

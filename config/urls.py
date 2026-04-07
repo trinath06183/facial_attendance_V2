@@ -9,6 +9,7 @@ urlpatterns = [
     path('accounts/', include('apps.accounts.urls')),
     path('students/', include('apps.students.urls')),
     path('attendance/', include('apps.attendance.urls')),
+    path('audit/', include('apps.audit.urls')),
     path('dashboard/', include('apps.accounts.dashboard_urls')),
     path('', RedirectView.as_view(url='/dashboard/', permanent=False)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

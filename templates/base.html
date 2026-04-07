@@ -1,4 +1,5 @@
 {% load static %}
+{% load audit_tags %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -502,6 +503,9 @@
             <a href="{% url 'user_list' %}" class="sidebar-link">
                 <i class="fas fa-users-cog" aria-hidden="true"></i> User Accounts
             </a>
+            <a href="{% url 'system_logs' %}" class="sidebar-link">
+                <i class="fas fa-shield-alt" aria-hidden="true"></i> System Logs
+            </a>
 
 
             {% elif user.is_teacher %}
@@ -695,43 +699,7 @@
             });
         });
 
-        // ─── Browser/Tab Closure Auto-Logout & Session Closure ─────────────────
-        (function () {
-            let isNavigating = false;
-
-            // Allow normal links and forms without triggering auto-logout
-            document.addEventListener('click', function (e) {
-                if (e.target.closest('a') !== null || e.target.closest('button[type="submit"]') !== null) {
-                    isNavigating = true;
-                }
-            });
-            document.addEventListener('submit', function () {
-                isNavigating = true;
-            });
-            window.addEventListener('beforeunload', function () {
-                // Not ideal but F5 reload shouldn't strictly require a logout, but browser limits us
-                // If they truly wanted safe close only, this is as close as standard JS gets
-                // We'll rely on pagehide
-            });
-
-            window.addEventListener('pagehide', function (e) {
-                if (!isNavigating) {
-                    // This sends a fire-and-forget POST request right as the tab closes.
-                    const csrfElements = document.getElementsByName('csrfmiddlewaretoken');
-                    if (csrfElements.length > 0) {
-                        const token = csrfElements[0].value;
-                        const fd = new FormData();
-                        fd.append('csrfmiddlewaretoken', token);
-
-                        // Close any attendance sessions left open
-                        navigator.sendBeacon('/attendance/api/browser-close-sessions/', fd);
-
-                        // Log out the user
-                        navigator.sendBeacon('/accounts/api/browser-logout/', fd);
-                    }
-                }
-            });
-        })();
+        // Auto-logout beacon removed to prevent random session invalidation on refresh/tab switch
     </script>
     <script>
         function togglePasswordVisibility(btn) {

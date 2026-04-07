@@ -1,18 +1,54 @@
+"""
+apps/audit/middleware.py
+────────────────────────
+Lightweight request middleware that:
+  1. Logs HTTP 4xx/5xx responses that aren't already captured by view-level logging.
+  2. Captures CSRF failures (403 with reason header).
+"""
+
 import logging
+from .utils import log_event
 
 logger = logging.getLogger(__name__)
+
 
 class AuditMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # We process before view
         response = self.get_response(request)
-        # We could also log 403s or 500s here automatically.
-        if response.status_code >= 400:
-            user = request.user.username if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous'
-            path = request.path
-            logger.warning(f"HTTP {response.status_code} on {path} by user {user}")
-            
+
+        status = response.status_code
+
+        # CSRF failure
+        if status == 403 and getattr(response, 'reason_phrase', '') == 'Forbidden':
+            csrf_reason = getattr(response, 'csrf_reason', '')
+            if csrf_reason or 'csrf' in request.path.lower():
+                log_event(
+                    event_type='CSRF_FAILURE',
+                    auth_method='unknown',
+                    request=request,
+                    context={'path': request.path, 'method': request.method,
+                             'reason': csrf_reason},
+                )
+
+        # Generic 4xx (access denied, not found) and 5xx (errors)
+        elif status == 403:
+            log_event(
+                event_type='ACCESS_DENIED',
+                auth_method='unknown',
+                request=request,
+                context={'path': request.path, 'method': request.method,
+                         'status_code': status},
+            )
+        elif status >= 500:
+            log_event(
+                event_type='ERROR',
+                auth_method='system',
+                request=request,
+                context={'path': request.path, 'method': request.method,
+                         'status_code': status},
+            )
+
         return response
