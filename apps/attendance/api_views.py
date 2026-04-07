@@ -40,7 +40,7 @@ def get_filtered_attendance_qs(request):
     elif user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
         # Teachers can see sessions they created OR sessions in subjects they are assigned to
         qs = qs.filter(
-            session__subject__teachers=user
+            Q(session__subject__teachers=user) | Q(session__teacher=user)
         ).distinct()
         
     elif user.role == 'ADMIN' or getattr(user, 'is_admin', lambda: False)():
