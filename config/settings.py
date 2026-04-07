@@ -105,9 +105,9 @@ MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 # Session cookie is a "browser-session" cookie (no explicit expiry date).
 # The browser discards it when all browser windows are closed, which
 # automatically invalidates the Django session → auto-logout for all roles.
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 # Safety net: even persistent sessions max out at 8 hours of inactivity.
-SESSION_COOKIE_AGE = 10800   # 3 hours in seconds
+SESSION_COOKIE_AGE = 86400   # 24 hours in seconds
 
 # ── Email Settings for OTP ──────────────────────────────────────────────────
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

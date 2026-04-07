@@ -470,7 +470,7 @@ def attendance_session_ledger_api(request, session_id):
     session = get_object_or_404(AttendanceSession.objects.select_related('subject', 'teacher'), id=session_id)
     
     if session.subject:
-        if not (request.user.role == 'ADMIN' or request.user in session.subject.teachers.all()):
+        if not (request.user.role == 'ADMIN' or request.user in session.subject.teachers.all() or request.user == session.teacher):
             return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
             
     records = AttendanceRecord.objects.filter(session=session).select_related('student')

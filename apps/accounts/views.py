@@ -438,7 +438,7 @@ def password_reset_request(request):
                 return redirect('password_reset_verify')
             except Exception as e:
                 logger.error(f"Failed to send OTP email: {e}")
-                messages.error(request, f"SMTP Error: {e}")
+                messages.error(request, "Unable to send verification email; please try again later.")
         else:
             # Vague message for security (don't reveal if email exists)
             messages.info(request, "If an Admin or Teacher account exists with that email, an OTP has been sent.")
@@ -575,7 +575,7 @@ def student_password_reset_request(request):
                 return redirect('student_password_reset_verify')
             except Exception as e:
                 logger.error(f"Failed to send student OTP email: {e}")
-                messages.error(request, f"SMTP Error: {e}")
+                messages.error(request, "Unable to send verification email; please try again later.")
         else:
             # Vague error for security
             messages.info(request, "If a student account exists with that Roll Number, an OTP has been sent to the registered email.")
