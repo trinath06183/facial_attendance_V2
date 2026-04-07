@@ -300,26 +300,24 @@ def student_face_login_api(request):
 
         # --- Ensure the student has a linked user account ---
         if not student.user:
-            # 1. Try to find an existing user by email
-            existing = User.objects.filter(email=student.email).first() if student.email else None
+            # 1. Only link an existing user if they are already STUDENT role.
+            #    NEVER touch ADMIN or TEACHER accounts — doing so would demote them.
+            existing = None
+            if student.email:
+                candidate = User.objects.filter(email=student.email).first()
+                if candidate and candidate.role == 'STUDENT':
+                    existing = candidate
 
             if existing:
-                # Link the found user to this student and ensure the role is STUDENT
-                if existing.role != 'STUDENT':
-                    existing.role = 'STUDENT'
-                    existing.save(update_fields=['role'])
-                    logger.info(f"Corrected role to STUDENT for user {existing.username} linked to student {student.full_name}")
                 student.user = existing
                 student.save(update_fields=['user'])
-                logger.info(f"Linked existing user {existing.username} to student {student.full_name}")
+                logger.info(f"Linked existing student user '{existing.username}' to student {student.full_name}")
             else:
-                # 2. Auto-create a new user account for the student
-                # Username: roll number (sanitised) or uuid prefix
+                # 2. Auto-create a fresh student-only user account
                 raw_username = (
                     getattr(student, 'university_roll_number', None)
                     or str(student.id)[:8]
                 )
-                # Ensure uniqueness
                 base = raw_username.lower().replace(' ', '_')
                 username = base
                 counter = 1
@@ -333,18 +331,16 @@ def student_face_login_api(request):
                     password=None,          # unusable password — login only via biometrics
                     role='STUDENT',
                     is_active=True,
+                    must_change_password=True,
                 )
                 student.user = new_user
                 student.save(update_fields=['user'])
                 audit(request, 'USER_AUTO_CREATED', 'User', str(new_user.id),
                       f"Auto-created biometric-only account for student {student.full_name}")
-                logger.info(f"Auto-created user {username} for student {student.full_name}")
+                logger.info(f"Auto-created user '{username}' for student {student.full_name}")
 
-        # Also correct the role if an already-linked user has the wrong role
-        elif student.user and student.user.role != 'STUDENT':
-            student.user.role = 'STUDENT'
-            student.user.save(update_fields=['role'])
-            logger.warning(f"Corrected role to STUDENT for already-linked user {student.user.username}")
+        # Do NOT forcibly change the role of any linked user.
+        # If an admin/teacher is accidentally linked, that must be fixed manually.
 
         # --- Now log in ---
         if student.user and student.user.is_active:
@@ -353,9 +349,11 @@ def student_face_login_api(request):
                 request.session['bio_failed_attempts'] = 0
                 audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(student.user.id),
                       f"Biometric login — score {result.get('face_score', 0):.4f}")
-            # Always redirect to the unified dashboard — dashboard_views.py
-            # will route to the correct template based on the user's role.
-            result['redirect_url'] = '/dashboard/'
+            # Force password change on first login
+            if student.user.must_change_password:
+                result['redirect_url'] = '/accounts/student/first-login-change-password/'
+            else:
+                result['redirect_url'] = '/dashboard/'
         else:
             result['face_match'] = False
             result['error'] = 'ACCOUNT_INACTIVE'
@@ -511,6 +509,9 @@ def student_password_login(request):
         user = authenticate(request, username=student.user.username, password=password)
         if user is not None:
             login(request, user)
+            # Force password change on first login
+            if user.must_change_password:
+                return redirect('student_first_login_change_password')
             return redirect('dashboard')
         else:
             messages.error(request, "Invalid password. Please try again.")
@@ -647,6 +648,7 @@ def student_change_password(request):
             messages.error(request, "Password must be at least 8 characters long.")
         else:
             request.user.set_password(new_password)
+            request.user.must_change_password = False
             request.user.save()
             # Keep the user logged in after password change
             update_session_auth_hash(request, request.user)
@@ -654,3 +656,44 @@ def student_change_password(request):
             return redirect('dashboard')
 
     return render(request, 'accounts/student_change_password.html')
+
+
+@login_required
+def student_first_login_change_password(request):
+    """
+    Shown immediately after a student's very first login.
+    The student is NOT required to enter their old (default) password.
+    After a successful change, must_change_password is cleared and 
+    they are redirected to the dashboard.
+    """
+    from django.contrib.auth import update_session_auth_hash
+
+    if request.user.role != 'STUDENT':
+        return redirect('dashboard')
+
+    # If they've already changed their password, go straight to dashboard
+    if not request.user.must_change_password:
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if not new_password or new_password != confirm_password:
+            messages.error(request, "Passwords do not match.")
+        elif len(new_password) < 8:
+            messages.error(request, "Password must be at least 8 characters long.")
+        elif new_password == request.user.username:
+            messages.error(request, "Your new password cannot be the same as your username (default password). Please choose a different password.")
+        else:
+            request.user.set_password(new_password)
+            request.user.must_change_password = False
+            request.user.save()
+            update_session_auth_hash(request, request.user)
+            from apps.audit.utils import audit
+            audit(request, 'PASSWORD_CHANGED_FIRST_LOGIN', 'User', str(request.user.id),
+                  "Student changed default password on first login")
+            messages.success(request, "Password updated! Welcome to SmartAttend.")
+            return redirect('dashboard')
+
+    return render(request, 'accounts/student_first_login_change_password.html')

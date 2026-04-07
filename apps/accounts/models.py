@@ -13,9 +13,13 @@ class CustomUser(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='TEACHER')
     mfa_enabled = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text="If True, the user will be forced to change their password on next login."
+    )
 
     def is_admin(self):
-        return self.role == 'ADMIN'
+        return self.role == 'ADMIN' or self.is_superuser
 
     def is_teacher(self):
         return self.role == 'TEACHER'

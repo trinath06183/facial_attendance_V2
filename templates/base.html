@@ -558,10 +558,24 @@
                 <div class="flex items-center gap-3 mb-3">
                     <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm uppercase shadow-sm flex-shrink-0"
                         aria-hidden="true">
-                        {{ user.username|slice:":1" }}
+                        {% if user.is_student and user.student_profile %}
+                            {{ user.student_profile.full_name|slice:":1"|upper }}
+                        {% elif user.get_full_name %}
+                            {{ user.get_full_name|slice:":1"|upper }}
+                        {% else %}
+                            {{ user.username|slice:":1"|upper }}
+                        {% endif %}
                     </div>
                     <div class="flex flex-col min-w-0">
-                        <span class="text-sm font-semibold text-gray-800 truncate">{{ user.username }}</span>
+                        <span class="text-sm font-semibold text-gray-800 truncate">
+                            {% if user.is_student and user.student_profile %}
+                                {{ user.student_profile.full_name }}
+                            {% elif user.get_full_name %}
+                                {{ user.get_full_name }}
+                            {% else %}
+                                {{ user.username }}
+                            {% endif %}
+                        </span>
                         <span class="text-[9px] text-gray-400 uppercase font-bold tracking-widest">
                             {{ user.get_role_display }}
                         </span>

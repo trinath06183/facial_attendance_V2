@@ -31,4 +31,5 @@ urlpatterns = [
 
     # ── Student Change Password (logged in) ──────────────────────
     path('student/change-password/', views.student_change_password, name='student_change_password'),
+    path('student/first-login-change-password/', views.student_first_login_change_password, name='student_first_login_change_password'),
 ]

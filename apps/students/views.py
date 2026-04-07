@@ -41,6 +41,9 @@ def student_create(request):
     if request.method == 'POST':
         form = StudentForm(request.POST)
         if form.is_valid():
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+
             student = form.save(commit=False)
             student.created_by = request.user
             if student.consent_given:
@@ -48,7 +51,37 @@ def student_create(request):
                 student.consent_ip = request.META.get('REMOTE_ADDR')
             student.save()
             audit(request, 'STUDENT_REGISTERED', 'Student', str(student.id))
-            messages.success(request, f"Student {student.full_name} registered. Now enroll facial data.")
+
+            # Auto-create a linked user account if one doesn't exist yet
+            if not student.user:
+                roll = (student.university_roll_number or str(student.id)[:8])
+                base_username = roll.lower().replace(' ', '_')
+                username = base_username
+                counter = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}_{counter}"
+                    counter += 1
+
+                new_user = User.objects.create_user(
+                    username=username,
+                    email=student.email or '',
+                    password=username,   # default password = username
+                    role='STUDENT',
+                    is_active=True,
+                    must_change_password=True,
+                )
+                student.user = new_user
+                student.save(update_fields=['user'])
+                audit(request, 'USER_AUTO_CREATED', 'User', str(new_user.id),
+                      f"Default account created for student {student.full_name} (username: {username})")
+                logger.info(f"Auto-created login account '{username}' for student {student.full_name}")
+
+            messages.success(
+                request,
+                f"Student {student.full_name} registered. "
+                f"Login account created (username: {student.user.username}, default password = username). "
+                "Now enroll facial data."
+            )
             return redirect('student_enroll_face', pk=student.pk)
     else:
         form = StudentForm()

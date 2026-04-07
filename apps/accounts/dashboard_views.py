@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from apps.students.models import Student
 from apps.attendance.models import AttendanceSession, AttendanceRecord
 from apps.attendance.analytics import get_student_analytics, get_admin_analytics
@@ -10,6 +10,11 @@ from django.utils import timezone
 @login_required
 def dashboard(request):
     user = request.user
+
+    # Guard: student must set a new password before accessing any dashboard page
+    if user.role == 'STUDENT' and user.must_change_password:
+        return redirect('student_first_login_change_password')
+
     ctx = {}
 
     if user.is_admin():
