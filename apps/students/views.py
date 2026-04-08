@@ -143,7 +143,7 @@ def upload_face_frame(request, pk):
     result = detect_and_embed(image_bytes)
 
     if not result['success']:
-        return JsonResponse({'success': False, 'error': result['error']})
+        return JsonResponse({'success': False, 'error': result['error'], 'face_box': result.get('face_box')})
 
     # Overwrite mode: clear all existing active embeddings before the first new frame
     overwrite = request.GET.get('overwrite') == '1'
@@ -178,6 +178,7 @@ def upload_face_frame(request, pk):
         'success': True,
         'embedding_count': student.embedding_count,
         'quality_score': result['quality_score'],
+        'face_box': result.get('face_box'),
     })
 
 

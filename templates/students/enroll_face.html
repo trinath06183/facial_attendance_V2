@@ -16,6 +16,9 @@
         100% { opacity: 0; }
     }
     .flash-overlay { animation: capture-flash 0.4s ease-out forwards; }
+    
+    .box-success { border-color: #10B981 !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.5) !important; }
+    .box-error { border-color: #EF4444 !important; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5) !important; }
 </style>
 {% endblock %}
 
@@ -62,18 +65,23 @@
 <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
 
     <!-- Camera Column -->
-    <div>
+    <div class="flex flex-col items-center">
         <!-- Camera Box -->
-        <div class="relative bg-black rounded-3xl overflow-hidden shadow-xl border-2 border-indigo-500/40" style="aspect-ratio: 4/3;">
+        <div class="relative bg-black rounded-3xl overflow-hidden shadow-xl border-2 border-indigo-500/40 w-full max-w-2xl" style="aspect-ratio: 4/3;">
             <!-- Scanner corners -->
             <div class="absolute top-4 left-4 w-10 h-10 border-t-4 border-l-4 border-indigo-400 rounded-tl-xl z-20" aria-hidden="true"></div>
             <div class="absolute top-4 right-4 w-10 h-10 border-t-4 border-r-4 border-indigo-400 rounded-tr-xl z-20" aria-hidden="true"></div>
             <div class="absolute bottom-4 left-4 w-10 h-10 border-b-4 border-l-4 border-indigo-400 rounded-bl-xl z-20" aria-hidden="true"></div>
             <div class="absolute bottom-4 right-4 w-10 h-10 border-b-4 border-r-4 border-indigo-400 rounded-br-xl z-20" aria-hidden="true"></div>
 
-            <!-- Face guide oval -->
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10" aria-hidden="true">
-                <div class="w-44 h-56 border-4 border-indigo-400/60 rounded-full face-guide-ring"></div>
+            <!-- Face guide bounding box instead of oval -->
+            <div class="absolute inset-0 pointer-events-none z-10" aria-hidden="true">
+                <div id="face-box" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-64 border-4 border-indigo-400/60 rounded-xl transition-all duration-300">
+                    <!-- Dynamic accuracy badge -->
+                    <div id="accuracy-badge" class="absolute -top-7 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900/80 text-white text-xs font-bold rounded-full opacity-0 transition-opacity shadow-sm whitespace-nowrap">
+                        Accuracy: <span id="accuracy-val">0</span>%
+                    </div>
+                </div>
             </div>
 
             <!-- Flash overlay (shown on capture) -->
@@ -93,8 +101,8 @@
                 <span class="absolute inset-2 rounded-full bg-indigo-500 group-hover:bg-indigo-600 transition-colors"></span>
             </button>
         </div>
-        <p class="text-center text-xs text-gray-400 mt-3 font-medium">
-            Press the button to start auto-capture. Position your face inside the oval guide.
+        <p class="text-center text-xs text-gray-400 mt-3 font-medium max-w-sm">
+            Press the button to start auto-capture. Position your face inside the rectangle guide.
         </p>
     </div>
 
@@ -297,6 +305,36 @@
             })
             .then(res => res.json())
             .then(data => {
+                const faceBoxEl = document.getElementById('face-box');
+                const accuracyBadge = document.getElementById('accuracy-badge');
+                const accuracyVal = document.getElementById('accuracy-val');
+
+                if (faceBoxEl) {
+                    if (data.face_box) {
+                        const [fx, fy, fw, fh] = data.face_box;
+                        const vW = webcamEl.videoWidth || 640;
+                        const vH = webcamEl.videoHeight || 480;
+                        const mirroredX = vW - (fx + fw);
+                        
+                        const padX = fw * 0.15;
+                        const padY = fh * 0.15;
+                        const leftPct = Math.max(0, ((mirroredX - padX) / vW) * 100);
+                        const topPct = Math.max(0, ((fy - padY) / vH) * 100);
+                        const widthPct = Math.min(100 - leftPct, ((fw + padX * 2) / vW) * 100);
+                        const heightPct = Math.min(100 - topPct, ((fh + padY * 2) / vH) * 100);
+
+                        faceBoxEl.classList.remove('top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2', 'w-48', 'h-64');
+                        faceBoxEl.style.left = `${leftPct}%`;
+                        faceBoxEl.style.top = `${topPct}%`;
+                        faceBoxEl.style.width = `${widthPct}%`;
+                        faceBoxEl.style.height = `${heightPct}%`;
+                    } else if (!isAutoCapturing || data.error == 'NO_FACE_DETECTED') {
+                        // Reset to center if stopped or completely lost
+                        faceBoxEl.style = "";
+                        faceBoxEl.classList.add('top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2', 'w-48', 'h-64');
+                    }
+                }
+
                 if (data.success) {
                     // After first successful overwrite-upload, reset UI counter & flags
                     if (firstCapture) {
@@ -306,18 +344,39 @@
                         updateProgress(0);
                         doneSection.classList.add('hidden');
                     }
-                    showFeedback(`✓ Captured! Quality: ${(data.quality_score * 100).toFixed(1)}%`, "success");
+                    
+                    const score = (data.quality_score * 100).toFixed(1);
+                    showFeedback(`✓ Captured! Quality: ${score}%`, "success");
                     updateProgress(data.embedding_count);
+                    
+                    if (faceBoxEl) {
+                        faceBoxEl.classList.remove('box-error', 'border-indigo-400/60');
+                        faceBoxEl.classList.add('box-success');
+                    }
+                    if (accuracyBadge && accuracyVal) {
+                        accuracyVal.textContent = score;
+                        accuracyBadge.classList.remove('opacity-0');
+                        accuracyBadge.classList.add('opacity-100');
+                    }
                 } else {
                     // Show the error reason on failed frames
                     const errMap = {
-                        'NO_FACE_DETECTED': 'No face detected. Center your face in the oval.',
+                        'NO_FACE_DETECTED': 'No face detected. Center your face in the rectangle.',
                         'MULTIPLE_FACES':   'Multiple faces detected. Only one person should be in frame.',
                         'LOW_CONFIDENCE':   'Face too far or unclear. Move closer.',
                         'BLUR_DETECTED':    'Image is blurry. Hold still.',
                         'DUPLICATE_FRAME':  'Duplicate frame — skipping.',
                     };
                     showFeedback(errMap[data.error] || data.error, 'error');
+                    
+                    if (faceBoxEl) {
+                        faceBoxEl.classList.remove('box-success', 'border-indigo-400/60');
+                        faceBoxEl.classList.add('box-error');
+                    }
+                    if (accuracyBadge) {
+                        accuracyBadge.classList.remove('opacity-100');
+                        accuracyBadge.classList.add('opacity-0');
+                    }
                 }
             })
             .catch(() => {})
@@ -332,6 +391,9 @@
 
     // ── Capture on Click ───────────────────────────
     captureBtn.addEventListener('click', () => {
+        const faceBoxEl = document.getElementById('face-box');
+        const accuracyBadge = document.getElementById('accuracy-badge');
+
         if (!isAutoCapturing) {
             isAutoCapturing = true;
             captureBtn.innerHTML = '<span class="absolute inset-2 rounded-full bg-red-500 transition-colors"></span><i class="fas fa-stop inset-0 absolute flex items-center justify-center text-white"></i>';
@@ -341,6 +403,17 @@
             isAutoCapturing = false;
             captureBtn.innerHTML = '<span class="absolute inset-2 rounded-full bg-indigo-500 group-hover:bg-indigo-600 transition-colors"></span>';
             captureBtn.classList.remove('animate-pulse');
+            
+            if (faceBoxEl) {
+                faceBoxEl.classList.remove('box-success', 'box-error');
+                faceBoxEl.classList.add('border-indigo-400/60');
+                faceBoxEl.style = "";
+                faceBoxEl.classList.add('top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2', 'w-48', 'h-64');
+            }
+            if (accuracyBadge) {
+                accuracyBadge.classList.remove('opacity-100');
+                accuracyBadge.classList.add('opacity-0');
+            }
         }
     });
 

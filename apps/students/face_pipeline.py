@@ -92,15 +92,16 @@ def detect_and_embed(image_bytes: bytes) -> dict:
 
     face = faces[0]
     confidence = float(face[-1])
+    face_box = [float(face[0]), float(face[1]), float(face[2]), float(face[3])]
 
     if confidence < 0.75:
-        return {'success': False, 'error': 'LOW_CONFIDENCE', 'image_hash': image_hash}
+        return {'success': False, 'error': 'LOW_CONFIDENCE', 'image_hash': image_hash, 'face_box': face_box}
 
     # Laplacian blur check
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
     if lap_var < 60:
-        return {'success': False, 'error': 'BLUR_DETECTED', 'image_hash': image_hash}
+        return {'success': False, 'error': 'BLUR_DETECTED', 'image_hash': image_hash, 'face_box': face_box}
 
     aligned = _recognizer.alignCrop(bgr, face)
     raw_feature = _recognizer.feature(aligned)
@@ -115,6 +116,7 @@ def detect_and_embed(image_bytes: bytes) -> dict:
         'vector': vec,
         'quality_score': round(confidence, 4),
         'image_hash': image_hash,
+        'face_box': face_box,
     }
 
 
