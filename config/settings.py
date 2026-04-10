@@ -1,8 +1,15 @@
-from decouple import config
+from decouple import config as default_config, Config, RepositoryEnv
 from pathlib import Path
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Robustly load .env file from the project root (Fixes PythonAnywhere WSGI path issues)
+env_path = BASE_DIR / '.env'
+if env_path.exists():
+    config = Config(RepositoryEnv(str(env_path)))
+else:
+    config = default_config
 
 SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
@@ -104,8 +111,8 @@ AUDIT_LOG_RETENTION_HOURS = config('AUDIT_LOG_RETENTION_HOURS', default=48, cast
 # Re-use HMAC_SIGNING_KEY for audit checksum — no extra secret needed.
 
 # Message storage
-MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
-
+# Safety net: even persistent sessions max out at 3 hours of inactivity.
+SESSION_COOKIE_AGE = 10800   # 3 hours in seconds
 # ── Session / Browser-close settings ────────────────────────────────────────
 # Session cookie is a "browser-session" cookie (no explicit expiry date).
 # The browser discards it when all browser windows are closed, which
@@ -120,6 +127,6 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 # Must configure these in .env file!
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='your-email@gmail.com')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your-app-password')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='SmartAttend <your-email@gmail.com>')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')

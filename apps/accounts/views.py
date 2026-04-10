@@ -422,7 +422,7 @@ def student_face_login_api(request):
 # Removed destructive browser_logout_api endpoint that caused erratic auto-logouts
 # ── Email OTP Password Reset Flow ─────────────────────────────────────────────
 
-import random
+import secrets
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import PasswordResetOTP
@@ -436,7 +436,7 @@ def password_reset_request(request):
         # Security: Only allow ADMIN and TEACHER to use this flow.
         if user and user.role in ['ADMIN', 'TEACHER']:
             # Generate 6-digit OTP
-            otp_code = str(random.randint(100000, 999999))
+            otp_code = str(secrets.randbelow(900000) + 100000)
             
             # Save OTP to DB
             PasswordResetOTP.objects.create(user=user, otp=otp_code)
@@ -457,8 +457,8 @@ def password_reset_request(request):
                           context={'flow': 'admin_teacher_password_reset', 'email_masked': user.email[:3]+'***'})
                 request.session['reset_email'] = user.email
                 return redirect('password_reset_verify')
-            except Exception as e:
-                logger.error(f"Failed to send OTP email: {e}")
+            except Exception:
+                logger.exception("Failed to send OTP email")
                 messages.error(request, "Unable to send verification email; please try again later.")
         else:
             # Vague message for security (don't reveal if email exists)
@@ -484,9 +484,10 @@ def password_reset_verify(request):
         if user:
             # Get the latest OTP for this user
             valid_otp = PasswordResetOTP.objects.filter(user=user).order_by('-created_at').first()
-            if valid_otp and valid_otp.otp == otp_input:
+            if valid_otp and secrets.compare_digest(str(valid_otp.otp), str(otp_input)):
                 if valid_otp.is_valid():
                     # Success
+                    valid_otp.delete()
                     request.session['reset_verified_user_id'] = str(user.id)
                     return redirect('password_reset_confirm')
                 else:
@@ -597,7 +598,7 @@ def student_password_reset_request(request):
         student = Student.objects.filter(university_roll_number__iexact=roll_number).select_related('user').first()
 
         if student and student.user and student.email:
-            otp_code = str(random.randint(100000, 999999))
+            otp_code = str(secrets.randbelow(900000) + 100000)
             PasswordResetOTP.objects.create(user=student.user, otp=otp_code)
 
             subject = "SmartAttend - Password Reset Verification Code"
@@ -611,8 +612,8 @@ def student_password_reset_request(request):
                 send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [student.email], fail_silently=False)
                 request.session['student_reset_roll'] = roll_number
                 return redirect('student_password_reset_verify')
-            except Exception as e:
-                logger.error(f"Failed to send student OTP email: {e}")
+            except Exception:
+                logger.exception("Failed to send student OTP email")
                 messages.error(request, "Unable to send verification email; please try again later.")
         else:
             # Vague error for security
@@ -637,8 +638,9 @@ def student_password_reset_verify(request):
         otp_input = request.POST.get('otp', '').strip()
         if student and student.user:
             valid_otp = PasswordResetOTP.objects.filter(user=student.user).order_by('-created_at').first()
-            if valid_otp and valid_otp.otp == otp_input:
+            if valid_otp and secrets.compare_digest(str(valid_otp.otp), str(otp_input)):
                 if valid_otp.is_valid():
+                    valid_otp.delete()
                     request.session['student_reset_verified_user_id'] = str(student.user.id)
                     return redirect('student_password_reset_confirm')
                 else:

@@ -80,6 +80,7 @@ def session_detail(request, pk):
     })
 
 @login_required
+@require_POST
 def session_close(request, pk):
     session = get_object_or_404(AttendanceSession, pk=pk)
     if session.status == 'OPEN':
@@ -91,6 +92,7 @@ def session_close(request, pk):
     return redirect('session_detail', pk=pk)
 
 @login_required
+@require_POST
 def session_reopen(request, pk):
     if getattr(request.user, 'role', '') != 'ADMIN':
         messages.error(request, "Only administrators can reopen a closed session.")

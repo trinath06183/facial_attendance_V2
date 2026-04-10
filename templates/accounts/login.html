@@ -35,7 +35,8 @@
 
                 <div class="relative z-10">
                     <div class="flex items-center gap-3 mb-10">
-                        <img src="{% static 'logo.png' %}" alt="SmartAttend Logo" class="w-10 h-10 rounded-xl shadow-lg transform -rotate-6 transition-transform hover:rotate-0 duration-300">
+                        <img src="{% static 'logo.png' %}" alt="SmartAttend Logo"
+                            class="w-10 h-10 rounded-xl shadow-lg transform -rotate-6 transition-transform hover:rotate-0 duration-300">
                         <span class="text-2xl font-black tracking-tight"
                             style="font-family: 'Outfit', sans-serif;">SmartAttend.</span>
                     </div>
@@ -97,7 +98,8 @@
                         <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5 text-lg"></i>
                         <div>
                             <h4 class="text-amber-800 font-bold text-sm tracking-tight">Active Session Detected</h4>
-                            <p class="text-amber-700 text-xs mt-1 font-medium leading-relaxed">You are currently logged in on another device. To continue, you must terminate your previous session.</p>
+                            <p class="text-amber-700 text-xs mt-1 font-medium leading-relaxed">You are currently logged
+                                in on another device. To continue, you must terminate your previous session.</p>
                         </div>
                     </div>
                 </div>
@@ -108,6 +110,16 @@
                     {% csrf_token %}
                     {% if admin_teacher_already_active %}
                     <input type="hidden" name="force_login" value="true">
+                    {% endif %}
+                    {% if form.non_field_errors %}
+                    <div class="mb-5 bg-red-50 text-red-600 text-sm font-semibold px-4 py-3 rounded-xl border border-red-100 flex items-start gap-2">
+                        <i class="fas fa-exclamation-circle mt-0.5"></i>
+                        <div>
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
                     {% endif %}
                     <div>
                         <label for="username"
@@ -128,7 +140,9 @@
                             <label for="password"
                                 class="block text-xs font-bold text-gray-700 uppercase tracking-wide">Password <span
                                     class="text-red-500">*</span></label>
-                            <a href="{% url 'password_reset_request' %}" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot Password?</a>
+                            <a href="{% url 'password_reset_request' %}"
+                                class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot
+                                Password?</a>
                         </div>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -137,7 +151,8 @@
                             <input type="password" name="password" id="password" required
                                 class="pl-11 pr-12 w-full border-2 border-gray-100 rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-gray-900 font-medium transition-all"
                                 placeholder="••••••••">
-                            <button type="button" onclick="togglePasswordVisibility(this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-700 transition-colors focus:outline-none">
+                            <button type="button" onclick="togglePasswordVisibility(this)"
+                                class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-700 transition-colors focus:outline-none">
                                 <i class="fas fa-eye text-lg"></i>
                             </button>
                         </div>
@@ -146,7 +161,8 @@
                     <div class="pt-2">
                         <button type="submit" id="submitBtn"
                             class="w-full {% if admin_teacher_already_active %}bg-amber-600 hover:bg-amber-700{% else %}bg-gray-900 hover:bg-black{% endif %} text-white font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2">
-                            <span>{% if admin_teacher_already_active %}Terminate Previous Session & Log In{% else %}Sign In Securely{% endif %}</span>
+                            <span>{% if admin_teacher_already_active %}Terminate Previous Session & Log In{% else %}Sign
+                                In Securely{% endif %}</span>
                             <i class="fas fa-arrow-right text-sm"></i>
                         </button>
                     </div>
@@ -165,27 +181,35 @@
                 <!-- Student Options -->
                 <div class="mt-6 space-y-3">
                     <div class="relative">
-                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
-                        <div class="relative flex justify-center text-sm"><span class="px-3 bg-white text-gray-400 font-medium">Student Access</span></div>
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-gray-200"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm"><span
+                                class="px-3 bg-white text-gray-400 font-medium">Student Access</span></div>
                     </div>
 
                     <!-- Student Password Login (collapsible) -->
                     <div>
                         <button type="button" id="toggleStudentLogin"
                             class="w-full py-3 rounded-xl border-2 border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold transition-all flex items-center justify-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-indigo-200 text-indigo-700 flex items-center justify-center">
+                            <div
+                                class="w-8 h-8 rounded-full bg-indigo-200 text-indigo-700 flex items-center justify-center">
                                 <i class="fas fa-id-card"></i>
                             </div>
                             Student ID Login
-                            <i class="fas fa-chevron-down text-xs ml-auto transition-transform" id="studentLoginChevron"></i>
+                            <i class="fas fa-chevron-down text-xs ml-auto transition-transform"
+                                id="studentLoginChevron"></i>
                         </button>
-                        <div id="studentLoginForm" class="{% if not student_already_active %}hidden{% endif %} mt-3 bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 space-y-3">
+                        <div id="studentLoginForm"
+                            class="{% if not student_already_active %}hidden{% endif %} mt-3 bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 space-y-3">
                             {% if student_already_active %}
                             <div class="mb-3 bg-amber-50 rounded-xl border border-amber-200 p-3 flex items-start gap-3">
                                 <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
                                 <div>
-                                    <h4 class="text-amber-800 font-bold text-xs tracking-tight">Active Session Detected</h4>
-                                    <p class="text-amber-700 text-[10px] mt-1 font-medium">You are currently logged in on another device. Terminate your previous session.</p>
+                                    <h4 class="text-amber-800 font-bold text-xs tracking-tight">Active Session Detected
+                                    </h4>
+                                    <p class="text-amber-700 text-[10px] mt-1 font-medium">You are currently logged in
+                                        on another device. Terminate your previous session.</p>
                                 </div>
                             </div>
                             {% endif %}
@@ -195,25 +219,35 @@
                                 <input type="hidden" name="force_login" value="true">
                                 {% endif %}
                                 <div class="mb-3">
-                                    <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">University Roll Number</label>
-                                    <input type="text" name="roll_number" required placeholder="e.g. 15101FT24003" value="{{ roll_number|default:'' }}"
+                                    <label for="student_roll_number"
+                                        class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">University
+                                        Roll Number</label>
+                                    <input type="text" name="roll_number" id="student_roll_number" required
+                                        placeholder="e.g. 15101FT24003"
                                         class="w-full border-2 border-gray-100 rounded-xl py-2.5 px-4 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-gray-900 font-medium transition-all text-sm">
                                 </div>
                                 <div class="mb-3">
                                     <div class="flex justify-between items-center mb-1.5">
-                                        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide">Password</label>
-                                        <a href="{% url 'student_password_reset_request' %}" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot?</a>
+                                        <label
+                                            class="block text-xs font-bold text-gray-600 uppercase tracking-wide">Password</label>
+                                        <a href="{% url 'student_password_reset_request' %}"
+                                            class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot?</a>
                                     </div>
                                     <div class="relative">
-                                        <input type="password" name="password" required placeholder="••••••••" value="{{ password|default:'' }}"
+                                        <input type="password" name="password" required placeholder="••••••••"
+                                            value="{{ password|default:'' }}"
                                             class="w-full pr-10 border-2 border-gray-100 rounded-xl py-2.5 px-4 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-gray-900 font-medium transition-all text-sm">
-                                        <button type="button" onclick="togglePasswordVisibility(this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-700 transition-colors focus:outline-none">
+                                        <button type="button" onclick="togglePasswordVisibility(this)"
+                                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-700 transition-colors focus:outline-none">
                                             <i class="fas fa-eye"></i>
                                         </button>
                                     </div>
                                 </div>
-                                <button type="submit" class="w-full {% if student_already_active %}bg-amber-600 hover:bg-amber-700{% else %}bg-indigo-600 hover:bg-indigo-700{% endif %} text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
-                                    <i class="fas {% if student_already_active %}fa-power-off{% else %}fa-sign-in-alt{% endif %}"></i> {% if student_already_active %}Terminate & Log In{% else %}Sign In{% endif %}
+                                <button type="submit"
+                                    class="w-full {% if student_already_active %}bg-amber-600 hover:bg-amber-700{% else %}bg-indigo-600 hover:bg-indigo-700{% endif %} text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+                                    <i
+                                        class="fas {% if student_already_active %}fa-power-off{% else %}fa-sign-in-alt{% endif %}"></i>
+                                    {% if student_already_active %}Terminate & Log In{% else %}Sign In{% endif %}
                                 </button>
                             </form>
                         </div>
@@ -222,7 +256,8 @@
                     <!-- Face Login -->
                     <a href="{% url 'student_scanner' %}"
                         class="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold transition-all flex items-center justify-center gap-3 group">
-                        <div class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <div
+                            class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                             <i class="fas fa-face-viewfinder"></i>
                         </div>
                         Student Face Login
@@ -235,6 +270,20 @@
 </div>
 
 <script>
+    function togglePasswordVisibility(button) {
+        const input = button.parentElement.querySelector('input[type="password"], input[type="text"]');
+        const icon = button.querySelector('i');
+        if (input && input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else if (input) {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
     const toggleBtn = document.getElementById('toggleStudentLogin');
     const loginForm = document.getElementById('studentLoginForm');
     const chevron = document.getElementById('studentLoginChevron');
@@ -243,7 +292,7 @@
             loginForm.classList.toggle('hidden');
             chevron.style.transform = loginForm.classList.contains('hidden') ? '' : 'rotate(180deg)';
         });
-        
+
         if (!loginForm.classList.contains('hidden')) {
             chevron.style.transform = 'rotate(180deg)';
         }
@@ -644,15 +693,15 @@
                 </button>
             </div>
         `;
-        
+
         document.getElementById('force-login-btn-modal').addEventListener('click', async () => {
             errorAlert.classList.add('hidden');
             overlayUI.classList.remove('hidden');
             overlayUI.innerHTML = '<div class="flex flex-col items-center gap-3"><i class="fas fa-circle-notch fa-spin text-white text-3xl"></i><p class="text-white font-bold text-sm mt-4">Terminating previous session...</p></div>';
-            
+
             const ctxHid = hiddenCanvas.getContext('2d');
             const b64 = hiddenCanvas.toDataURL('image/jpeg', 0.7);
-            
+
             try {
                 const res = await fetch(LOGIN_API_URL, {
                     method: 'POST',
@@ -666,7 +715,7 @@
                         force_login: true
                     })
                 });
-                
+
                 if (res.ok) {
                     const dat = await res.json();
                     if (dat.success && dat.data && dat.data.redirect_url) {
@@ -678,9 +727,9 @@
                         scanInterval = setInterval(extractAndSendFrame, 350);
                     }
                 }
-            } catch(e) {}
+            } catch (e) { }
         });
-        
+
         document.getElementById('cancel-login-btn-modal').addEventListener('click', () => {
             setTimeout(resetCamUI, 300);
             scanInterval = setInterval(extractAndSendFrame, 350);
