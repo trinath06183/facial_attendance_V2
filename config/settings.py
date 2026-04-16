@@ -13,7 +13,8 @@ else:
 
 SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='bn06183.pythonanywhere.com,localhost,127.0.0.1').split(',')
+# ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='bn06183.pythonanywhere.com,localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.dev',
     'https://*.ngrok-free.app',

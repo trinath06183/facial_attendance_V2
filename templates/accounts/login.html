@@ -19,54 +19,10 @@
     </div>
 
     <div class="w-full max-w-4xl relative z-10">
-        <div
-            class="bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[520px] ring-1 ring-gray-900/5">
+        <div class="bg-white rounded-[2rem] shadow-2xl overflow-hidden ring-1 ring-gray-900/5">
 
-            <!-- Left Branding Panel -->
-            <div class="w-full md:w-2/5 p-10 flex flex-col justify-between relative overflow-hidden text-white"
-                style="background: linear-gradient(145deg, #4f46e5, #3b82f6); box-shadow: inset -10px 0 20px rgba(0,0,0,0.05);">
-
-                <!-- Glowing Overlay -->
-                <div class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-white opacity-10 blur-2xl">
-                </div>
-                <div
-                    class="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-indigo-400 opacity-20 blur-2xl">
-                </div>
-
-                <div class="relative z-10">
-                    <div class="flex items-center gap-3 mb-10">
-                        <img src="{% static 'logo.png' %}" alt="SmartAttend Logo"
-                            class="w-10 h-10 rounded-xl shadow-lg transform -rotate-6 transition-transform hover:rotate-0 duration-300">
-                        <span class="text-2xl font-black tracking-tight"
-                            style="font-family: 'Outfit', sans-serif;">SmartAttend.</span>
-                    </div>
-
-                    <h2 class="text-3xl font-bold leading-tight mb-4" style="font-family: 'Inter', sans-serif;">
-                        Intelligent<br>Attendance Platform</h2>
-                    <p class="text-indigo-100 text-sm font-medium mb-8">AI-powered facial recognition tracking
-                        seamlessly integrated with university systems.</p>
-
-                    <div class="space-y-4">
-                        <div class="flex items-center gap-3 text-sm text-indigo-50 font-medium">
-                            <i class="fas fa-check-circle text-indigo-200"></i> Liveness Detection Active
-                        </div>
-                        <div class="flex items-center gap-3 text-sm text-indigo-50 font-medium">
-                            <i class="fas fa-check-circle text-indigo-200"></i> End-to-End Encrypted
-                        </div>
-                        <div class="flex items-center gap-3 text-sm text-indigo-50 font-medium">
-                            <i class="fas fa-check-circle text-indigo-200"></i> 150ms Recognition Latency
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="relative z-10 mt-12 text-xs text-indigo-200 font-medium flex items-center gap-2 uppercase tracking-widest">
-                    <i class="fas fa-shield-alt"></i> Enterprise Grade Security
-                </div>
-            </div>
-
-            <!-- Right Login Panel -->
-            <div class="w-full md:w-3/5 p-10 lg:p-14 bg-white flex flex-col justify-center relative">
+            <!-- Login Panel -->
+            <div class="w-full max-w-lg mx-auto p-10 lg:p-14 bg-white flex flex-col justify-center relative">
 
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-gray-900 tracking-tight"
@@ -112,11 +68,12 @@
                     <input type="hidden" name="force_login" value="true">
                     {% endif %}
                     {% if form.non_field_errors %}
-                    <div class="mb-5 bg-red-50 text-red-600 text-sm font-semibold px-4 py-3 rounded-xl border border-red-100 flex items-start gap-2">
+                    <div
+                        class="mb-5 bg-red-50 text-red-600 text-sm font-semibold px-4 py-3 rounded-xl border border-red-100 flex items-start gap-2">
                         <i class="fas fa-exclamation-circle mt-0.5"></i>
                         <div>
                             {% for error in form.non_field_errors %}
-                                <p>{{ error }}</p>
+                            <p>{{ error }}</p>
                             {% endfor %}
                         </div>
                     </div>
@@ -136,14 +93,9 @@
                     </div>
 
                     <div>
-                        <div class="flex justify-between items-center mb-1.5 ml-1 mr-1">
-                            <label for="password"
-                                class="block text-xs font-bold text-gray-700 uppercase tracking-wide">Password <span
-                                    class="text-red-500">*</span></label>
-                            <a href="{% url 'password_reset_request' %}"
-                                class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot
-                                Password?</a>
-                        </div>
+                        <label for="password"
+                            class="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5 ml-1">Password
+                            <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-lock text-gray-400"></i>
@@ -155,6 +107,11 @@
                                 class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-700 transition-colors focus:outline-none">
                                 <i class="fas fa-eye text-lg"></i>
                             </button>
+                        </div>
+                        <div class="mt-1.5 ml-1">
+                            <a href="{% url 'password_reset_request' %}"
+                                class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot
+                                Password?</a>
                         </div>
                     </div>
 
@@ -227,12 +184,8 @@
                                         class="w-full border-2 border-gray-100 rounded-xl py-2.5 px-4 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-gray-900 font-medium transition-all text-sm">
                                 </div>
                                 <div class="mb-3">
-                                    <div class="flex justify-between items-center mb-1.5">
-                                        <label
-                                            class="block text-xs font-bold text-gray-600 uppercase tracking-wide">Password</label>
-                                        <a href="{% url 'student_password_reset_request' %}"
-                                            class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot?</a>
-                                    </div>
+                                    <label
+                                        class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Password</label>
                                     <div class="relative">
                                         <input type="password" name="password" required placeholder="••••••••"
                                             value="{{ password|default:'' }}"
@@ -241,6 +194,11 @@
                                             class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-700 transition-colors focus:outline-none">
                                             <i class="fas fa-eye"></i>
                                         </button>
+                                    </div>
+                                    <div class="mt-1 ml-0.5">
+                                        <a href="{% url 'student_password_reset_request' %}"
+                                            class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot
+                                            Password?</a>
                                     </div>
                                 </div>
                                 <button type="submit"
@@ -258,7 +216,17 @@
                         class="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold transition-all flex items-center justify-center gap-3 group">
                         <div
                             class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <i class="fas fa-face-viewfinder"></i>
+                            <!-- Face scan SVG icon -->
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                class="w-5 h-5">
+                                <path d="M2 8V6a2 2 0 0 1 2-2h2" />
+                                <path d="M2 16v2a2 2 0 0 0 2 2h2" />
+                                <path d="M22 8V6a2 2 0 0 0-2-2h-2" />
+                                <path d="M22 16v2a2 2 0 0 1-2 2h-2" />
+                                <circle cx="12" cy="10" r="3" />
+                                <path d="M8.5 16a5 5 0 0 1 7 0" />
+                            </svg>
                         </div>
                         Student Face Login
                     </a>

@@ -450,9 +450,10 @@
             class="text-base font-black text-blue-600 flex items-center gap-2 truncate min-w-0"
             aria-label="SmartAttend home">
             <img src="{% static 'logo.png' %}" alt="Logo" class="w-6 h-6 rounded shrink-0" aria-hidden="true">
-            <span class="truncate">SmartAttend</span>
+            <span class="truncate">SmartAttend.</span>
         </a>
-        <div class="flex items-center gap-1 shrink-0 ml-2">
+        <div class="flex items-center gap-2 shrink-0 ml-2">
+            <img src="{% static 'fmu_logo.png' %}" alt="Fakir Mohan University" class="w-10 h-10 object-contain" title="Fakir Mohan University">
             <form action="{% url 'logout' %}" method="post" style="display:inline;">
                 {% csrf_token %}
                 <button type="submit"
@@ -475,12 +476,25 @@
         role="navigation" aria-label="Main navigation">
 
         <!-- Brand -->
-        <div class="px-6 py-5 hidden md:flex items-center gap-2">
-            <img src="{% static 'logo.png' %}" alt="Logo" class="w-8 h-8 rounded-xl shadow-sm">
-            <a href="{% url 'dashboard' %}"
-                class="text-lg font-black text-gray-900 tracking-tight hover:text-blue-600 transition-colors">
-                SmartAttend
-            </a>
+        <div class="hidden md:flex flex-col">
+            <!-- SmartAttend top strip -->
+            <div class="px-5 py-3 flex items-center gap-2 border-b border-gray-100">
+                <img src="{% static 'logo.png' %}" alt="SmartAttend Logo" class="w-7 h-7 rounded-lg shadow-sm">
+                <a href="{% url 'dashboard' %}" class="text-base font-black text-gray-900 tracking-tight hover:text-blue-600 transition-colors">
+                    SmartAttend.
+                </a>
+            </div>
+            <!-- University Logo Panel -->
+            <div class="flex flex-col items-center gap-2 py-5 px-4"
+                 style="background: linear-gradient(160deg, #f0f4ff 0%, #e8f0fe 100%); border-bottom: 1px solid #dbeafe;">
+                <img src="{% static 'fmu_logo.png' %}" alt="Fakir Mohan University"
+                     class="w-20 h-20 object-contain drop-shadow-sm">
+                <div class="text-center">
+                    <p class="text-[11px] font-black text-indigo-900 tracking-wide uppercase leading-tight">Fakir Mohan</p>
+                    <p class="text-[11px] font-black text-indigo-900 tracking-wide uppercase leading-tight">University</p>
+                    <p class="text-[9px] font-medium text-indigo-400 mt-0.5 tracking-widest">Balasore, Odisha</p>
+                </div>
+            </div>
         </div>
 
         <!-- Navigation Links -->
@@ -600,6 +614,29 @@
             </p>
         </div>
     </aside>
+    {% endif %}
+
+    {% if not user.is_authenticated %}
+    <!-- ── UNAUTHENTICATED TOP BAR ── -->
+    <header class="w-full sticky top-0 z-50" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); box-shadow: 0 2px 12px rgba(79,70,229,0.18);">
+        <div class="max-w-7xl mx-auto px-6 py-2.5 flex items-center justify-between">
+            <!-- Left: SmartAttend brand (links to login) -->
+            <a href="{% url 'login' %}" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <img src="{% static 'logo.png' %}" alt="SmartAttend Logo" class="w-8 h-8 rounded-xl shadow-md bg-white/10 p-0.5">
+                <span class="text-white text-lg font-black tracking-tight" style="font-family: 'Outfit', sans-serif;">SmartAttend.</span>
+            </a>
+            <!-- Right: University logo -->
+            <div class="flex items-center gap-3">
+                <div class="text-right hidden sm:block">
+                    <p class="text-white text-[11px] font-bold leading-tight tracking-wide">Fakir Mohan University</p>
+                    <p class="text-indigo-200 text-[9px] font-medium tracking-widest">Balasore, Odisha</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg border-2 border-white/30 p-0.5">
+                    <img src="{% static 'fmu_logo.png' %}" alt="Fakir Mohan University" class="w-full h-full object-contain rounded-full">
+                </div>
+            </div>
+        </div>
+    </header>
     {% endif %}
 
     <!-- ── MAIN CONTENT ────────────────────────── -->
