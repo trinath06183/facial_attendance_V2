@@ -1,0 +1,322 @@
+is a need for a streamlined platform that simplifies the entire process from collecting donations to 2 
+ 
+ 
+List of Figures 
+ 
+ 
+FIGURE NAME PAGE NO 
+1 Spiral model 16 
+2 Data Flow Diagram level 0 17 
+3 Data Flow Diagram Level 1 18 
+4 User Case Diagram 19 
+5 ER Diagram 20 
+6 User Registration Form and Login Form 25 
+7 User Profile 26 
+8  Order Form 26 
+9 Donate Form 27 
+10 Admin Dashboard 28 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+3 
+ 
+List of Tables:- 
+ 
+TABLE NAME PAGE NO1 User’s Table 21 
+2 Donations Table 21 
+3 Orders Table 21 
+4 Dresses Table 22 
+5 Admins Table 23 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+4 
+ 
+Contents 
+ Page No 
+CERTIFICATE 3 
+ACKNOWLEDGEMENT 4 
+ABSTRACT 5 
+LIST OF FIGURES AND TABLES 6-7 
+CHAPTER-1 : INTRODUCTION 9 
+              INTRODUCTION TO USED CLOTHES MANAGEMENT SYSTEM 9 
+              PROBLEM STATEMENT 9 
+              MOTIVATION 9 
+              PROJECT GOAL 9 
+              METHODOLOGY 9 
+              HARDWARE & SOFTWARE REQUIREMENTS 10 
+              TESTING OF THE PROPOSED METHOD/TECHNOLOGY 10 
+              PROJECT CONTRIBUTION 11 
+CHAPTER-2 : LITERATURE SURVEY 12 
+CHAPTER-3 : SYSTEM ANALYSIS AND DESIGN 13 
+               INTRODUCTION TO OUR SYSTEM 13 
+               OVERVIEW OF THIS SYSTEM 13 
+               WORKFLOW OF THE SYSTEM 14 
+               SOFTWARE DEVELOPMENT MODEL 15 
+               DATA FLOW DIAGRAM 17 
+               USER CASE DIAGRAM 19 
+               E-R DIAGRAM 20 
+               RELATIONAL TABLES USED IN THIS SYSTEM 21 
+               SYSTEM INTERFACE 23 
+CHAPTER-4 : IMPLEMENTATION 29 
+CHAPTER-5 : TESTING 36 
+               TESTING AND VALIDATION 36 
+               TEST REPORT 36 
+CHAPTER-6 : DEPLOYMENT PHASE 38 
+                DEPLOYMENT ENVIRONMENT 38 
+                DEPLOYMENT STEPS 38 
+CHAPTER-7 : CONCLUSION AND FUTURE WORK 39 
+BIBLIOGRAPHY 41 
+ 
+ 
+ 
+ 
+ 
+ 
+5 
+ 
+CHAPTER 1 
+Introduction 
+The Used Clothes Management System is an online platform, is created to make the process of 
+handling second-hand clothes more organized and efficient. It provides a structured way for donors, 
+administrators, and recipients to interact, covering tasks such as managing donations, tracking 
+orders. This system encourages sustainable clothing habits by making it easier to donate and 
+distribute clothes to those who need them. Key features include donor accounts, inventory tracking, 
+and administrative management, all aimed at ensuring a smooth and transparent workflow. 
+ 
+PROBLEM STATEMENT 
+Managing the donation and distribution of used clothes is often unorganized and inefficient. Many 
+people who wish to donate clothes face difficulties in finding proper channels, while organizations 
+struggle to track donations, manage inventory. The lack of a centralized system leads to wasted 
+resources, delays, and mismanagement, making it harder for clothes to reach those in need. There 
+is a need for a streamlined platform that simplifies the entire process  from collecting donations to 
+delivering clothes ensuring transparency, accountability, and ease of access for all users. 
+ 
+MOTIVATION 
+The growing awareness of sustainable living and the desire to support underprivileged communities 
+inspire the development of a Used Clothes Management System. Many individuals are willing to 
+donate their clothes, but the absence of a structured and accessible platform discourages them. At 
+the same time, countless people can benefit from these donations if an efficient system connects 
+donors and recipients. By creating a centralized solution, we can reduce clothing waste, promote 
+reuse, and make it easier for donations to reach those who truly need them. This system aims to 
+encourage social responsibility while simplifying the donation process for everyone involved. 
+ 
+PROJECT GOAL 
+The goal of the Used Clothes Management System is to develop a user-friendly and efficient 
+platform that facilitates the collection, management, and distribution of donated clothes. The 
+system aims to connect donors, administrators, and recipients through a centralized application 
+that handles tasks such as donations, pickup requests, inventory tracking, and order management. 
+By streamlining these processes, the project seeks to minimize clothing waste, promote reuse, 
+and ensure that donated items are distributed effectively to those in need. Ultimately, the system 
+aspires to create a transparent, organized, and accessible environment that encourages more 
+people to participate in sustainable clothing initiatives. 
+ 
+METHODOLOGY 
+The development of the Used Clothes Management System follows a structured approach to 
+ensure efficient design, implementation, and deployment. The methodology consists of the 
+following key phases: 
+1. Requirement Analysis 
+Gather and analyze the needs of donors, administrators, and recipients to define the 
+system’s core features such as donation management, pickup scheduling, inventory 
+tracking, and order processing. 
+ 
+6 
+ 
+2. System Design 
+Design the architecture of the web application, including database structure (using 
+MySQL) and front-end/back-end frameworks. User interfaces are designed to ensure ease 
+of navigation for all users. 
+3. Implementation 
+Develop the front end using modern web technologies and connect it to a PHP-based back 
+end. The database is structured to store user information, donations, orders, pickups, and 
+logs securely. 
+4. Testing 
+Perform functional, usability, and security testing to identify and fix bugs. Ensure that all 
+system features work correctly and that user data is handled safely. 
+5. Deployment 
+Host the application on a server, making it accessible to users. Configure the database and 
+application to ensure smooth operation in a real-world environment. 
+6. Maintenance and Updates 
+Continuously monitor system performance, gather user feedback, and implement updates 
+or improvements as needed to enhance usability and reliability. 
+ 
+HARDWARE & SOFTWARE REQUIREMENTS 
+Hardware Requirements 
+ Processor: Intel Core i3 or higher 
+ RAM: Minimum 4 GB (8 GB recommended) 
+ Hard Disk: Minimum 100 GB free space 
+ Monitor: Standard display (720p or higher recommended) 
+ Internet Connection: Stable broadband connection for hosting and accessing the web 
+application 
+Software Requirements 
+ Operating System: Windows 10 / Linux / macOS 
+ Front-End: HTML, CSS, JavaScript (with libraries or frameworks as required) 
+ Back-End: PHP 7.4 or higher 
+ Database: MySQL 5.7 or higher 
+ Web Server: XAMPP / WAMP / LAMP (for local development) 
+ Browser: Google Chrome, Mozilla Firefox, or any modern browser 
+ Code Editor: Visual Studio Code / Sublime Text / PHPStorm 
+ Other Tools: phpMyAdmin (for database management), Git (for version control) 
+ 
+TESTING OF THE PROPOSED METHOD/TECHNOLOGY 
+To ensure that the Used Clothes Management System functions reliably and meets user 
+expectations, various testing techniques were applied throughout the development process: 
+1. Unit Testing 
+Each module, such as user registration, donation submission, and pickup request, was 
+individually tested to verify that it performs its intended functionality without errors. 
+2. Integration Testing 
+Interactions between different modules (e.g., donation management linked with inventory 
+tracking and admin dashboard) were tested to ensure smooth data flow and proper 
+coordination between components. 
+ 
+7 
+ 
+3. System Testing 
+The complete system was tested as a whole to confirm that all features work together 
+correctly under different scenarios and that the system meets the original requirements. 
+4. Usability Testing 
+The user interface was tested to evaluate ease of navigation, clarity of instructions, and 
+overall user experience. Feedback from users was incorporated to improve the design and 
+functionality. 
+5. Performance Testing 
+The application’s speed, responsiveness, and stability were tested under various loads to 
+ensure it handles multiple users and large data sets efficiently. 
+6. Security Testing 
+Measures were taken to test for vulnerabilities, including data validation, authentication 
+mechanisms, and protection against SQL injection or unauthorized access. 
+7. Acceptance Testing 
+The final version was reviewed by stakeholders to ensure that it fulfils all requirements 
+and is ready for deployment. 
+ 
+PROJECT CONTRIBUTION 
+The Used Clothes Management System makes several meaningful contributions both 
+technically and socially: 
+1. Simplified Donation Process 
+The project offers an easy-to-use platform where donors can conveniently schedule 
+pickups and manage their donations, encouraging more people to participate in clothing 
+donation. 
+2. Efficient Administration 
+The system equips administrators with powerful tools to manage donations, track 
+inventory, process orders, and handle pickups, improving operational efficiency and 
+transparency. 
+3. Promotes Sustainability 
+By facilitating the reuse of clothes, the system helps reduce textile waste and supports 
+environmental sustainability through responsible resource management. 
+4. Support to Underprivileged Communities 
+The project ensures that donated clothes are efficiently distributed to individuals and 
+communities in need, thereby contributing to social welfare. 
+5. Technical Innovation 
+The integration of a PHP backend, MySQL database, and a modern web-based interface 
+demonstrates the practical application of software development techniques to solve real-
+world problems. 
+6. Scalability and Future Expansion 
+The system is designed to accommodate future enhancements, such as analytics, 
+reporting, and wider geographical coverage, making it a scalable solution for long-term 
+use. 
+ 
+ 
+ 
+ 
+ 
+8 
+ 
+Chapter 2 : 
+Literature Survey 
+ 
+The management of used clothes has gained increasing attention in recent years, driven by concerns 
+about environmental sustainability, waste reduction, and social welfare. Several studies and 
+existing systems highlight the importance of structured solutions for the collection and 
+redistribution of pre-owned garments. 
+1. Existing Donation Platforms 
+Many charitable organizations operate basic donation systems where donors manually 
+drop off clothes at collection centers. While effective on a small scale, these systems often 
+lack digital tools for tracking donations, managing inventory. Research indicates that 
+manual systems are prone to mismanagement, duplication, and resource wastage. 
+2. E-Waste and Recycling Management Systems 
+lack digital tools for tracking donations and managing inventory. Research indicates that centralized digital platforms can enhance collection, categorization, and redistribution 
+processes. Concepts from these systems, such as inventory tracking, donor management, 
+and logistics coordination, can be adapted to clothing management. 
+3. Textile Recycling Initiatives 
+Studies on textile recycling emphasize that reusing and redistributing garments can 
+substantially decrease the fashion industry's environmental footprint. A 2020 article in the 
+Journal of Cleaner Production notes that around 92 million tons of textile waste are 
+generated annually. 
+4. Technological Solutions in Social Welfare 
+Studies emphasize that technology-driven platforms increase transparency, accountability, 
+and participation in social welfare activities. Systems integrating web applications, 
+databases, and mobile apps have been effective in improving donor engagement and 
+ensuring fair distribution of resources. 
+5. Gaps in Existing Systems 
+Current literature identifies a lack of platforms specifically tailored for the end-to-end 
+management of used clothes. Most systems focus on isolated functions (like donation or 
+recycling) but do not integrate donation management, pickup scheduling, inventory 
+control, and distribution in a single unified system. 
+6. Need for an Integrated Platform 
+A comprehensive platform that manages the entire lifecycle of donated clothes — from 
+collection to redistribution — is necessary to address operational inefficiencies and 
+maximize the social and environmental benefits of clothing donations. 
+ 
+Conclusion of Literature Survey 
+Collectively, these scholars provide a comprehensive foundation for understanding how ICT 
+platforms can promote sustainability, manage resources efficiently, and encourage community 
+participation. Their research informs both the technical and social dimensions of the Used Clothes Management System, ensuring it is not only functional but also socially impactful and environmentally 
+responsible. 
+ 

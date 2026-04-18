@@ -19,6 +19,9 @@
                 </a>
                 <h1 class="text-3xl font-black text-gray-900 tracking-tight">{{ session.subject.code }} </h1>
                 <p class="text-gray-500 font-mono text-sm tracking-widest mt-1 uppercase">{{ session.started_at|date:"l, M d, Y · h:i A" }}</p>
+                {% if session.auto_close_at %}
+                <p class="text-amber-600 font-mono text-xs tracking-widest mt-2 uppercase">Auto closes at {{ session.auto_close_at|date:"h:i A" }}</p>
+                {% endif %}
             </div>
             
             <div class="flex flex-wrap items-center gap-3">
@@ -72,6 +75,21 @@
                 <p id="metric-present" class="text-3xl font-black text-emerald-700 tracking-tight relative z-10 animate-pulse bg-emerald-200 text-transparent rounded w-12 h-9 inline-block"></p>
             </div>
         </div>
+
+        {% if session.auto_close_at %}
+        <div class="bg-white border border-amber-100 rounded-3xl shadow-sm p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <p class="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Teacher Session Timing</p>
+                <p class="text-sm font-semibold text-gray-700">Attendance closes automatically at {{ session.auto_close_at|date:"h:i A" }}</p>
+            </div>
+            <div class="md:text-right">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Time Remaining</p>
+                <p id="session-timer" class="text-3xl font-black text-amber-600 tracking-tight">
+                    {% if session.status == 'OPEN' %}--:--:--{% else %}00:00:00{% endif %}
+                </p>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Manual Refresh Control -->
         <div class="hidden bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
@@ -137,6 +155,7 @@
     const SESSION_STATUS = "{{ session.status }}";
     const USER_ROLE = "{{ request.user.role }}";
     const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const SESSION_AUTO_CLOSE_AT = "{{ session.auto_close_at|date:'c' }}";
     
     // Determine if current user can edit
     const isTeacherAssigned = ("{% if request.user in session.subject.teachers.all or request.user == session.teacher %}true{% endif %}" === "true");
@@ -153,11 +172,27 @@
         iconRefresh: document.getElementById('manualRefreshIcon'),
         lblLastTime: document.getElementById('sync-last-time'),
         lblTrigger: document.getElementById('sync-trigger-label'),
-        
+        timer: document.getElementById('session-timer'),
         offlineBanner: document.getElementById('offline-banner')
     };
 
     let isFetching = false;
+
+    function formatSeconds(totalSeconds) {
+        const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+        const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+        const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateSessionTimer(remainingSeconds = null, status = SESSION_STATUS) {
+        if (!DOM.timer || !SESSION_AUTO_CLOSE_AT) return;
+
+        const fallbackSeconds = Math.max(0, Math.floor((new Date(SESSION_AUTO_CLOSE_AT).getTime() - Date.now()) / 1000));
+        const seconds = remainingSeconds === null ? fallbackSeconds : Math.max(0, remainingSeconds);
+
+        DOM.timer.textContent = formatSeconds(seconds);
+    }
 
     // ─── OFFLINE HANDLING ──────────────────────
     function updateOnlineStatus(e) {
@@ -197,6 +232,7 @@
                 DOM.expected.textContent = parsed.data.total_expected;
                 DOM.present.textContent = parsed.data.total_present;
                 DOM.enrolledBadge.textContent = `${parsed.data.roster.length} Enrolled`;
+                updateSessionTimer(parsed.data.remaining_seconds, parsed.data.status);
                 
                 const d = new Date();
                 DOM.lblLastTime.textContent = `Last: ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
@@ -359,6 +395,8 @@
     // Initialize 
     document.addEventListener("DOMContentLoaded", () => {
         fetchLedger('Initial Load');
+        updateSessionTimer();
+        window.setInterval(() => updateSessionTimer(), 1000);
     });
 </script>
 {% endblock %}

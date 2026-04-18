@@ -39,9 +39,11 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'apps.attendance.middleware.AttendanceAutoCloseMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.accounts.middleware.InactivityLogoutMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.audit.middleware.AuditMiddleware',
@@ -121,6 +123,7 @@ SESSION_COOKIE_AGE = 10800   # 3 hours in seconds
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 # Safety net: even persistent sessions max out at 8 hours of inactivity.
 SESSION_COOKIE_AGE = 86400   # 24 hours in seconds
+INACTIVITY_TIMEOUT_SECONDS = 3600
 
 # ── Email Settings for OTP ──────────────────────────────────────────────────
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

@@ -45,6 +45,8 @@ def session_create(request):
             session = form.save(commit=False)
             session.teacher = request.user
             session.save()
+            session.initialize_timing()
+            session.save(update_fields=['auto_close_at'])
             audit(request, 'SESSION_CREATED', 'AttendanceSession', str(session.id))
             messages.success(request, f"Session for {session.subject} created.")
             return redirect('session_detail', pk=session.id)
@@ -55,6 +57,7 @@ def session_create(request):
 @login_required
 def session_detail(request, pk):
     session = get_object_or_404(AttendanceSession, pk=pk)
+    session.close_if_expired(commit=True)
     records = session.records.select_related('student').all()
     
     # Pre-populate absent records for active students in section if not exist
@@ -83,6 +86,7 @@ def session_detail(request, pk):
 @require_POST
 def session_close(request, pk):
     session = get_object_or_404(AttendanceSession, pk=pk)
+    session.close_if_expired(commit=True)
     if session.status == 'OPEN':
         session.status = 'CLOSED'
         session.closed_at = timezone.now()
@@ -99,7 +103,11 @@ def session_reopen(request, pk):
         return redirect('session_detail', pk=pk)
         
     session = get_object_or_404(AttendanceSession, pk=pk)
+    session.close_if_expired(commit=True)
     if session.status == 'CLOSED':
+        if session.auto_close_at and timezone.now() >= session.auto_close_at:
+            messages.error(request, "This session has already reached the teacher timing limit.")
+            return redirect('session_detail', pk=pk)
         # Re-open the session
         session.status = 'OPEN'
         session.closed_at = None
@@ -112,6 +120,7 @@ def session_reopen(request, pk):
 def scanner_view(request, pk):
     """View that renders the QR and face scanner interface."""
     session = get_object_or_404(AttendanceSession, pk=pk)
+    session.close_if_expired(commit=True)
     if session.status != 'OPEN':
         messages.warning(request, "This session is not open for scanning.")
         return redirect('session_detail', pk=pk)
@@ -125,6 +134,7 @@ def lookup_profile(request, pk):
     Expects JSON: { "qr_token": "..." }
     """
     session = get_object_or_404(AttendanceSession, pk=pk)
+    session.close_if_expired(commit=True)
     if session.status != 'OPEN':
         return JsonResponse({'success': False, 'error': 'SESSION_CLOSED'})
         
@@ -187,6 +197,7 @@ def verify_attendance(request, pk):
     Expects JSON: { "frame": "base64...", "current_qr": "..." }
     """
     session = get_object_or_404(AttendanceSession, pk=pk)
+    session.close_if_expired(commit=True)
     if session.status != 'OPEN':
         return JsonResponse({'success': False, 'error': 'SESSION_CLOSED'})
 

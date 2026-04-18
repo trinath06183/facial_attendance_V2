@@ -294,6 +294,7 @@ def manual_override_api(request, session_id):
         return JsonResponse({'success': False, 'error': 'Invalid JSON'})
         
     session = get_object_or_404(AttendanceSession, id=session_id)
+    session.close_if_expired(commit=True)
     student = get_object_or_404(Student, id=student_id)
     
     if session.status != 'OPEN':
@@ -347,6 +348,7 @@ def attendance_record_edit_api(request, record_id):
         
     try:
         record = get_object_or_404(AttendanceRecord.objects.select_related('session__subject', 'student'), id=record_id)
+        record.session.close_if_expired(commit=True)
         
         # RBAC logic for edits
         if request.user.role != 'ADMIN':
@@ -467,6 +469,7 @@ def attendance_session_ledger_api(request, session_id):
     from apps.students.models import Student
     
     session = get_object_or_404(AttendanceSession.objects.select_related('subject', 'teacher'), id=session_id)
+    session.close_if_expired(commit=True)
     
     if session.subject:
         if not (request.user.role == 'ADMIN' or request.user in session.subject.teachers.all() or request.user == session.teacher):
@@ -509,6 +512,8 @@ def attendance_session_ledger_api(request, session_id):
             'total_expected': session.total_expected,
             'total_present': session.total_present,
             'status': session.status,
+            'auto_close_at': session.auto_close_at.isoformat() if session.auto_close_at else None,
+            'remaining_seconds': session.remaining_seconds,
             'roster': roster
         }
     })

@@ -8,8 +8,8 @@ class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active')
     list_filter = ('role', 'is_active')
     fieldsets = UserAdmin.fieldsets + (
-        ('Role & Security', {'fields': ('role', 'mfa_enabled')}),
+        ('Role & Security', {'fields': ('role', 'mfa_enabled', 'attendance_session_minutes')}),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Role', {'fields': ('role',)}),
+        ('Role', {'fields': ('role', 'attendance_session_minutes')}),
     )

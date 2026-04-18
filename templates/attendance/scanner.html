@@ -12,6 +12,16 @@
         <p class="text-gray-400 text-sm mt-0.5">{{ session.section }} — {{ session.started_at|date:"l, M d, Y" }}</p>
     </div>
 </div>
+{% if session.auto_close_at %}
+<div class="mb-6 flex justify-end">
+    <div class="bg-white border border-amber-100 rounded-3xl shadow-sm px-6 py-4 min-w-[220px]">
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Time Remaining</p>
+        <p id="scanner-session-timer" class="text-3xl font-black text-amber-600 tracking-tight text-right mt-1">
+            {% if session.status == 'OPEN' %}--:--:--{% else %}00:00:00{% endif %}
+        </p>
+    </div>
+</div>
+{% endif %}
 
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative">
 
@@ -130,6 +140,8 @@
     const OVERRIDE_URL = "{% url 'manual_override_api' session.id %}";
     const SECTION_ID  = "{{ session.section_id }}";
     const CSRF_TOKEN  = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const SESSION_AUTO_CLOSE_AT = "{{ session.auto_close_at|date:'c' }}";
+    const SESSION_DETAIL_URL = "{% url 'session_detail' session.id %}";
 
     const UI = {
         tabScan: document.getElementById('tab-scan'),
@@ -149,9 +161,23 @@
         profileCourse: document.getElementById('profile-course'),
         profileStatus: document.getElementById('profile-status'),
         attendanceStatus: document.getElementById('attendance-status'),
-        
+        sessionTimer: document.getElementById('scanner-session-timer'),
         mismatchOverlay: document.getElementById('mismatch-overlay')
     };
+
+    function formatSeconds(totalSeconds) {
+        const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+        const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+        const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateScannerTimer() {
+        if (!UI.sessionTimer || !SESSION_AUTO_CLOSE_AT) return;
+
+        const remainingSeconds = Math.max(0, Math.floor((new Date(SESSION_AUTO_CLOSE_AT).getTime() - Date.now()) / 1000));
+        UI.sessionTimer.textContent = formatSeconds(remainingSeconds);
+    }
 
     // Tabs
     function switchTab(tab) {
@@ -169,6 +195,8 @@
     }
     UI.tabScan.addEventListener('click', () => switchTab('scan'));
     UI.tabManual.addEventListener('click', () => switchTab('manual'));
+    updateScannerTimer();
+    window.setInterval(updateScannerTimer, 1000);
 
     // Manual Override Logic
     const searchInput = document.getElementById('manual-search-input');

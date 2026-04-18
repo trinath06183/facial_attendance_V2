@@ -4,6 +4,11 @@ from django.contrib.sessions.models import Session
 
 logger = logging.getLogger(__name__)
 
+
+def touch_user_activity(request):
+    if request.user.is_authenticated:
+        request.session['last_activity_at'] = timezone.now().isoformat()
+
 def is_user_already_active(user, request):
     """
     Checks if the user has an active session in the database

@@ -23,6 +23,10 @@ class CustomUser(AbstractUser):
         blank=True,
         help_text="Session key of the user's current active session. A new login invalidates the previous one."
     )
+    attendance_session_minutes = models.PositiveIntegerField(
+        default=60,
+        help_text="For teacher accounts, attendance sessions stay open for this many minutes."
+    )
 
     def is_admin(self):
         return self.role == 'ADMIN' or self.is_superuser
@@ -32,6 +36,9 @@ class CustomUser(AbstractUser):
 
     def is_student(self):
         return self.role == 'STUDENT'
+
+    def get_attendance_session_minutes(self):
+        return max(1, self.attendance_session_minutes or 60)
 
     def __str__(self):
         return f"{self.get_full_name()} ({self.role})"

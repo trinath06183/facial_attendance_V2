@@ -3,9 +3,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.views import LoginView
-from apps.accounts.utils import is_user_already_active, terminate_user_session
+from django.conf import settings
+from apps.accounts.utils import is_user_already_active, terminate_user_session, touch_user_activity
 from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
 import json
@@ -48,7 +49,9 @@ class CustomLoginView(LoginView):
 
         # Tell the signal which auth method was used
         self.request.session['_auth_method'] = 'password'
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        touch_user_activity(self.request)
+        return response
 
 def is_admin(user):
     return user.is_authenticated and user.role == 'ADMIN'
@@ -185,6 +188,7 @@ def biometric_login_api(request):
 
             request.session['_auth_method'] = 'facial_recognition'
             login(request, student.user)
+            touch_user_activity(request)
             # Reset failed attempts
             request.session['bio_failed_attempts'] = 0
             
@@ -399,6 +403,7 @@ def student_face_login_api(request):
 
             if not request.user.is_authenticated or request.user.id != student.user.id:
                 login(request, student.user, backend='django.contrib.auth.backends.ModelBackend')
+                touch_user_activity(request)
                 request.session['bio_failed_attempts'] = 0
                 audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(student.user.id),
                       f"Biometric login — score {result.get('face_score', 0):.4f}")
@@ -424,7 +429,6 @@ def student_face_login_api(request):
 
 import secrets
 from django.core.mail import send_mail
-from django.conf import settings
 from .models import PasswordResetOTP
 
 def password_reset_request(request):
@@ -568,6 +572,7 @@ def student_password_login(request):
 
             request.session['_auth_method'] = 'password'
             login(request, user)
+            touch_user_activity(request)
             # Force password change on first login
             if user.must_change_password:
                 return redirect('student_first_login_change_password')
@@ -761,3 +766,18 @@ def student_first_login_change_password(request):
             return redirect('dashboard')
 
     return render(request, 'accounts/student_first_login_change_password.html')
+
+
+@login_required
+@require_POST
+def session_activity_ping(request):
+    touch_user_activity(request)
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def session_idle_logout(request):
+    request.session['_logout_reason'] = 'inactivity_timeout'
+    logout(request)
+    return JsonResponse({'success': True, 'redirect_url': settings.LOGIN_URL})

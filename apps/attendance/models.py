@@ -1,6 +1,8 @@
 import uuid
+from datetime import timedelta
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 
 class Room(models.Model):
@@ -67,6 +69,7 @@ class AttendanceSession(models.Model):
     teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     started_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(null=True, blank=True)
+    auto_close_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN')
     mode = models.CharField(max_length=20, choices=MODE_CHOICES, default='IN_PERSON')
     location_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -75,6 +78,45 @@ class AttendanceSession(models.Model):
     def __str__(self):
         subj = str(self.subject) if self.subject else "No Subject"
         return f"{subj} on {self.started_at.strftime('%Y-%m-%d %H:%M')}"
+
+    @property
+    def remaining_seconds(self):
+        if self.status != 'OPEN' or not self.auto_close_at:
+            return None
+        return max(0, int((self.auto_close_at - timezone.now()).total_seconds()))
+
+    def initialize_timing(self):
+        if self.auto_close_at or not self.teacher:
+            return
+        duration = self.teacher.get_attendance_session_minutes()
+        self.auto_close_at = self.started_at + timedelta(minutes=duration)
+
+    def close_if_expired(self, now=None, commit=False):
+        now = now or timezone.now()
+        if self.status == 'OPEN' and self.auto_close_at and now >= self.auto_close_at:
+            self.status = 'CLOSED'
+            self.closed_at = self.auto_close_at
+            if commit:
+                self.save(update_fields=['status', 'closed_at'])
+            return True
+        return False
+
+    @classmethod
+    def close_expired_sessions(cls, now=None):
+        now = now or timezone.now()
+        expired_sessions = cls.objects.filter(
+            status='OPEN',
+            auto_close_at__isnull=False,
+            auto_close_at__lte=now,
+        )
+
+        closed_count = 0
+        for session in expired_sessions:
+            session.status = 'CLOSED'
+            session.closed_at = session.auto_close_at
+            session.save(update_fields=['status', 'closed_at'])
+            closed_count += 1
+        return closed_count
 
     @property
     def total_expected(self):

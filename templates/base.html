@@ -738,6 +738,93 @@
 
         // Auto-logout beacon removed to prevent random session invalidation on refresh/tab switch
     </script>
+    {% if user.is_authenticated %}
+    <script>
+        (() => {
+            const LOGIN_URL = "{% url 'login' %}";
+            const PING_URL = "{% url 'session_activity_ping' %}";
+            const IDLE_LOGOUT_URL = "{% url 'session_idle_logout' %}";
+            const IDLE_TIMEOUT_MS = 60 * 60 * 1000;
+            const PING_INTERVAL_MS = 60 * 1000;
+
+            let lastActivityAt = Date.now();
+            let lastPingAt = 0;
+            let loggingOut = false;
+
+            function getCookie(name) {
+                const cookie = document.cookie.split('; ').find((row) => row.startsWith(`${name}=`));
+                return cookie ? decodeURIComponent(cookie.split('=')[1]) : '';
+            }
+
+            async function postJson(url) {
+                return fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: '{}',
+                    credentials: 'same-origin',
+                });
+            }
+
+            function clearClientState() {
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                } catch (error) {
+                    console.debug('Storage clear skipped', error);
+                }
+            }
+
+            async function forceLogoutForInactivity() {
+                if (loggingOut) return;
+                loggingOut = true;
+                clearClientState();
+
+                try {
+                    await postJson(IDLE_LOGOUT_URL);
+                } catch (error) {
+                    console.debug('Idle logout request failed', error);
+                } finally {
+                    window.location.replace(LOGIN_URL);
+                }
+            }
+
+            function recordActivity() {
+                if (loggingOut) return;
+
+                const now = Date.now();
+                lastActivityAt = now;
+
+                if (now - lastPingAt < PING_INTERVAL_MS) return;
+
+                lastPingAt = now;
+                postJson(PING_URL).catch((error) => console.debug('Activity ping failed', error));
+            }
+
+            function checkIdleTimeout() {
+                if (Date.now() - lastActivityAt >= IDLE_TIMEOUT_MS) {
+                    forceLogoutForInactivity();
+                }
+            }
+
+            ['mousemove', 'mousedown', 'click', 'keydown', 'touchstart', 'scroll'].forEach((eventName) => {
+                window.addEventListener(eventName, recordActivity, { passive: true });
+            });
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    recordActivity();
+                }
+            });
+
+            recordActivity();
+            window.setInterval(checkIdleTimeout, 15000);
+        })();
+    </script>
+    {% endif %}
     <script>
         function togglePasswordVisibility(btn) {
             const input = btn.parentElement.querySelector('input');
