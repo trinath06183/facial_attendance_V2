@@ -18,7 +18,7 @@ urlpatterns = [
     path('api/summary/', api_views.attendance_summary_api, name='attendance_summary_api'),
     path('api/export/', views.export_reports, name='export_reports'),
     path('analytics/', views.analytics_dashboard, name='analytics_dashboard'),
-    # ── Enhanced Reports ──
+    #  enhanced reports 
     path('reports/', views.reports_dashboard, name='reports_dashboard'),
     path('reports/student/<uuid:student_id>/', views.report_student_detail, name='report_student_detail'),
     path('reports/export/', views.report_export_view, name='report_export_view'),
@@ -27,20 +27,20 @@ urlpatterns = [
     path('api/reports/top-bottom/<uuid:section_id>/', report_api.report_top_bottom_api, name='report_top_bottom_api'),
     path('api/reports/overview/', report_api.report_overview_api, name='report_overview_api'),
     
-    # ── Manual Override ──
+    #  manual override 
     path('api/students/search/', api_views.student_search_api, name='student_search_api'),
     path('api/<uuid:session_id>/override/', api_views.manual_override_api, name='manual_override_api'),
     
-    # ── Inline Editing & Hydration ──
+    #  inline editing & hydration 
     path('api/record/<uuid:record_id>/edit/', api_views.attendance_record_edit_api, name='attendance_record_edit_api'),
     path('api/<uuid:session_id>/ledger/', api_views.attendance_session_ledger_api, name='attendance_session_ledger_api'),
 
-    # ── Attendance Stats per Student ──
+    #  attendance stats per student 
     path('api/stats/student/<uuid:student_id>/', api_views.student_attendance_stats_api, name='student_attendance_stats_api'),
     
-    # ── Auto-close sessions api removed ──────────────────────
+    #  auto-close sessions api removed 
     
-    # ── Dynamic Form Endpoints ──
+    #  dynamic form endpoints 
     path('api/teacher-subjects/', api_views.teacher_subjects_api, name='teacher_subjects_api'),
     path('api/academic-years/', api_views.get_academic_years_api, name='academic_years_api'),
     path('api/subjects/', api_views.get_subjects_api, name='subjects_api'),

@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block content %}
-<!-- ── Page Header ───────────────────────────── -->
+<!--  page header  -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
     <div>
         <a href="{% url 'student_detail' student.id %}"
@@ -33,13 +33,13 @@
     </button>
 </div>
 
-<!-- ── Card Layout ───────────────────────────── -->
+<!--  card layout  -->
 <div class="flex justify-center">
     {% if student.qr_ready %}
-    <!-- ID Card -->
+    <!-- id card -->
     <div class="id-card bg-white border border-gray-200 rounded-3xl shadow-xl overflow-hidden w-full max-w-sm">
 
-        <!-- Card Header (gradient) -->
+        <!-- card header (gradient) -->
         <div class="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 px-6 py-5 flex items-center gap-3 relative overflow-hidden">
             <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" aria-hidden="true"></div>
             <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 shadow">
@@ -51,7 +51,7 @@
             </div>
         </div>
 
-        <!-- QR Code Section -->
+        <!-- qr code section -->
         <div class="p-6 flex flex-col items-center">
             <div class="bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm inline-block mb-5">
                 <img src="{% url 'student_qr' student.id %}"
@@ -60,7 +60,7 @@
                     style="image-rendering: pixelated;">
             </div>
 
-            <!-- Student Info -->
+            <!-- student info -->
             <div class="text-center mb-5">
                 <h2 class="text-xl font-black text-gray-900 tracking-tight">{{ student.full_name }}</h2>
                 <p class="font-mono text-lg font-bold text-indigo-600 mt-1">{{ student.student_id }}</p>
@@ -71,7 +71,7 @@
                 {% endfor %}
             </div>
 
-            <!-- Biometric Status Badge -->
+            <!-- biometric status badge -->
             <div class="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl mb-5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" aria-hidden="true"></span>
                 <span class="text-xs font-black text-emerald-700 uppercase tracking-widest">
@@ -79,7 +79,7 @@
                 </span>
             </div>
 
-            <!-- Instructions -->
+            <!-- instructions -->
             <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 w-full text-left">
                 <p class="text-xs font-black text-indigo-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                     <i class="fas fa-info-circle" aria-hidden="true"></i> Instructions
@@ -103,7 +103,7 @@
     </div>
 
     {% else %}
-    <!-- Not Enrolled State -->
+    <!-- not enrolled state -->
     <div class="bg-white border border-gray-100 rounded-3xl shadow-sm p-12 max-w-sm w-full flex flex-col items-center text-center">
         <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4" aria-hidden="true">
             <i class="fas fa-face-frown text-red-400 text-2xl"></i>

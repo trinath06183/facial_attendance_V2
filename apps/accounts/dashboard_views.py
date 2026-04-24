@@ -11,14 +11,14 @@ from django.utils import timezone
 def dashboard(request):
     user = request.user
 
-    # Guard: student must set a new password before accessing any dashboard page
+    # guard: student must set a new password before accessing any dashboard page
     if user.role == 'STUDENT' and user.must_change_password:
         return redirect('student_first_login_change_password')
 
     ctx = {}
 
     if user.is_admin():
-        # High level system overview for Admin Dashboard
+        # high level system overview for admin dashboard
         analytics = get_admin_analytics()
         ctx['total_students'] = Student.objects.filter(enrollment_status='ACTIVE').count()
         ctx['total_sessions'] = analytics['total_sessions']
@@ -28,7 +28,7 @@ def dashboard(request):
         return render(request, 'dashboards/admin.html', ctx)
 
     elif user.is_teacher():
-        # Teacher Dashboard
+        # teacher dashboard
         my_subjects = user.subjects.all()
         ctx['my_sections'] = my_subjects
         ctx['open_sessions'] = AttendanceSession.objects.filter(
@@ -40,14 +40,14 @@ def dashboard(request):
         return render(request, 'dashboards/teacher.html', ctx)
 
     elif user.is_student():
-        # Student Dashboard
+        # student dashboard
         if hasattr(user, 'student_profile') and user.student_profile:
             analytics = get_student_analytics(user.student_profile)
             ctx['presence_percentage'] = analytics['presence_percentage']
             ctx['classes_missed'] = analytics['absent_classes']
             ctx['recent_attendance'] = analytics['recent_history']
             ctx['student'] = user.student_profile
-            # Courses for the embedded logs viewer filter
+            # courses for the embedded logs viewer filter
             from apps.attendance.models import AttendanceRecord
             ctx['log_courses'] = (
                 AttendanceRecord.objects
@@ -61,5 +61,5 @@ def dashboard(request):
             
         return render(request, 'dashboards/student.html', ctx)
 
-    # Fallback
+    # fallback
     return render(request, 'dashboards/dashboard.html', ctx)

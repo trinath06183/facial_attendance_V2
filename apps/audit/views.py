@@ -1,12 +1,12 @@
 """
 apps/audit/views.py
-────────────────────
-Admin-only System Log panel.
 
-Endpoints:
-  GET  /audit/logs/              — paginated list with filters
-  GET  /audit/logs/<uuid>/       — JSON detail for a single entry (AJAX)
-  GET  /audit/logs/export/       — CSV download of current filtered result set
+admin-only system log panel.
+
+endpoints:
+  get  /audit/logs/              — paginated list with filters
+  get  /audit/logs/<uuid>/       — json detail for a single entry (ajax)
+  get  /audit/logs/export/       — csv download of current filtered result set
 """
 
 import csv
@@ -23,7 +23,7 @@ from .models import AuditLog, EVENT_TYPE_CHOICES, AUTH_METHOD_CHOICES
 
 
 def _admin_required(view_fn):
-    """Decorator: only admins (role=ADMIN or is_superuser) can access."""
+    """decorator: only admins (role=admin or is_superuser) can access."""
     from functools import wraps
     from django.shortcuts import redirect
 
@@ -39,10 +39,10 @@ def _admin_required(view_fn):
 
 
 def _build_queryset(params):
-    """Apply filter/search params to AuditLog queryset. Returns a QS."""
+    """apply filter/search params to auditlog queryset. returns a qs."""
     qs = AuditLog.objects.select_related('actor').all()
 
-    # ── Enum filters ─────────────────────────────────────────────────────────
+    #  enum filters 
     event_type = params.get('event_type', '').strip()
     if event_type:
         qs = qs.filter(event_type=event_type)
@@ -55,7 +55,7 @@ def _build_queryset(params):
     if actor_role:
         qs = qs.filter(actor_role=actor_role)
 
-    # ── Text filters ─────────────────────────────────────────────────────────
+    #  text filters 
     user_q = params.get('user_q', '').strip()
     if user_q:
         qs = qs.filter(
@@ -66,7 +66,7 @@ def _build_queryset(params):
     if ip_q:
         qs = qs.filter(ip_address__icontains=ip_q)
 
-    # ── Full-text search across UA + context (stored as JSON text) ───────────
+    #  full-text search across ua + context (stored as json text) 
     search = params.get('search', '').strip()
     if search:
         qs = qs.filter(
@@ -78,13 +78,13 @@ def _build_queryset(params):
             | Q(os__icontains=search)
         )
 
-    # ── Date range (IST dates from the UI, converted to UTC for the query) ───
+    #  date range (ist dates from the ui, converted to utc for the query) 
     date_from = params.get('date_from', '').strip()
     if date_from:
         try:
             from datetime import datetime
             dt = datetime.strptime(date_from, '%Y-%m-%d')
-            # Make it timezone-aware in IST then let Django convert to UTC
+            # make it timezone-aware in ist then let django convert to utc
             import pytz
             ist = pytz.timezone('Asia/Kolkata')
             qs = qs.filter(timestamp__gte=ist.localize(dt))
@@ -108,7 +108,7 @@ def _build_queryset(params):
 @_admin_required
 @require_GET
 def system_logs_list(request):
-    """Main System Logs page."""
+    """main system logs page."""
     qs = _build_queryset(request.GET)
     total = qs.count()
 
@@ -144,7 +144,7 @@ def system_logs_list(request):
 @_admin_required
 @require_GET
 def system_logs_detail(request, log_id):
-    """AJAX endpoint — returns full JSON detail for one log entry."""
+    """ajax endpoint — returns full json detail for one log entry."""
     log = get_object_or_404(AuditLog, pk=log_id)
     ist = timezone.localtime(log.timestamp)
     data = {
@@ -170,7 +170,7 @@ def system_logs_detail(request, log_id):
 @_admin_required
 @require_GET
 def system_logs_export(request):
-    """Stream filtered results as a CSV download."""
+    """stream filtered results as a csv download."""
     qs = _build_queryset(request.GET)
 
     filename = f"smartattend_audit_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"

@@ -25,11 +25,11 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative">
 
-    <!-- Left side: Live Camera View (spans 7 cols) -->
+    <!-- left side: live camera view (spans 7 cols) -->
     <div class="lg:col-span-7 space-y-4 sticky top-6">
         <div class="relative bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-indigo-500/50" id="camera-frame" style="aspect-ratio: 4/3;">
             
-            <!-- Pre-start UI -->
+            <!-- pre-start ui -->
             <div id="cam-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-900/80 backdrop-blur-sm text-center p-6">
                 <div class="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
                     <i class="fas fa-camera-retro text-white text-2xl"></i>
@@ -40,13 +40,13 @@
                 </button>
             </div>
 
-            <!-- Live Video Element -->
+            <!-- live video element -->
             <video id="bio-video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-0 transition-opacity duration-300"></video>
             
-            <!-- Canvas Overlay for Drawing Bounding Boxes -->
+            <!-- canvas overlay for drawing bounding boxes -->
             <canvas id="bio-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
             
-            <!-- Hidden Canvas for Frame Capture -->
+            <!-- hidden canvas for frame capture -->
             <canvas id="hidden-canvas" class="hidden"></canvas>
             
             <div id="live-overlay" class="hidden absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-2 z-20">
@@ -63,18 +63,18 @@
         </p>
     </div>
 
-    <!-- Right side: Status and Profile Panel (spans 5 cols) -->
+    <!-- right side: status and profile panel (spans 5 cols) -->
     <div class="lg:col-span-5 relative">
         
-        <!-- Tabs -->
+        <!-- tabs -->
         <div class="flex border-b border-gray-200 mb-6 font-bold text-sm">
             <button id="tab-scan" class="flex-1 pb-3 text-blue-600 border-b-2 border-blue-600 cursor-pointer text-center">Live Biometric Scan</button>
             <button id="tab-manual" class="flex-1 pb-3 text-gray-400 border-b-2 border-transparent hover:text-gray-600 cursor-pointer text-center">Manual Override</button>
         </div>
 
-        <!-- ── TAB CONTENT: SCAN ──────────────────────── -->
+        <!--  tab content: scan  -->
         <div id="content-scan" class="space-y-4">
-            <!-- Dynamic Status Card -->
+            <!-- dynamic status card -->
             <div id="status-card" class="bg-indigo-50 border border-indigo-100 rounded-3xl p-6 shadow-sm flex items-center gap-4 transition-colors duration-300">
                 <div id="status-icon" class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl shrink-0">
                     <i class="fas fa-qrcode"></i>
@@ -85,7 +85,7 @@
                 </div>
             </div>
 
-            <!-- Student Profile Card (Hidden Initially) -->
+            <!-- student profile card (hidden initially) -->
             <div id="profile-card" class="bg-white border text-center border-gray-100 rounded-3xl p-6 shadow-lg opacity-0 pointer-events-none transition-all duration-300 scale-95 relative overflow-hidden hidden">
                 <div class="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
                 
@@ -109,7 +109,7 @@
             </div>
         </div>
 
-        <!-- ── TAB CONTENT: MANUAL ────────────────────── -->
+        <!--  tab content: manual  -->
         <div id="content-manual" class="space-y-4 hidden h-[400px]">
             <div class="bg-white border text-left border-gray-100 rounded-3xl p-6 shadow-lg min-h-[300px] flex flex-col">
                 <h3 class="text-lg font-black text-gray-900 mb-1">Search Database</h3>
@@ -121,7 +121,7 @@
                 </div>
                 
                 <div id="search-results-container" class="flex-1 overflow-y-auto pr-2 space-y-2">
-                    <!-- Results populated by JS -->
+                    <!-- results populated by js -->
                     <div class="text-center py-8 text-gray-400 text-sm italic">Type to search students in this subject...</div>
                 </div>
             </div>
@@ -271,6 +271,7 @@
     let mode = 'IDLE'; // IDLE, QR_LOCKED, SUCCESS, ERROR
     let lockedQR = null;
     let currentStudent = null;
+    let livenessHint = 'Look directly at the camera.';
     let scanInterval = null;
 
     const video = document.getElementById('bio-video');
@@ -297,7 +298,7 @@
             UI.statusIcon.innerHTML = '<i class="fas fa-face-viewfinder fa-beat"></i>';
             UI.statusIcon.className = 'w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl shrink-0';
             UI.statusTitle.textContent = 'Verifying Face';
-            UI.statusDesc.textContent = 'Look directly at the camera.';
+            UI.statusDesc.textContent = livenessHint;
             UI.profileCard.classList.remove('hidden');
             
             if(currentStudent) {
@@ -310,7 +311,7 @@
                 UI.profileCard.classList.add('opacity-100', 'scale-100');
                 
                 UI.attendanceStatus.className = 'mt-5 w-full py-2.5 bg-amber-100 rounded-xl text-sm font-bold text-amber-700 border border-amber-200';
-                UI.attendanceStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Scanning Face...';
+                UI.attendanceStatus.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-1"></i> ${livenessHint}`;
             }
         } else if (mode === 'SUCCESS') {
             UI.statusCard.className = 'bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm flex items-center gap-4 transition-colors duration-300';
@@ -367,6 +368,7 @@
         mode = 'IDLE';
         lockedQR = null;
         currentStudent = null;
+        livenessHint = 'Look directly at the camera.';
         updateScanUI();
     }
 
@@ -430,6 +432,15 @@
             if(data.success) {
                 const result = data.data;
                 ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
+                const livenessPending = !!result.liveness_required && !result.liveness_passed;
+                if (mode === 'QR_LOCKED' && livenessPending) {
+                    livenessHint = result.liveness_prompt || 'Complete liveness check.';
+                    UI.statusDesc.textContent = livenessHint;
+                    if (currentStudent) {
+                        UI.attendanceStatus.className = 'mt-5 w-full py-2.5 bg-amber-100 rounded-xl text-sm font-bold text-amber-700 border border-amber-200';
+                        UI.attendanceStatus.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-1"></i> ${livenessHint}`;
+                    }
+                }
 
                 if(result.qr_data && mode === 'IDLE' && !lockedQR) {
                     lockedQR = result.qr_data;
@@ -482,8 +493,10 @@
                         
                     } else {
                         drawBox(result.face_box, '#f97316'); 
-                        if (mode === 'QR_LOCKED') {
+                        if (mode === 'QR_LOCKED' && !livenessPending) {
                             UI.mismatchOverlay.classList.remove('hidden');
+                        } else {
+                            UI.mismatchOverlay.classList.add('hidden');
                         }
                     }
                 } else {

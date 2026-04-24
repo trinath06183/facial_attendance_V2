@@ -1,9 +1,9 @@
 """
 apps/audit/middleware.py
-────────────────────────
-Lightweight request middleware that:
-  1. Logs HTTP 4xx/5xx responses that aren't already captured by view-level logging.
-  2. Captures CSRF failures (403 with reason header).
+
+lightweight request middleware that:
+  1. logs http 4xx/5xx responses that aren't already captured by view-level logging.
+  2. captures csrf failures (403 with reason header).
 """
 
 import logging
@@ -21,7 +21,7 @@ class AuditMiddleware:
 
         status = response.status_code
 
-        # CSRF failure
+        # csrf failure
         if status == 403 and getattr(response, 'reason_phrase', '') == 'Forbidden':
             csrf_reason = getattr(response, 'csrf_reason', '')
             if csrf_reason or 'csrf' in request.path.lower():
@@ -33,7 +33,7 @@ class AuditMiddleware:
                              'reason': csrf_reason},
                 )
 
-        # Generic 4xx (access denied, not found) and 5xx (errors)
+        # generic 4xx (access denied, not found) and 5xx (errors)
         elif status == 403:
             log_event(
                 event_type='ACCESS_DENIED',

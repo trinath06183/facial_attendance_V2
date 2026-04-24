@@ -3,7 +3,7 @@
 {% block title %}{{ title }} — SmartAttend{% endblock %}
 
 {% block content %}
-<!-- ── Page Header ───────────────────────────── -->
+<!--  page header  -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
         <a href="{% url 'user_list' %}"
@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<!-- ── Form Card ─────────────────────────────── -->
+<!--  form card  -->
 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden max-w-2xl">
     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
         <i class="fas fa-user-cog text-blue-500 text-sm" aria-hidden="true"></i>
@@ -64,7 +64,7 @@
             </div>
             {% endfor %}
 
-            <!-- Style all generated inputs -->
+            <!-- style all generated inputs -->
             <script>
                 document.querySelectorAll('input:not([type="checkbox"]), select, textarea').forEach(el => {
                     el.classList.add(
@@ -76,7 +76,7 @@
                 });
             </script>
 
-            <!-- Actions -->
+            <!-- actions -->
             <div class="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
                 <a href="{% url 'user_list' %}"
                     class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">

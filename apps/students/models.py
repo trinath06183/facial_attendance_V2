@@ -14,7 +14,7 @@ class Student(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    student_id = models.CharField(max_length=50) # Internal ID
+    student_id = models.CharField(max_length=50) # internal id
     university_roll_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
@@ -74,7 +74,7 @@ class Embedding(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='embeddings')
-    embedding_vector = models.TextField()          # Base64-encoded float32 array
+    embedding_vector = models.TextField()          # base64-encoded float32 array
     model_name = models.CharField(max_length=100, default='SFace_v1.0')
     model_version = models.CharField(max_length=50, default='1.0')
     is_active = models.BooleanField(default=True)
@@ -87,11 +87,11 @@ class Embedding(models.Model):
         ordering = ['-created_at']
 
     def set_vector(self, arr: np.ndarray):
-        """Store a numpy float32 array as base64 text."""
+        """store a numpy float32 array as base64 text."""
         self.embedding_vector = base64.b64encode(arr.astype(np.float32).tobytes()).decode()
 
     def get_vector(self) -> np.ndarray:
-        """Retrieve the embedding as a numpy float32 array."""
+        """retrieve the embedding as a numpy float32 array."""
         raw = base64.b64decode(self.embedding_vector.encode())
         return np.frombuffer(raw, dtype=np.float32)
 

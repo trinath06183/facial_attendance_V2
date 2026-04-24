@@ -1,9 +1,9 @@
 """
 apps/audit/tests.py
-────────────────────
-Unit tests for the audit logging system.
 
-Run:  python manage.py test apps.audit
+unit tests for the audit logging system.
+
+run:  python manage.py test apps.audit
 """
 
 from django.test import TestCase, RequestFactory
@@ -19,9 +19,9 @@ from .retention import purge_old_logs
 User = get_user_model()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. Model tests
-# ─────────────────────────────────────────────────────────────────────────────
+# 
+# 1. model tests
+# 
 
 class AuditLogModelTest(TestCase):
 
@@ -31,23 +31,23 @@ class AuditLogModelTest(TestCase):
         )
 
     def test_checksum_computed_on_save(self):
-        """log_event() must store a non-empty HMAC checksum."""
+        """log_event() must store a non-empty hmac checksum."""
         log_event(event_type='LOGIN', auth_method='password',
                   context={'test': True})
         log = AuditLog.objects.first()
         self.assertTrue(bool(log.checksum), 'Checksum must not be empty.')
 
     def test_checksum_verifies_correctly(self):
-        """verify_checksum() returns True for untampered rows."""
+        """verify_checksum() returns true for untampered rows."""
         log_event(event_type='LOGOUT', auth_method='system')
         log = AuditLog.objects.first()
         self.assertTrue(log.verify_checksum())
 
     def test_tamper_detection(self):
-        """Modifying a field after save must invalidate the checksum."""
+        """modifying a field after save must invalidate the checksum."""
         log_event(event_type='LOGIN', auth_method='password')
         log = AuditLog.objects.first()
-        # Simulate database-level tampering on a field tracked by checksum
+        # simulate database-level tampering on a field tracked by checksum
         AuditLog.objects.filter(pk=log.pk).update(event_type='HACKED')
         log.refresh_from_db()
         self.assertFalse(log.verify_checksum(), 'Tampered row must fail checksum.')
@@ -70,9 +70,9 @@ class AuditLogModelTest(TestCase):
         self.assertIn('logout_reason', log.context_summary())
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. log_event() API tests
-# ─────────────────────────────────────────────────────────────────────────────
+# 
+# 2. log_event() api tests
+# 
 
 class LogEventTest(TestCase):
 
@@ -139,7 +139,7 @@ class LogEventTest(TestCase):
             self.fail(f'log_event raised an exception: {e}')
 
     def test_legacy_audit_shim(self):
-        """The legacy audit() shim must map old actions to new event types."""
+        """the legacy audit() shim must map old actions to new event types."""
         request = self.factory.get('/')
         request.user = self.user
         audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(self.user.id), 'test')
@@ -148,14 +148,14 @@ class LogEventTest(TestCase):
         self.assertEqual(log.auth_method, 'facial_recognition')
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Retention tests
-# ─────────────────────────────────────────────────────────────────────────────
+# 
+# 3. retention tests
+# 
 
 class RetentionTest(TestCase):
 
     def _create_old_log(self, hours_ago: int):
-        """Create a log entry and backdate its timestamp."""
+        """create a log entry and backdate its timestamp."""
         log_event(event_type='LOGIN', auth_method='password')
         log = AuditLog.objects.order_by('-timestamp').first()
         old_ts = timezone.now() - datetime.timedelta(hours=hours_ago)
@@ -170,7 +170,7 @@ class RetentionTest(TestCase):
         with patch('django.conf.settings.AUDIT_LOG_RETENTION_HOURS', 48):
             deleted = purge_old_logs()
 
-        # The 49-hour-old entry should be gone; the PURGE event created by
+        # the 49-hour-old entry should be gone; the purge event created by
         # purge_old_logs() itself is fresh, so total = 2 (fresh + purge)
         self.assertEqual(deleted, 1)
 
@@ -181,16 +181,16 @@ class RetentionTest(TestCase):
         self.assertEqual(AuditLog.objects.count(), count_before)
 
     def test_recent_entries_not_purged(self):
-        # All entries are recent — nothing should be deleted
+        # all entries are recent — nothing should be deleted
         log_event(event_type='LOGIN', auth_method='password')
         log_event(event_type='LOGOUT', auth_method='system')
         deleted = purge_old_logs()
         self.assertEqual(deleted, 0)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. View tests (System Logs panel)
-# ─────────────────────────────────────────────────────────────────────────────
+# 
+# 4. view tests (system logs panel)
+# 
 
 class SystemLogsViewTest(TestCase):
 
@@ -201,7 +201,7 @@ class SystemLogsViewTest(TestCase):
         self.student = User.objects.create_user(
             username='student1', password='pass1234', role='STUDENT'
         )
-        # Create some log entries
+        # create some log entries
         for evt in ('LOGIN', 'LOGOUT', 'BIO_LOGIN', 'ERROR'):
             log_event(event_type=evt, auth_method='password', user=self.admin)
 
@@ -223,7 +223,7 @@ class SystemLogsViewTest(TestCase):
         self.client.login(username='admin1', password='admin1234')
         resp = self.client.get('/audit/logs/?event_type=LOGIN')
         self.assertEqual(resp.status_code, 200)
-        # Only LOGIN entries should appear
+        # only login entries should appear
         for log in resp.context['page_obj']:
             self.assertEqual(log.event_type, 'LOGIN')
 

@@ -30,7 +30,7 @@ class StudentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Make subjects empty by default unless bound to an academic year
+        # make subjects empty by default unless bound to an academic year
         self.fields['academic_year'].queryset = AcademicYear.objects.none()
         self.fields['enrolled_subjects'].queryset = Subject.objects.none()
 

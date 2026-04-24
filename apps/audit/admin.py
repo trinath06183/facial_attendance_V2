@@ -1,4 +1,4 @@
-"""apps/audit/admin.py — Django admin for AuditLog."""
+"""apps/audit/admin.py — django admin for auditlog."""
 
 from django.contrib import admin
 from django.utils.html import format_html
@@ -25,7 +25,7 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        # Only superusers can delete log entries
+        # only superusers can delete log entries
         return request.user.is_superuser
 
     def timestamp_ist(self, obj):

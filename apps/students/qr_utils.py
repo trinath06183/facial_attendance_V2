@@ -14,14 +14,14 @@ import base64
 
 def verify_token(token: str) -> str | None:
     """
-    Verify token and return student identifier (University Roll Number or legacy UUID).
+    verify token and return student identifier (university roll number or legacy uuid).
     """
     if not token:
         return None
         
     student_identifier = None
     
-    # 1. Check if it's a legacy HMAC token (contains a dot for signature)
+    # 1. check if it's a legacy hmac token (contains a dot for signature)
     if '.' in token:
         try:
             parts = token.rsplit('.', 1)
@@ -34,15 +34,15 @@ def verify_token(token: str) -> str | None:
         except Exception:
             pass
             
-    # 2. If it wasn't a legacy token (or decode failed), assume it's the raw roll number / UUID
+    # 2. if it wasn't a legacy token (or decode failed), assume it's the raw roll number / uuid
     if not student_identifier:
         student_identifier = token.strip()
         
-    # Return the identifier. We no longer assert it's a UUID because it might be a University Roll Number
+    # return the identifier. we no longer assert it's a uuid because it might be a university roll number
     return student_identifier if student_identifier else None
 
 def generate_qr_png(token: str) -> bytes:
-    """Generate simple QR code PNG bytes for the given token string."""
+    """generate simple qr code png bytes for the given token string."""
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -58,9 +58,9 @@ def generate_qr_png(token: str) -> bytes:
 
 
 def create_or_update_qr(student) -> 'QRCodeRecord':
-    """Create/update the QRCodeRecord for a student and return it."""
+    """create/update the qrcoderecord for a student and return it."""
     from apps.students.models import QRCodeRecord
-    # Default to string 'UNASSIGNED' if empty so QR generation doesn't crash on invalid data
+    # default to string 'unassigned' if empty so qr generation doesn't crash on invalid data
     roll_number = str(student.university_roll_number) if student.university_roll_number else str(student.id)
     token = _build_payload(roll_number)
     

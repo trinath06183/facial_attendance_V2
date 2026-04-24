@@ -4,7 +4,7 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Robustly load .env file from the project root (Fixes PythonAnywhere WSGI path issues)
+# robustly load .env file from the project root (fixes pythonanywhere wsgi path issues)
 env_path = BASE_DIR / '.env'
 if env_path.exists():
     config = Config(RepositoryEnv(str(env_path)))
@@ -13,7 +13,7 @@ else:
 
 SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
-# ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='bn06183.pythonanywhere.com,localhost,127.0.0.1').split(',')
+# allowed_hosts = config('allowed_hosts', default='bn06183.pythonanywhere.com,localhost,127.0.0.1').split(',')
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.dev',
@@ -29,7 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Project apps
+    # project apps
     'apps.accounts',
     'apps.students',
     'apps.attendance',
@@ -101,36 +101,51 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
-# Face recognition settings
-# SFace cosine-similarity threshold. Official OpenCV default is 0.363.
+# face recognition settings
+# sface cosine-similarity threshold. official opencv default is 0.363.
 # 0.38 gives a small safety margin while remaining practical for webcam conditions.
 FACE_MATCH_THRESHOLD = config('FACE_MATCH_THRESHOLD', default=0.65, cast=float)
 HMAC_SIGNING_KEY = config('HMAC_SIGNING_KEY', default='dev-hmac-key-change-in-production')
 ML_MODELS_DIR = BASE_DIR / 'ml_models'
 
-# ── Audit / Logging Settings ─────────────────────────────────────────────────
-# Entries older than this many hours are automatically purged.
-AUDIT_LOG_RETENTION_HOURS = config('AUDIT_LOG_RETENTION_HOURS', default=48, cast=int)
-# Re-use HMAC_SIGNING_KEY for audit checksum — no extra secret needed.
+# liveness detection tuning
+LIVENESS_DEFAULT_CHALLENGE = config('LIVENESS_DEFAULT_CHALLENGE', default='BLINK')
+LIVENESS_STATE_TIMEOUT_S = config('LIVENESS_STATE_TIMEOUT_S', default=25.0, cast=float)
+LIVENESS_BASELINE_FRAMES = config('LIVENESS_BASELINE_FRAMES', default=6, cast=int)
 
-# Message storage
-# Safety net: even persistent sessions max out at 3 hours of inactivity.
+LIVENESS_BLINK_DROP_RATIO = config('LIVENESS_BLINK_DROP_RATIO', default=0.92, cast=float)
+LIVENESS_BLINK_REOPEN_RATIO = config('LIVENESS_BLINK_REOPEN_RATIO', default=0.98, cast=float)
+LIVENESS_BLINK_ACTIVE_FRAMES = config('LIVENESS_BLINK_ACTIVE_FRAMES', default=2, cast=int)
+LIVENESS_BLINK_REOPEN_FRAMES = config('LIVENESS_BLINK_REOPEN_FRAMES', default=2, cast=int)
+LIVENESS_BLINK_FALLBACK_FRAMES = config('LIVENESS_BLINK_FALLBACK_FRAMES', default=45, cast=int)
+LIVENESS_ALLOW_BLINK_FALLBACK_TO_NOD = config('LIVENESS_ALLOW_BLINK_FALLBACK_TO_NOD', default=False, cast=bool)
+
+LIVENESS_NOD_DOWN_DELTA = config('LIVENESS_NOD_DOWN_DELTA', default=0.06, cast=float)
+LIVENESS_NOD_RECOVER_DELTA = config('LIVENESS_NOD_RECOVER_DELTA', default=0.02, cast=float)
+
+#  audit / logging settings 
+# entries older than this many hours are automatically purged.
+AUDIT_LOG_RETENTION_HOURS = config('AUDIT_LOG_RETENTION_HOURS', default=48, cast=int)
+# re-use hmac_signing_key for audit checksum — no extra secret needed.
+
+# message storage
+# safety net: even persistent sessions max out at 3 hours of inactivity.
 SESSION_COOKIE_AGE = 10800   # 3 hours in seconds
-# ── Session / Browser-close settings ────────────────────────────────────────
-# Session cookie is a "browser-session" cookie (no explicit expiry date).
-# The browser discards it when all browser windows are closed, which
-# automatically invalidates the Django session → auto-logout for all roles.
+#  session / browser-close settings 
+# session cookie is a "browser-session" cookie (no explicit expiry date).
+# the browser discards it when all browser windows are closed, which
+# automatically invalidates the django session → auto-logout for all roles.
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-# Safety net: even persistent sessions max out at 8 hours of inactivity.
+# safety net: even persistent sessions max out at 8 hours of inactivity.
 SESSION_COOKIE_AGE = 86400   # 24 hours in seconds
 INACTIVITY_TIMEOUT_SECONDS = 3600
 
-# ── Email Settings for OTP ──────────────────────────────────────────────────
+#  email settings for otp 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-# Must configure these in .env file!
+# must configure these in .env file!
 EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')

@@ -7,12 +7,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SmartAttend AI{% endblock %}</title>
-    <!-- Tailwind CSS CDN -->
+    <!-- tailwind css cdn -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
+    <!-- google fonts: inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <!-- FontAwesome Icons -->
+    <!-- fontawesome icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ─── DESIGN TOKENS ─────────────────────────────── */
@@ -435,14 +435,14 @@
 
 <body class="bg-gray-50 min-h-screen {% if user.is_authenticated %}flex flex-col md:flex-row{% endif %}">
 
-    <!-- Skip to main content (Accessibility) -->
+    <!-- skip to main content (accessibility) -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
     {% if user.is_authenticated %}
-    <!-- ── MOBILE OVERLAY ─────────────────────── -->
+    <!--  mobile overlay  -->
     <div id="sidebar-overlay" role="presentation" aria-hidden="true"></div>
 
-    <!-- ── MOBILE TOP BAR ────────────────────── -->
+    <!--  mobile top bar  -->
     <div id="mobile-header"
         class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center sticky top-0 z-50 w-full shadow-sm"
         role="banner">
@@ -470,21 +470,21 @@
         </div>
     </div>
 
-    <!-- ── SIDEBAR ────────────────────────────── -->
+    <!--  sidebar  -->
     <aside id="main-sidebar"
         class="w-64 bg-white border-r border-gray-150 flex-col h-screen shrink-0 hidden md:flex fixed md:static z-40 bottom-0 overflow-y-auto shadow-lg md:shadow-none"
         role="navigation" aria-label="Main navigation">
 
-        <!-- Brand -->
+        <!-- brand -->
         <div class="hidden md:flex flex-col">
-            <!-- SmartAttend top strip -->
+            <!-- smartattend top strip -->
             <div class="px-5 py-3 flex items-center gap-2 border-b border-gray-100">
                 <img src="{% static 'logo.png' %}" alt="SmartAttend Logo" class="w-7 h-7 rounded-lg shadow-sm">
                 <a href="{% url 'dashboard' %}" class="text-base font-black text-gray-900 tracking-tight hover:text-blue-600 transition-colors">
                     SmartAttend.
                 </a>
             </div>
-            <!-- University Logo Panel -->
+            <!-- university logo panel -->
             <div class="flex flex-col items-center gap-2 py-5 px-4"
                  style="background: linear-gradient(160deg, #f0f4ff 0%, #e8f0fe 100%); border-bottom: 1px solid #dbeafe;">
                 <img src="{% static 'fmu_logo.png' %}" alt="Fakir Mohan University"
@@ -497,7 +497,7 @@
             </div>
         </div>
 
-        <!-- Navigation Links -->
+        <!-- navigation links -->
         <nav class="flex-1 px-3 pb-4 space-y-0.5 overflow-y-auto" aria-label="Sidebar navigation">
             {% if user.is_admin %}
             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-2 mt-2">Admin Panel</p>
@@ -559,9 +559,9 @@
             </div>
         </nav>
 
-        <!-- User Widget & Logout -->
+        <!-- user widget & logout -->
         <div class="px-3 pb-5">
-            <!-- Scanner Active Indicator -->
+            <!-- scanner active indicator -->
             <div id="hardware-control-section" class="hidden mb-3">
                 <div class="bg-red-50 border border-red-100 rounded-2xl p-3">
                     <p
@@ -571,7 +571,7 @@
                 </div>
             </div>
 
-            <!-- User Card -->
+            <!-- user card -->
             <div class="bg-gray-50 rounded-2xl p-3 border border-gray-100">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm uppercase shadow-sm flex-shrink-0"
@@ -617,15 +617,15 @@
     {% endif %}
 
     {% if not user.is_authenticated %}
-    <!-- ── UNAUTHENTICATED TOP BAR ── -->
+    <!--  unauthenticated top bar  -->
     <header class="w-full sticky top-0 z-50" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); box-shadow: 0 2px 12px rgba(79,70,229,0.18);">
         <div class="max-w-7xl mx-auto px-6 py-2.5 flex items-center justify-between">
-            <!-- Left: SmartAttend brand (links to login) -->
+            <!-- left: smartattend brand (links to login) -->
             <a href="{% url 'login' %}" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <img src="{% static 'logo.png' %}" alt="SmartAttend Logo" class="w-8 h-8 rounded-xl shadow-md bg-white/10 p-0.5">
                 <span class="text-white text-lg font-black tracking-tight" style="font-family: 'Outfit', sans-serif;">SmartAttend.</span>
             </a>
-            <!-- Right: University logo -->
+            <!-- right: university logo -->
             <div class="flex items-center gap-3">
                 <div class="text-right hidden sm:block">
                     <p class="text-white text-[11px] font-bold leading-tight tracking-wide">Fakir Mohan University</p>
@@ -639,12 +639,12 @@
     </header>
     {% endif %}
 
-    <!-- ── MAIN CONTENT ────────────────────────── -->
+    <!--  main content  -->
     <main id="main-content"
         class="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden p-4 md:p-8 {% if not user.is_authenticated %}items-center justify-center{% endif %}"
         role="main">
 
-        <!-- Django Messages -->
+        <!-- django messages -->
         {% if messages %}
         <div class="w-full mb-6 space-y-2.5 max-w-7xl mx-auto" aria-live="polite" aria-atomic="true">
             {% for message in messages %}
@@ -676,7 +676,7 @@
         </div>
     </main>
 
-    <!-- ── JAVASCRIPT ─────────────────────────── -->
+    <!--  javascript  -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // ── Scanner Active Indicator ──

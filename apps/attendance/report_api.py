@@ -1,6 +1,6 @@
 """
-REST API endpoints for the Enhanced Reporting feature.
-All data returns JSON. Exports are handled by report_export.py via views.py.
+rest api endpoints for the enhanced reporting feature.
+all data returns json. exports are handled by report_export.py via views.py.
 """
 import math
 from datetime import datetime
@@ -21,7 +21,7 @@ from apps.students.models import Student
 
 
 def _parse_dates(request):
-    """Parse fromDate/toDate or preset from request.GET."""
+    """parse fromdate/todate or preset from request.get."""
     preset = request.GET.get('preset')
     if preset:
         return apply_relative_preset(preset)
@@ -41,7 +41,7 @@ def _parse_dates(request):
 
 
 def _subject_access_check(user, subject):
-    """Returns True if user is allowed to view this subject's data."""
+    """returns true if user is allowed to view this subject's data."""
     if user.role == 'ADMIN' or getattr(user, 'is_admin', lambda: False)():
         return True
     if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
@@ -49,18 +49,18 @@ def _subject_access_check(user, subject):
     return False
 
 
-# ── Student Report ────────────────────────────────────────────────────────────
+#  student report 
 
 @login_required
 @require_GET
 def report_student_api(request, student_id):
     """
-    GET /attendance/api/reports/student/<uuid>/
-    Returns aggregated metrics for a single student.
+    get /attendance/api/reports/student/<uuid>/
+    returns aggregated metrics for a single student.
     """
     user = request.user
 
-    # Students can only view their own
+    # students can only view their own
     if user.role == 'STUDENT' or getattr(user, 'is_student', lambda: False)():
         if not hasattr(user, 'student_profile') or str(user.student_profile.id) != str(student_id):
             return JsonResponse({'success': False, 'error': 'Access denied.'}, status=403)
@@ -70,7 +70,7 @@ def report_student_api(request, student_id):
     except Student.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Student not found.'}, status=404)
 
-    # Teachers can only see students in subjects they teach
+    # teachers can only see students in subjects they teach
     if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
         teacher_subjects = user.subjects.values_list('id', flat=True)
         if not student.enrolled_subjects.filter(id__in=teacher_subjects).exists():
@@ -106,15 +106,15 @@ def report_student_api(request, student_id):
     })
 
 
-# ── Subject Students Table ────────────────────────────────────────────────────
+#  subject students table 
 
 @login_required
 @require_GET
 def report_section_api(request, section_id):
     """
-    GET /attendance/api/reports/section/<uuid>/
-    Returns all-student rows for a subject (for the overview table).
-    Using Old section_id in URL to prevent breaking frontend right now
+    get /attendance/api/reports/section/<uuid>/
+    returns all-student rows for a subject (for the overview table).
+    using old section_id in url to prevent breaking frontend right now
     """
     user = request.user
 
@@ -141,14 +141,14 @@ def report_section_api(request, section_id):
     })
 
 
-# ── Top / Bottom Performers ───────────────────────────────────────────────────
+#  top / bottom performers 
 
 @login_required
 @require_GET
 def report_top_bottom_api(request, section_id):
     """
-    GET /attendance/api/reports/top-bottom/<uuid>/
-    Returns top 5 and bottom 5 performers for a subject.
+    get /attendance/api/reports/top-bottom/<uuid>/
+    returns top 5 and bottom 5 performers for a subject.
     """
     user = request.user
 
@@ -166,14 +166,14 @@ def report_top_bottom_api(request, section_id):
     return JsonResponse({'success': True, 'data': result})
 
 
-# ── All Subjects Summary (Admin / Teacher) ────────────────────────────────────
+#  all subjects summary (admin / teacher) 
 
 @login_required
 @require_GET
 def report_overview_api(request):
     """
-    GET /attendance/api/reports/overview/
-    Returns subject-level summary list for dashboard cards.
+    get /attendance/api/reports/overview/
+    returns subject-level summary list for dashboard cards.
     """
     user = request.user
     from_date, to_date = _parse_dates(request)

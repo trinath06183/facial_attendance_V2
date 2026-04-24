@@ -5,13 +5,13 @@
 {% block content %}
 <div class="bg-gray-50 min-h-screen pb-12">
     
-    <!-- Offline Indicator -->
+    <!-- offline indicator -->
     <div id="offline-banner" class="hidden bg-red-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-bold shadow-md relative z-50">
         <i class="fas fa-wifi-slash animate-pulse"></i> Network Disconnected — Live Sync Disabled
     </div>
 
     <div class="p-6 max-w-7xl mx-auto space-y-6">
-        <!-- Navigation & Header -->
+        <!-- navigation & header -->
         <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
             <div>
                 <a href="{% url 'dashboard' %}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2 transition">
@@ -51,7 +51,7 @@
             </div>
         </div>
 
-        <!-- Metrics Cards -->
+        <!-- metrics cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition">
                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 mt-1">Status</p>
@@ -91,7 +91,7 @@
         </div>
         {% endif %}
 
-        <!-- Manual Refresh Control -->
+        <!-- manual refresh control -->
         <div class="hidden bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
             <div class="flex items-center gap-4 text-sm font-medium text-indigo-900">
                 <div class="flex items-center gap-2">
@@ -112,7 +112,7 @@
             </div>
         </div>
 
-        <!-- Attendance Ledger -->
+        <!-- attendance ledger -->
         <div class="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
             <div class="px-6 py-5 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                 <h2 class="font-bold text-gray-800 text-lg flex items-center gap-2">
@@ -133,7 +133,7 @@
                         </tr>
                     </thead>
                     <tbody id="roster-tbody" class="divide-y divide-gray-50">
-                        <!-- Hydrated strictly by Javascript Event Fetch -->
+                        <!-- hydrated strictly by javascript event fetch -->
                         <tr>
                             <td colspan="5" class="px-6 py-12 text-center text-gray-400">
                                 <i class="fas fa-circle-notch fa-spin text-2xl mb-2"></i>

@@ -3,7 +3,7 @@
 {% block title %}{% if is_edit %}Edit Student: {{ student.full_name }}{% else %}Register Student{% endif %} — SmartAttend{% endblock %}
 
 {% block content %}
-<!-- ── Page Header ─────────────────────────────── -->
+<!--  page header  -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
         {% if is_edit %}
@@ -28,7 +28,7 @@
     </div>
 </div>
 
-<!-- ── Progress Steps ────────────────────────── -->
+<!--  progress steps  -->
 <div class="flex items-center gap-3 mb-8" aria-label="Registration steps">
     <div class="flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-sm">
@@ -50,7 +50,7 @@
 
 
 
-<!-- ── Form Card ─────────────────────────────── -->
+<!--  form card  -->
 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden max-w-2xl">
     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
         <i class="fas fa-user-graduate text-blue-500 text-sm" aria-hidden="true"></i>
@@ -67,7 +67,7 @@
             {% for field in form %}
             <div class="mb-5">
                 {% if field.name == 'consent_given' %}
-                    <!-- Special consent field -->
+                    <!-- special consent field -->
                     <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-start gap-3">
                         {{ field }}
                         <div>
@@ -187,10 +187,10 @@
                 }
             </script>
 
-            <!-- ── Actions ──────────────────────────────── -->
+            <!--  actions  -->
             <div class="flex flex-col sm:flex-row items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
                 {% if is_edit %}
-                <!-- Cancel / Skip options for edit mode -->
+                <!-- cancel / skip options for edit mode -->
                 <a href="{% url 'student_detail' student.id %}"
                     class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
                     Cancel
@@ -206,7 +206,7 @@
                     Save &amp; Continue
                 </button>
                 {% else %}
-                <!-- Standard create mode buttons -->
+                <!-- standard create mode buttons -->
                 <a href="{% url 'student_list' %}"
                     class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">
                     Cancel

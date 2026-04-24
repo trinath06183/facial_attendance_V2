@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="bg-gray-50 min-h-screen">
-    <!-- Breadcrumb & Header -->
+    <!-- breadcrumb & header -->
     <div class="mb-8">
         {% if request.user.role == 'STUDENT' %}
         <a href="{% url 'dashboard' %}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2">
@@ -33,9 +33,9 @@
 ``
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left Column: Identity & Bio (Student Portal crossover) -->
+        <!-- left column: identity & bio (student portal crossover) -->
         <div class="space-y-6">
-            <!-- Digital ID Card -->
+            <!-- digital id card -->
             <div class="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm relative overflow-hidden group">
                 <div class="absolute right-0 top-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                 <div class="absolute left-0 bottom-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
@@ -90,7 +90,7 @@
                 </div>
             </div>
             
-            <!-- Quick Info -->
+            <!-- quick info -->
             <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm">
                 <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm uppercase tracking-widest"><i class="fas fa-info-circle text-blue-500"></i> Metadata</h3>
                 <div class="space-y-4 text-sm">
@@ -114,10 +114,10 @@
             </div>
         </div>
 
-        <!-- Right Column: Photos & Biometrics Details -->
+        <!-- right column: photos & biometrics details -->
         <div class="lg:col-span-2 space-y-6">
             
-            <!-- Photo Directory -->
+            <!-- photo directory -->
             <div class="bg-white border border-gray-100 p-6 sm:p-8 rounded-3xl shadow-sm relative overflow-hidden">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
@@ -134,7 +134,7 @@
                          onclick="openPhotoLightbox('{{ photo.image.url }}')">
                         
                         {% if not photo.is_approved %}
-                            <!-- Dim the image and show pending text if not approved -->
+                            <!-- dim the image and show pending text if not approved -->
                             <img src="{{ photo.image.url }}" alt="Photo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-50 grayscale">
                             <div class="absolute inset-x-0 top-0 p-2">
                                 <span class="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-wider rounded shadow-sm flex items-center gap-1 w-max">
@@ -187,7 +187,7 @@
                 </div>
             </div>
 
-            <!-- Face Vectors (SFace Data) -->
+            <!-- face vectors (sface data) -->
             <div class="bg-white border border-gray-100 p-6 sm:p-8 rounded-3xl shadow-sm relative overflow-hidden">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-2 border-b border-gray-50 pb-4">
                     <div>
@@ -244,7 +244,7 @@
     </div>
 </div>
 
-<!-- ── Upload Modal ─────────────────────────────────────────────── -->
+<!--  upload modal  -->
 <div id="upload-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200">
         <button onclick="document.getElementById('upload-modal').classList.add('hidden')" class="absolute top-6 right-6 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition">
@@ -277,25 +277,25 @@
     </div>
 </div>
 
-<!-- ── Universal Lightbox Modal ──────────────────────────────────── -->
+<!--  universal lightbox modal  -->
 <div id="lightbox-modal"
      class="fixed inset-0 z-[100] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-200"
      style="background: rgba(3,7,18,0.85); backdrop-filter: blur(8px);">
 
-    <!-- Backdrop (click to close) -->
+    <!-- backdrop (click to close) -->
     <div class="absolute inset-0" onclick="closeLightbox()"></div>
 
-    <!-- Content wrapper -->
+    <!-- content wrapper -->
     <div id="lightbox-inner"
          class="relative flex flex-col items-center gap-4 scale-90 transition-transform duration-200 max-w-xl w-full">
 
-        <!-- Close button -->
+        <!-- close button -->
         <button onclick="closeLightbox()"
                 class="absolute -top-3 -right-3 z-10 w-9 h-9 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm">
             <i class="fas fa-times text-sm"></i>
         </button>
 
-        <!-- Image (photo or QR) -->
+        <!-- image (photo or qr) -->
         <div id="lightbox-img-wrap"
              class="bg-white rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center p-3"
              style="max-height: 75vh;">
@@ -304,15 +304,15 @@
                  style="max-height: 68vh;">
         </div>
 
-        <!-- QR-only controls (hidden for photos) -->
+        <!-- qr-only controls (hidden for photos) -->
         <div id="lightbox-qr-controls" class="hidden flex-col items-center gap-3 w-full">
-            <!-- Token badge -->
+            <!-- token badge -->
             <div class="flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2 backdrop-blur-sm">
                 <i class="fas fa-qrcode text-white/60 text-sm"></i>
                 <span id="lightbox-qr-token"
                       class="font-mono text-white font-bold text-sm tracking-wider"></span>
             </div>
-            <!-- Copy button -->
+            <!-- copy button -->
             <button id="lightbox-copy-btn" onclick="copyQRToken()"
                     class="flex items-center gap-2 px-6 py-2.5 bg-white text-gray-900 rounded-xl text-sm font-bold shadow-lg hover:bg-gray-100 active:scale-95 transition-all">
                 <i class="fas fa-copy"></i>

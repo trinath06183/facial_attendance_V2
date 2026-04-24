@@ -52,7 +52,7 @@ def student_create(request):
             student.save()
             audit(request, 'STUDENT_REGISTERED', 'Student', str(student.id))
 
-            # Auto-create a linked user account if one doesn't exist yet
+            # auto-create a linked user account if one doesn't exist yet
             if not student.user:
                 roll = (student.university_roll_number or str(student.id)[:8])
                 base_username = roll.lower().replace(' ', '_')
@@ -129,9 +129,9 @@ def student_enroll_face(request, pk):
 @login_required
 @require_POST
 def upload_face_frame(request, pk):
-    """Receive a single captured frame, extract embedding, store it.
+    """receive a single captured frame, extract embedding, store it.
     
-    Query param ?overwrite=1 clears all existing active embeddings first
+    query param ?overwrite=1 clears all existing active embeddings first
     (used during re-enrollment to replace old face data).
     """
     student = get_object_or_404(Student, pk=pk)
@@ -145,7 +145,7 @@ def upload_face_frame(request, pk):
     if not result['success']:
         return JsonResponse({'success': False, 'error': result['error'], 'face_box': result.get('face_box')})
 
-    # Overwrite mode: clear all existing active embeddings before the first new frame
+    # overwrite mode: clear all existing active embeddings before the first new frame
     overwrite = request.GET.get('overwrite') == '1'
     if overwrite:
         deleted_count = student.embeddings.filter(is_active=True).count()
@@ -154,7 +154,7 @@ def upload_face_frame(request, pk):
             audit(request, 'EMBEDDINGS_CLEARED', 'Student', str(student.id),
                   f"Overwrite re-enrollment: {deleted_count} embeddings removed")
 
-    # Deduplicate by image hash (skip if we just cleared)
+    # deduplicate by image hash (skip if we just cleared)
     if not overwrite and Embedding.objects.filter(student=student, source_image_hash=result['image_hash']).exists():
         return JsonResponse({'success': False, 'error': 'DUPLICATE_FRAME'})
 
@@ -169,7 +169,7 @@ def upload_face_frame(request, pk):
 
     audit(request, 'EMBEDDING_ADDED', 'Embedding', str(emb.id))
 
-    # Auto-generate / refresh QR after first embedding
+    # auto-generate / refresh qr after first embedding
     if student.embedding_count == 1:
         create_or_update_qr(student)
         audit(request, 'QR_GENERATED', 'Student', str(student.id))
@@ -209,7 +209,7 @@ def student_photo_upload(request, pk):
         privacy_consent = request.POST.get('privacy_consent') == 'on'
         is_primary = request.POST.get('is_primary') == 'on'
         
-        # If student is uploading, it requires approval and overrides is_primary request initially
+        # if student is uploading, it requires approval and overrides is_primary request initially
         is_approved = True
         if request.user.role == 'STUDENT':
             is_approved = False
@@ -241,7 +241,7 @@ def student_photo_approve(request, pk, photo_id):
         return HttpResponseForbidden()
     photo = get_object_or_404(StudentPhoto, id=photo_id, student_id=pk)
     photo.is_approved = True
-    # Auto-make primary if it's their only photo or explicitly chosen previously
+    # auto-make primary if it's their only photo or explicitly chosen previously
     if not photo.student.photos.filter(is_primary=True).exists():
         photo.is_primary = True
     photo.save(update_fields=['is_approved', 'is_primary'])

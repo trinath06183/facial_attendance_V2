@@ -51,5 +51,5 @@ class PasswordResetOTP(models.Model):
     def is_valid(self):
         from django.utils import timezone
         import datetime
-        # OTP is valid for exactly 10 minutes
+        # otp is valid for exactly 10 minutes
         return timezone.now() < self.created_at + datetime.timedelta(minutes=10)

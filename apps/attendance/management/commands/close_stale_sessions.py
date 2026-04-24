@@ -1,8 +1,8 @@
 """
-Management command: close_stale_sessions
-Auto-closes any AttendanceSession that is still OPEN at the end of the calendar day.
-Usage: py manage.py close_stale_sessions
-Schedule via Windows Task Scheduler or cron to run daily at ~23:59.
+management command: close_stale_sessions
+auto-closes any attendancesession that is still open at the end of the calendar day.
+usage: py manage.py close_stale_sessions
+schedule via windows task scheduler or cron to run daily at ~23:59.
 """
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -16,7 +16,7 @@ class Command(BaseCommand):
         now = timezone.now()
         today = now.date()
 
-        # Find all OPEN sessions whose started_at date is strictly before today (EOD passed)
+        # find all open sessions whose started_at date is strictly before today (eod passed)
         stale_sessions = AttendanceSession.objects.filter(
             status='OPEN',
             started_at__date__lt=today
@@ -27,10 +27,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("No stale sessions to close."))
             return
 
-        # Close each one: set closed_at to 23:59:59 of their start date
+        # close each one: set closed_at to 23:59:59 of their start date
         closed = 0
         for session in stale_sessions:
-            # Set closed_at to end of the day the session was opened
+            # set closed_at to end of the day the session was opened
             eod = timezone.datetime.combine(
                 session.started_at.date(),
                 timezone.datetime.max.time(),

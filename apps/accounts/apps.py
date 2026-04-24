@@ -7,5 +7,5 @@ class AccountsConfig(AppConfig):
     label = 'accounts'
 
     def ready(self):
-        # Import signals so the @receiver decorators are registered at startup.
-        import apps.accounts.signals  # noqa: F401
+        # import signals so the @receiver decorators are registered at startup.
+        import apps.accounts.signals  # noqa: f401

@@ -10,11 +10,11 @@
     </div>
 </div>
 
-<!-- Filter Bar -->
+<!-- filter bar -->
 <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6 p-4 mb-6">
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
 
-        <!-- Section selector (not for students) -->
+        <!-- section selector (not for students) -->
         {% if role != 'STUDENT' %}
         <div class="xl:col-span-2">
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Section / Class</label>
@@ -27,7 +27,7 @@
         </div>
         {% endif %}
 
-        <!-- Preset buttons -->
+        <!-- preset buttons -->
         <div>
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Quick Range</label>
             <div class="flex flex-wrap gap-1">
@@ -43,7 +43,7 @@
             </div>
         </div>
 
-        <!-- Custom date range -->
+        <!-- custom date range -->
         <div>
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">From</label>
             <input type="date" id="rpt-from" class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5">
@@ -53,7 +53,7 @@
             <input type="date" id="rpt-to" class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5">
         </div>
 
-        <!-- Granularity -->
+        <!-- granularity -->
         <div>
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Granularity</label>
             <select id="rpt-granularity" class="w-full bg-gray-50 border border-gray-100 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5">
@@ -64,7 +64,7 @@
             </select>
         </div>
 
-        <!-- Apply -->
+        <!-- apply -->
         <div class="flex gap-2 items-end xl:col-span-5">
             <button id="rpt-apply" class="px-5 py-2.5 bg-blue-500 text-white font-bold rounded-xl shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300">
                 Apply
@@ -73,7 +73,7 @@
                 Clear
             </button>
             <div class="flex-1"></div>
-            <!-- Export buttons (only shown when data loaded) -->
+            <!-- export buttons (only shown when data loaded) -->
             <div id="export-controls" class="hidden flex gap-2">
                 <button id="rpt-export-csv"  class="px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">CSV</button>
                 <button id="rpt-export-excel" class="px-4 py-2.5 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-colors">Excel</button>
@@ -84,7 +84,7 @@
     </div>
 </div>
 
-<!-- Summary Cards -->
+<!-- summary cards -->
 <div id="summary-cards" class="hidden grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
         <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Students</p>
@@ -104,15 +104,15 @@
     </div>
 </div>
 
-<!-- Tabs -->
+<!-- tabs -->
 <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-    <!-- Tab Nav -->
+    <!-- tab nav -->
     <div class="flex border-b border-gray-100 px-6 pt-3 gap-1">
         <button class="tab-btn active px-4 py-2.5 text-sm font-bold rounded-t-xl text-blue-600 border-b-2 border-blue-500 focus:outline-none" data-tab="overview">Student Overview</button>
         <button class="tab-btn px-4 py-2.5 text-sm font-bold rounded-t-xl text-gray-500 border-b-2 border-transparent hover:text-gray-700 focus:outline-none" data-tab="topbottom">Top / Bottom</button>
     </div>
 
-    <!-- Tab: Student Overview -->
+    <!-- tab: student overview -->
     <div id="tab-overview" class="tab-panel">
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left whitespace-nowrap">
@@ -135,10 +135,10 @@
         </div>
     </div>
 
-    <!-- Tab: Top / Bottom -->
+    <!-- tab: top / bottom -->
     <div id="tab-topbottom" class="tab-panel hidden">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-            <!-- Top Performers -->
+            <!-- top performers -->
             <div>
                 <h3 class="text-sm font-black text-green-700 uppercase tracking-widest mb-4 flex items-center gap-2">
                     <span class="w-2 h-2 bg-green-500 rounded-full"></span> Top Performers
@@ -147,7 +147,7 @@
                     <p class="text-gray-400 text-sm">Load a report to see performers.</p>
                 </div>
             </div>
-            <!-- Bottom Performers -->
+            <!-- bottom performers -->
             <div>
                 <h3 class="text-sm font-black text-red-700 uppercase tracking-widest mb-4 flex items-center gap-2">
                     <span class="w-2 h-2 bg-red-500 rounded-full"></span> Needs Attention

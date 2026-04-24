@@ -12,15 +12,15 @@ class AuditConfig(AppConfig):
 
     def ready(self):
         """
-        Start an in-process APScheduler job that runs purge_old_logs()
-        every hour.  We guard with RUN_MAIN so the scheduler only starts
-        once (not twice in Django's auto-reloader mode).
+        start an in-process apscheduler job that runs purge_old_logs()
+        every hour.  we guard with run_main so the scheduler only starts
+        once (not twice in django's auto-reloader mode).
         """
         import os
         if os.environ.get('RUN_MAIN') != 'true':
-            # When Django's auto-reloader is active it spawns two processes;
-            # only the child (RUN_MAIN=true) should run the scheduler.
-            # In production (gunicorn/uwsgi) RUN_MAIN is not set, so we
+            # when django's auto-reloader is active it spawns two processes;
+            # only the child (run_main=true) should run the scheduler.
+            # in production (gunicorn/uwsgi) run_main is not set, so we
             # still only start once.
             if not _is_management_command():
                 return
@@ -52,6 +52,6 @@ class AuditConfig(AppConfig):
 
 
 def _is_management_command() -> bool:
-    """Return True when Django is being invoked as a management command."""
+    """return true when django is being invoked as a management command."""
     import sys
     return len(sys.argv) > 1 and sys.argv[1] not in ('runserver', 'runserver_plus')

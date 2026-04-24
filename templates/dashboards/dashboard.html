@@ -3,7 +3,7 @@
 {% block title %}Dashboard — SmartAttend{% endblock %}
 
 {% block content %}
-<!-- ── Welcome Header ────────────────────────── -->
+<!--  welcome header  -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
         <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Welcome back</p>
@@ -24,11 +24,11 @@
     {% endif %}
 </div>
 
-<!-- ── Stat Cards ─────────────────────────────── -->
+<!--  stat cards  -->
 <div class="grid grid-cols-2 lg:grid-cols-{% if user.role == 'ADMIN' %}3{% else %}2{% endif %} gap-5 mb-8">
 
     {% if user.role == 'ADMIN' %}
-    <!-- Admin stats -->
+    <!-- admin stats -->
     <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col">
         <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-black text-gray-400 uppercase tracking-widest">Active Students</p>
@@ -63,7 +63,7 @@
     </div>
 
     {% else %}
-    <!-- Teacher stats -->
+    <!-- teacher stats -->
     <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col">
         <div class="flex items-center justify-between mb-3">
             <p class="text-xs font-black text-gray-400 uppercase tracking-widest">My Sections</p>
@@ -88,7 +88,7 @@
     {% endif %}
 </div>
 
-<!-- ── Recent Sessions Table ──────────────────── -->
+<!--  recent sessions table  -->
 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
         <h2 class="font-bold text-gray-800 flex items-center gap-2 text-sm">

@@ -1,9 +1,9 @@
 """
-Management command: python manage.py purge_audit_logs
+management command: python manage.py purge_audit_logs
 
-Options:
-  --dry-run     Print how many records would be deleted without deleting.
-  --hours N     Override retention window (default: AUDIT_LOG_RETENTION_HOURS setting or 48).
+options:
+  dry-run     print how many records would be deleted without deleting.
+  hours n     override retention window (default: audit_log_retention_hours setting or 48).
 """
 
 from django.core.management.base import BaseCommand
@@ -25,7 +25,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # Temporarily override the retention setting so retention.py picks it up
+        # temporarily override the retention setting so retention.py picks it up
         original = getattr(settings, 'AUDIT_LOG_RETENTION_HOURS', 48)
         settings.AUDIT_LOG_RETENTION_HOURS = options['hours']
 

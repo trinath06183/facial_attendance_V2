@@ -13,11 +13,11 @@
 
         <div class="flex flex-col items-center gap-6">
             <div class="relative w-full max-w-xl aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border-2 border-indigo-500/30">
-                <!-- Video Stream -->
+                <!-- video stream -->
                 <video id="webcam" class="absolute inset-0 w-full h-full object-cover" style="transform: scaleX(-1);" autoplay playsinline></video>
-                <!-- Overlay for bounds -->
+                <!-- overlay for bounds -->
                 <canvas id="overlay" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none"></canvas>
-                <!-- Hidden Canvas for Data Extraction -->
+                <!-- hidden canvas for data extraction -->
                 <canvas id="hiddenCanvas" class="hidden"></canvas>
                 
                 <div class="absolute top-4 right-4 z-30 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-full border border-indigo-500/30 flex items-center gap-2">
@@ -29,7 +29,7 @@
                 </div>
             </div>
 
-            <!-- Progress UI -->
+            <!-- progress ui -->
             <div class="w-full max-w-xl">
                 <div class="flex justify-between text-sm font-medium text-slate-300 mb-2">
                     <span>Dataset Compilation</span>

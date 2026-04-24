@@ -1,16 +1,16 @@
 """
 apps/audit/models.py
-────────────────────
-Immutable, tamper-evident audit log for every back-end action.
 
-Each row captures:
-  • IST timestamp (stored as UTC, displayed as IST)
+immutable, tamper-evident audit log for every back-end action.
+
+each row captures:
+  • ist timestamp (stored as utc, displayed as ist)
   • event_type & auth_method enum choices
   • denormalised user identifiers (survive user deletion)
-  • full device fingerprint (browser, OS, device class, raw UA)
-  • client IP
-  • arbitrary context JSON (logout reason, error codes, stack traces, …)
-  • HMAC-SHA256 checksum for tamper-detection
+  • full device fingerprint (browser, os, device class, raw ua)
+  • client ip
+  • arbitrary context json (logout reason, error codes, stack traces, …)
+  • hmac-sha256 checksum for tamper-detection
 """
 
 import uuid
@@ -22,37 +22,37 @@ from django.conf import settings
 from django.db import models
 
 
-# ── Event type choices ────────────────────────────────────────────────────────
+#  event type choices 
 
 EVENT_TYPE_CHOICES = [
-    # Auth
+    # auth
     ('LOGIN',               'Login'),
     ('LOGIN_FAILED',        'Login Failed'),
     ('LOGOUT',              'Logout'),
     ('BIO_LOGIN',           'Biometric Login'),
     ('BIO_LOGIN_FAILED',    'Biometric Login Failed'),
     ('BIO_AUTH_LOCKED',     'Biometric Auth Locked'),
-    # Password / OTP
+    # password / otp
     ('PASSWORD_CHANGE',     'Password Change'),
     ('PASSWORD_RESET_REQ',  'Password Reset Requested'),
     ('OTP_SENT',            'OTP Sent'),
     ('OTP_VERIFIED',        'OTP Verified'),
     ('OTP_FAILED',          'OTP Verification Failed'),
-    # Account lifecycle
+    # account lifecycle
     ('USER_CREATED',        'User Created'),
     ('USER_AUTO_CREATED',   'User Auto-Created'),
     ('USER_MODIFIED',       'User Modified'),
     ('USER_DEACTIVATED',    'User Deactivated'),
     ('USER_ACTIVATED',      'User Activated'),
-    # Session / access
+    # session / access
     ('SESSION_EXPIRED',     'Session Expired'),
     ('ACCESS_DENIED',       'Access Denied'),
     ('CSRF_FAILURE',        'CSRF Failure'),
-    # System
+    # system
     ('ERROR',               'Error'),
     ('ADMIN_ACTION',        'Admin Action'),
     ('PURGE',               'Log Purge'),
-    # Legacy / catch-all
+    # legacy / catch-all
     ('OTHER',               'Other'),
 ]
 
@@ -68,8 +68,8 @@ AUTH_METHOD_CHOICES = [
 
 def _compute_checksum(row_dict: dict) -> str:
     """
-    Deterministic HMAC-SHA256 of the immutable row fields.
-    Stored in `checksum`; any tampering will invalidate it.
+    deterministic hmac-sha256 of the immutable row fields.
+    stored in `checksum`; any tampering will invalidate it.
     """
     key = (getattr(settings, 'HMAC_SIGNING_KEY', '') or 'audit-fallback-key').encode()
     payload = json.dumps(row_dict, sort_keys=True, default=str).encode()
@@ -77,15 +77,15 @@ def _compute_checksum(row_dict: dict) -> str:
 
 
 class AuditLog(models.Model):
-    """Immutable audit log entry. Never update rows — append only."""
+    """immutable audit log entry. never update rows — append only."""
 
-    # Primary key
+    # primary key
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # When (stored UTC, displayed IST via TIME_ZONE = 'Asia/Kolkata')
+    # when (stored utc, displayed ist via time_zone = 'asia/kolkata')
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    # What happened
+    # what happened
     event_type = models.CharField(
         max_length=30,
         choices=EVENT_TYPE_CHOICES,
@@ -99,7 +99,7 @@ class AuditLog(models.Model):
         db_index=True,
     )
 
-    # Who (FK + denormalised strings so logs survive user deletion)
+    # who (fk + denormalised strings so logs survive user deletion)
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -114,23 +114,23 @@ class AuditLog(models.Model):
     actor_role = models.CharField(max_length=20, blank=True,
                                   help_text='Role at the time of the event')
 
-    # Network
+    # network
     ip_address = models.GenericIPAddressField(null=True, blank=True, db_index=True)
 
-    # Device fingerprint (parsed from User-Agent)
+    # device fingerprint (parsed from user-agent)
     user_agent = models.TextField(blank=True)
     browser = models.CharField(max_length=120, blank=True)
     os = models.CharField(max_length=120, blank=True)
     device_type = models.CharField(max_length=40, blank=True)  # desktop / mobile / tablet
 
-    # Contextual payload
+    # contextual payload
     context = models.JSONField(
         default=dict,
         blank=True,
         help_text='Arbitrary key-value context: logout reason, error codes, stack traces, …',
     )
 
-    # Tamper-evidence
+    # tamper-evidence
     checksum = models.CharField(max_length=64, blank=True,
                                 help_text='HMAC-SHA256 of immutable fields')
 
@@ -143,7 +143,7 @@ class AuditLog(models.Model):
             models.Index(fields=['auth_method', 'timestamp'], name='al_authm_ts_idx'),
         ]
 
-    # ── helpers ──────────────────────────────────────────────────────────────
+    #  helpers 
 
     def compute_checksum(self) -> str:
         payload = {
@@ -158,12 +158,12 @@ class AuditLog(models.Model):
         return _compute_checksum(payload)
 
     def verify_checksum(self) -> bool:
-        """Returns True if the stored checksum matches a freshly computed one."""
+        """returns true if the stored checksum matches a freshly computed one."""
         return hmac.compare_digest(self.checksum, self.compute_checksum())
 
     @property
     def event_display_color(self) -> str:
-        """Bootstrap/Tailwind colour class for the event badge."""
+        """bootstrap/tailwind colour class for the event badge."""
         danger = {'LOGIN_FAILED', 'BIO_LOGIN_FAILED', 'BIO_AUTH_LOCKED',
                   'ACCESS_DENIED', 'CSRF_FAILURE', 'ERROR', 'OTP_FAILED'}
         warning = {'PASSWORD_RESET_REQ', 'OTP_SENT', 'SESSION_EXPIRED'}
@@ -181,7 +181,7 @@ class AuditLog(models.Model):
         return 'secondary'
 
     def context_summary(self) -> str:
-        """One-line human-readable summary of the context payload."""
+        """one-line human-readable summary of the context payload."""
         if not self.context:
             return '—'
         parts = []

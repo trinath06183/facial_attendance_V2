@@ -5,8 +5,8 @@ from .models import AttendanceRecord, AttendanceSession, Subject
 
 def get_student_analytics(student, start_date=None, end_date=None):
     """
-    Returns analytics dictionary for a specific student.
-    Filter by date if provided.
+    returns analytics dictionary for a specific student.
+    filter by date if provided.
     """
     records = AttendanceRecord.objects.filter(student=student)
     
@@ -23,10 +23,10 @@ def get_student_analytics(student, start_date=None, end_date=None):
     if total_classes > 0:
         presence_percentage = round((present_classes / total_classes) * 100, 1)
         
-    # Get last 5 records for quick history
+    # get last 5 records for quick history
     recent_history = records.order_by('-marked_at')[:5]
     
-    # Trend data: presence by date for charts
+    # trend data: presence by date for charts
     from django.db.models.functions import TruncDate
     trend_qs = records.annotate(
         date=TruncDate('session__started_at')
@@ -56,7 +56,7 @@ def get_student_analytics(student, start_date=None, end_date=None):
 
 def get_admin_analytics(start_date=None, end_date=None, academic_class_id=None, academic_year_id=None, subject_id=None):
     """
-    Returns system-wide or filtered analytics for Admin/Teacher dashboard.
+    returns system-wide or filtered analytics for admin/teacher dashboard.
     """
     sessions = AttendanceSession.objects.all()
     records = AttendanceRecord.objects.all()
@@ -88,7 +88,7 @@ def get_admin_analytics(start_date=None, end_date=None, academic_class_id=None, 
     if total_records > 0:
         system_presence_rate = round((overall_presence / total_records) * 100, 1)
 
-    # Calculate trend grouped by date
+    # calculate trend grouped by date
     from django.db.models.functions import TruncDate
     trend_qs = records.annotate(
         date=TruncDate('session__started_at')

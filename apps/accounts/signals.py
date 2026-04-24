@@ -1,12 +1,12 @@
 """
 accounts/signals.py
-──────────────────
-Single-active-session-per-user enforcement + full audit logging.
 
-When user A logs in from Device Y while already logged in on Device X:
-  1. Device X's session is deleted from the session store → silently logged out.
-  2. Device Y's new session key is saved on the user record.
-  3. A LOGIN / LOGOUT audit event is recorded with full context.
+single-active-session-per-user enforcement + full audit logging.
+
+when user a logs in from device y while already logged in on device x:
+  1. device x's session is deleted from the session store → silently logged out.
+  2. device y's new session key is saved on the user record.
+  3. a login / logout audit event is recorded with full context.
 """
 
 import logging
@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 @receiver(user_logged_in)
 def enforce_single_active_session(sender, request, user, **kwargs):
     """
-    Fires immediately after django.contrib.auth.login() for ANY login method.
-    Records the new session key and logs the LOGIN event.
+    fires immediately after django.contrib.auth.login() for any login method.
+    records the new session key and logs the login event.
     """
     new_key = request.session.session_key
 
@@ -33,8 +33,8 @@ def enforce_single_active_session(sender, request, user, **kwargs):
     user.active_session_key = new_key
     user.save(update_fields=['active_session_key'])
 
-    # ── Audit log ────────────────────────────────────────────────────────────
-    # Determine auth method from session flags set by views
+    #  audit log 
+    # determine auth method from session flags set by views
     auth_method = request.session.get('_auth_method', 'password')
 
     try:
@@ -56,7 +56,7 @@ def enforce_single_active_session(sender, request, user, **kwargs):
 @receiver(user_logged_out)
 def clear_active_session_on_logout(sender, request, user, **kwargs):
     """
-    Clears active_session_key on logout and logs the LOGOUT event.
+    clears active_session_key on logout and logs the logout event.
     """
     if user and user.is_authenticated:
         old_key = user.active_session_key
@@ -64,7 +64,7 @@ def clear_active_session_on_logout(sender, request, user, **kwargs):
         user.save(update_fields=['active_session_key'])
         logger.info(f"[session-mgmt] Cleared session key for '{user.username}' on logout.")
 
-        # ── Audit log ────────────────────────────────────────────────────────
+        #  audit log 
         try:
             from apps.audit.utils import log_event
             log_event(

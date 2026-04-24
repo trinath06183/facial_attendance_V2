@@ -17,12 +17,12 @@ logger = logging.getLogger(__name__)
 
 def get_filtered_attendance_qs(request):
     """
-    Returns a tuple of (queryset, error_response).
-    Applies RBAC and all exact filters based on request.GET.
+    returns a tuple of (queryset, error_response).
+    applies rbac and all exact filters based on request.get.
     """
     user = request.user
     
-    # Base queryset with relations
+    # base queryset with relations
     qs = AttendanceRecord.objects.select_related(
         'student',
         'session',
@@ -30,26 +30,26 @@ def get_filtered_attendance_qs(request):
         'session__teacher'
     )
     
-    # Role-Based Access Control Filtering
+    # role-based access control filtering
     if user.role == 'STUDENT' or getattr(user, 'is_student', lambda: False)():
-        # Students can only see their own records
+        # students can only see their own records
         if not hasattr(user, 'student_profile'):
             return None, JsonResponse({'success': False, 'error': 'No linked student profile.'}, status=403)
         qs = qs.filter(student=user.student_profile)
         
     elif user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        # Teachers can see sessions they created OR sessions in subjects they are assigned to
+        # teachers can see sessions they created or sessions in subjects they are assigned to
         qs = qs.filter(
             Q(session__subject__teachers=user) | Q(session__teacher=user)
         ).distinct()
         
     elif user.role == 'ADMIN' or getattr(user, 'is_admin', lambda: False)():
-        # Admins see everything
+        # admins see everything
         pass
     else:
         return None, JsonResponse({'success': False, 'error': 'Unauthorized role.'}, status=403)
         
-    # --- Exact Filters ---
+    #  exact filters 
     student_name = request.GET.get('studentName')
     if student_name and not (user.role == 'STUDENT' or getattr(user, 'is_student', lambda: False)()):
         qs = qs.filter(student__full_name__icontains=student_name)
@@ -90,7 +90,7 @@ def get_filtered_attendance_qs(request):
         except ValueError:
             return None, JsonResponse({'success': False, 'error': 'Invalid date format for toDate. Expected YYYY-MM-DD'}, status=400)
 
-    # --- Sorting ---
+    #  sorting 
     sort_param = request.GET.get('sort', '-date')
     
     sort_mapping = {
@@ -114,14 +114,14 @@ def get_filtered_attendance_qs(request):
 @require_GET
 def attendances_api(request):
     """
-    Unified API for Role-Based Attendance Viewer.
-    Supports filtering, sorting, pagination.
+    unified api for role-based attendance viewer.
+    supports filtering, sorting, pagination.
     """
     qs, err_resp = get_filtered_attendance_qs(request)
     if err_resp:
         return err_resp
     
-    # --- Pagination ---
+    #  pagination 
     try:
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('pageSize', 25))
@@ -160,7 +160,7 @@ def attendances_api(request):
                 'code': record.session.subject.code if record.session.subject else "N/A",
                 'name': record.session.subject.name if record.session.subject else "N/A"
             },
-            'class_section': "N/A", # Dropped with 'Section' removal
+            'class_section': "N/A", # dropped with 'section' removal
             'teacher': {
                 'id': str(record.session.teacher.id) if record.session.teacher else None,
                 'name': record.session.teacher.get_full_name() or record.session.teacher.username if record.session.teacher else 'Unknown'
@@ -195,8 +195,8 @@ def attendances_api(request):
 @require_GET
 def attendance_summary_api(request):
     """
-    GET /attendance/api/summary/
-    Returns aggregate attendance counts for the current filter set.
+    get /attendance/api/summary/
+    returns aggregate attendance counts for the current filter set.
     """
     from django.http import QueryDict
     mutable = request.GET.copy()
@@ -243,10 +243,10 @@ def attendance_summary_api(request):
 @require_GET
 def student_search_api(request):
     """
-    Finds students by name or roll number for manual attendance override.
+    finds students by name or roll number for manual attendance override.
     """
     query = request.GET.get('q', '').strip()
-    section_id = request.GET.get('section_id') # Leaving section_id for compat
+    section_id = request.GET.get('section_id') # leaving section_id for compat
     
     if not query or len(query) < 2:
         return JsonResponse({'success': True, 'data': []})
@@ -278,7 +278,7 @@ def student_search_api(request):
 @require_POST
 def manual_override_api(request, session_id):
     """
-    Manually mark a student present (for staff only).
+    manually mark a student present (for staff only).
     """
     if request.user.role not in ['ADMIN', 'TEACHER']:
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
@@ -325,7 +325,7 @@ def manual_override_api(request, session_id):
 @require_POST
 def attendance_record_edit_api(request, record_id):
     """
-    Inline edit an attendance record (Status/Reason) and log it.
+    inline edit an attendance record (status/reason) and log it.
     """
     import json
     from django.utils.timezone import now
@@ -350,7 +350,7 @@ def attendance_record_edit_api(request, record_id):
         record = get_object_or_404(AttendanceRecord.objects.select_related('session__subject', 'student'), id=record_id)
         record.session.close_if_expired(commit=True)
         
-        # RBAC logic for edits
+        # rbac logic for edits
         if request.user.role != 'ADMIN':
             if record.session.status != 'OPEN':
                 return JsonResponse({'success': False, 'error': 'Cannot edit attendance in a CLOSED session unless you are an ADMIN.'}, status=403)
@@ -382,8 +382,8 @@ def attendance_record_edit_api(request, record_id):
 @require_GET
 def student_attendance_stats_api(request, student_id):
     """
-    GET /attendance/api/stats/student/<uuid>/
-    Returns attendance percentage statistics for a student.
+    get /attendance/api/stats/student/<uuid>/
+    returns attendance percentage statistics for a student.
     """
     from apps.students.models import Student
     from .models import AttendanceSession, AttendanceRecord, Subject
@@ -400,7 +400,7 @@ def student_attendance_stats_api(request, student_id):
         return JsonResponse({'success': False, 'error': 'Student not found.'}, status=404)
 
     if user.role == 'TEACHER' or getattr(user, 'is_teacher', lambda: False)():
-        # Teachers can view stats of any student in the directory.
+        # teachers can view stats of any student in the directory.
         pass
 
     section_id_filter = request.GET.get('section_id') # actually subject_id
@@ -463,7 +463,7 @@ def student_attendance_stats_api(request, student_id):
 @require_GET
 def attendance_session_ledger_api(request, session_id):
     """
-    Returns an unpaginated JSON of all students assigned to this session.
+    returns an unpaginated json of all students assigned to this session.
     """
     from apps.attendance.models import AttendanceSession, AttendanceRecord
     from apps.students.models import Student
@@ -519,14 +519,14 @@ def attendance_session_ledger_api(request, session_id):
     })
 
 
-# Auto-close sessions api removed
+# auto-close sessions api removed
 
 
 @login_required
 @require_GET
 def teacher_subjects_api(request):
     """
-    GET /attendance/api/teacher-subjects/?year=1
+    get /attendance/api/teacher-subjects/?year=1
     """
     year = request.GET.get('year')
     if not year:
@@ -546,7 +546,7 @@ def teacher_subjects_api(request):
 @require_GET
 def get_academic_years_api(request):
     """
-    GET /attendance/api/academic-years/?class_id=1
+    get /attendance/api/academic-years/?class_id=1
     """
     class_id = request.GET.get('class_id')
     from .models import AcademicYear
@@ -560,7 +560,7 @@ def get_academic_years_api(request):
 @require_GET
 def get_subjects_api(request):
     """
-    GET /attendance/api/subjects/?year_id=1
+    get /attendance/api/subjects/?year_id=1
     """
     year_id = request.GET.get('year_id')
     from .models import Subject

@@ -4,13 +4,13 @@
 {% block content %}
 <div class="max-w-5xl mx-auto">
     <div class="glass rounded-3xl p-6 lg:p-10 shadow-2xl relative overflow-hidden border border-slate-700/60">
-        <!-- Decoration light -->
+        <!-- decoration light -->
         <div class="absolute top-0 right-0 w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[100px] z-0"></div>
         <div class="absolute bottom-0 left-0 w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[100px] z-0"></div>
         
         <div class="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <!-- Left Panel / Instructions -->
+            <!-- left panel / instructions -->
             <div class="lg:col-span-1 flex flex-col justify-center space-y-6">
                 <div>
                     <h2 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400 mb-2">Live Scanner Bridge</h2>
@@ -45,15 +45,15 @@
                 </a>
             </div>
 
-            <!-- Right Panel / Camera Feed -->
+            <!-- right panel / camera feed -->
             <div class="lg:col-span-2">
                 <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-800 group" id="videoContainer">
                     <video id="webcam" class="absolute inset-0 w-full h-full object-cover" style="transform: scaleX(-1);" autoplay playsinline></video>
-                    <!-- HUD Canvas overlays -->
+                    <!-- hud canvas overlays -->
                     <canvas id="overlay" class="absolute inset-0 w-full h-full object-cover z-20 pointer-events-none" style="transform: scaleX(-1);"></canvas>
                     <canvas id="hiddenCanvas" class="hidden"></canvas>
                     
-                    <!-- Viewfinder graphics -->
+                    <!-- viewfinder graphics -->
                     <div class="absolute inset-0 pointer-events-none z-10 flex items-center justify-center opacity-30">
                         <div class="w-64 h-64 border-2 border-dashed border-white rounded-xl"></div>
                         <div class="absolute w-8 h-8 border-t-4 border-l-4 border-emerald-500 top-1/4 left-1/4 rounded-tl-lg"></div>

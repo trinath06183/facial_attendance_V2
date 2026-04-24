@@ -7,7 +7,7 @@
 <div class="min-h-screen w-full flex items-center justify-center p-4 bg-gray-50 relative overflow-hidden"
     style="background: linear-gradient(135deg, #EEF2FF 0%, #F3F4F6 50%, #EFF6FF 100%);">
 
-    <!-- Background Decorators -->
+    <!-- background decorators -->
     <div
         class="absolute top-0 left-0 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 transform -translate-x-1/2 -translate-y-1/2 animate-blob">
     </div>
@@ -21,7 +21,7 @@
     <div class="w-full max-w-4xl relative z-10">
         <div class="bg-white rounded-[2rem] shadow-2xl overflow-hidden ring-1 ring-gray-900/5">
 
-            <!-- Login Panel -->
+            <!-- login panel -->
             <div class="w-full max-w-lg mx-auto p-10 lg:p-14 bg-white flex flex-col justify-center relative">
 
                 <div class="mb-8">
@@ -61,7 +61,7 @@
                 </div>
                 {% endif %}
 
-                <!-- Admin/Teacher Password Form -->
+                <!-- admin/teacher password form -->
                 <form method="post" class="space-y-5" id="loginForm">
                     {% csrf_token %}
                     {% if admin_teacher_already_active %}
@@ -125,7 +125,7 @@
                     </div>
                 </form>
 
-                <!-- Student Quick Access Divider & Button -->
+                <!-- student quick access divider & button -->
                 <div class="mt-8 relative">
                     <div class="absolute inset-0 flex items-center">
                         <div class="w-full border-t border-gray-200"></div>
@@ -135,7 +135,7 @@
                     </div>
                 </div>
 
-                <!-- Student Options -->
+                <!-- student options -->
                 <div class="mt-6 space-y-3">
                     <div class="relative">
                         <div class="absolute inset-0 flex items-center">
@@ -145,7 +145,7 @@
                                 class="px-3 bg-white text-gray-400 font-medium">Student Access</span></div>
                     </div>
 
-                    <!-- Student Password Login (collapsible) -->
+                    <!-- student password login (collapsible) -->
                     <div>
                         <button type="button" id="toggleStudentLogin"
                             class="w-full py-3 rounded-xl border-2 border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold transition-all flex items-center justify-center gap-3">
@@ -211,12 +211,12 @@
                         </div>
                     </div>
 
-                    <!-- Face Login -->
+                    <!-- face login -->
                     <a href="{% url 'student_scanner' %}"
                         class="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold transition-all flex items-center justify-center gap-3 group">
                         <div
                             class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <!-- Face scan SVG icon -->
+                            <!-- face scan svg icon -->
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                 class="w-5 h-5">
@@ -267,14 +267,14 @@
     }
 </script>
 
-<!-- ─── STUDENT LOGIN MODAL ────────────────────────────────────── -->
+<!--  student login modal  -->
 <div id="student-modal"
     class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/90 backdrop-blur-md hidden opacity-0 transition-opacity duration-300 overflow-y-auto w-full h-full p-4 lg:p-0"
     role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="bg-white lg:rounded-3xl shadow-2xl overflow-hidden w-full h-[95vh] lg:h-auto lg:max-w-4xl lg:flex flex-col relative transform scale-95 transition-transform duration-300"
         id="student-modal-inner">
 
-        <!-- Close Button -->
+        <!-- close button -->
         <button onclick="closeStudentModal()"
             class="absolute top-4 right-4 z-50 w-10 h-10 bg-white/50 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-600 hover:text-gray-900 shadow-sm border border-gray-100 hover:bg-white transition-all"
             aria-label="Close Modal">
@@ -283,9 +283,9 @@
 
         <div class="flex flex-col lg:flex-row w-full h-full min-h-[500px]">
 
-            <!-- Video Column -->
+            <!-- video column -->
             <div class="w-full lg:w-3/5 bg-black relative h-full flex flex-col justify-center min-h-[400px]">
-                <!-- Pre-start UI -->
+                <!-- pre-start ui -->
                 <div id="cam-overlay"
                     class="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-6 bg-gray-900/60 backdrop-blur-md">
                     <div
@@ -301,13 +301,13 @@
                     </button>
                 </div>
 
-                <!-- Video Elements -->
+                <!-- video elements -->
                 <video id="login-video" autoplay playsinline
                     class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-0 transition-opacity duration-300"></video>
                 <canvas id="login-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
                 <canvas id="hidden-canvas" class="hidden"></canvas>
 
-                <!-- Feedback Overlay -->
+                <!-- feedback overlay -->
                 <div id="scan-hint" class="absolute bottom-6 left-0 right-0 z-30 flex justify-center px-4 hidden">
                     <div
                         class="bg-gray-900/80 backdrop-blur-md border border-white/10 px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl">
@@ -323,7 +323,7 @@
                 </div>
             </div>
 
-            <!-- Steps Info Column -->
+            <!-- steps info column -->
             <div class="w-full lg:w-2/5 p-8 lg:p-12 bg-white flex flex-col justify-center border-l border-gray-100">
                 <h3 class="text-2xl font-black text-gray-900 tracking-tight" style="font-family: 'Outfit', sans-serif;">
                     2-Step Verification</h3>
@@ -331,10 +331,10 @@
                     intelligent dashboard.</p>
 
                 <div class="space-y-6 relative">
-                    <!-- Progress Line -->
+                    <!-- progress line -->
                     <div class="absolute left-[20px] top-[40px] bottom-[40px] w-0.5 bg-gray-100"></div>
 
-                    <!-- Step 1 -->
+                    <!-- step 1 -->
                     <div class="flex gap-4 relative z-10">
                         <div id="step-1-icon"
                             class="w-10 h-10 rounded-full bg-indigo-100 border-4 border-white text-indigo-600 font-bold flex items-center justify-center shrink-0 shadow-sm transition-colors duration-300">
@@ -346,7 +346,7 @@
                         </div>
                     </div>
 
-                    <!-- Step 2 -->
+                    <!-- step 2 -->
                     <div class="flex gap-4 relative z-10">
                         <div id="step-2-icon"
                             class="w-10 h-10 rounded-full bg-gray-50 border-4 border-white text-gray-400 font-bold flex items-center justify-center shrink-0 shadow-sm transition-colors duration-300">
@@ -468,12 +468,14 @@
 
     let mode = 'IDLE'; // IDLE, QR_LOCKED, SUCCESS, LOCKED
     let lockedQR = null;
+    let livenessHint = 'Look directly into the camera.';
     let scanInterval = null;
     let streamRef = null;
 
     function resetCamUI() {
         mode = 'IDLE';
         lockedQR = null;
+        livenessHint = 'Look directly into the camera.';
         ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
 
         step1Icon.className = "w-10 h-10 rounded-full bg-indigo-100 border-4 border-white text-indigo-600 font-bold flex items-center justify-center shrink-0 shadow-sm transition-colors duration-300";
@@ -482,6 +484,7 @@
         scanHint.classList.remove('hidden');
         scanHintIcon.className = 'fas fa-qrcode text-cyan-400 text-xl animate-pulse';
         scanHintText.textContent = 'Waiting for QR Code...';
+        scanHintText.className = "text-white font-bold tracking-wide";
 
         errorAlert.classList.add('hidden');
     }
@@ -494,7 +497,8 @@
         step2Icon.className = "w-10 h-10 rounded-full bg-orange-100 border-4 border-white text-orange-600 font-bold flex items-center justify-center shrink-0 shadow-sm transition-colors duration-300";
 
         scanHintIcon.className = 'fas fa-face-viewfinder text-orange-400 text-xl animate-spin-slow';
-        scanHintText.textContent = 'Verifying Facial Liveness...';
+        scanHintText.textContent = livenessHint;
+        scanHintText.className = "text-white font-bold tracking-wide";
     }
 
     function triggerSuccess() {
@@ -580,6 +584,7 @@
             if (data.success) {
                 const result = data.data;
                 ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
+                const livenessPending = !!result.liveness_required && !result.liveness_passed;
 
                 if (result.redirect_url) {
                     triggerSuccess();
@@ -590,6 +595,12 @@
                 if (result.qr_data && mode === 'IDLE' && !lockedQR) {
                     lockedQR = result.qr_data;
                     transitionToBiometric();
+                }
+
+                if (mode === 'QR_LOCKED' && livenessPending) {
+                    livenessHint = result.liveness_prompt || 'Complete liveness check.';
+                    scanHintText.textContent = livenessHint;
+                    scanHintText.className = "text-orange-300 font-bold tracking-wide";
                 }
 
                 const cw = canvasOverlay.width;
@@ -628,6 +639,8 @@
                         handleLockout(result.timeout);
                     } else if (result.error === 'USER_ALREADY_ACTIVE') {
                         showSessionConflictOptionsModal();
+                    } else if (result.error === 'LIVENESS_REQUIRED') {
+                        errorAlert.classList.add('hidden');
                     } else {
                         showError(result.error);
                     }

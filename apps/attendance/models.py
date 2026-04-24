@@ -14,7 +14,7 @@ class Room(models.Model):
         return self.name
 
 class AcademicClass(models.Model):
-    """ E.g. 'MCA', 'B.Tech CSE' """
+    """ e.g. 'mca', 'b.tech cse' """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     
@@ -25,10 +25,10 @@ class AcademicClass(models.Model):
         return self.name
 
 class AcademicYear(models.Model):
-    """ E.g. '1st Year', '2nd Year', mapped under an AcademicClass """
+    """ e.g. '1st year', '2nd year', mapped under an academicclass """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     academic_class = models.ForeignKey(AcademicClass, on_delete=models.CASCADE, related_name='years')
-    year_name = models.CharField(max_length=50) # e.g. "1st Year", "2nd Year"
+    year_name = models.CharField(max_length=50) # e.g. "1st year", "2nd year"
 
     class Meta:
         unique_together = ['academic_class', 'year_name']
@@ -148,7 +148,7 @@ class AttendanceRecord(models.Model):
     notes = models.TextField(blank=True, null=True)
     metadata = models.JSONField(default=dict, blank=True)
     
-    # Edit Tracking
+    # edit tracking
     edited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='edited_attendance_records')
     edited_at = models.DateTimeField(null=True, blank=True)
     original_status = models.CharField(max_length=20, null=True, blank=True)

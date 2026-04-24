@@ -1,20 +1,20 @@
 """
 apps/audit/utils.py
-───────────────────
-Public API for recording audit log events.
 
-Usage:
+public api for recording audit log events.
+
+usage:
     from apps.audit.utils import log_event
 
     log_event(
-        event_type='LOGIN',
+        event_type='login',
         auth_method='password',
-        request=request,        # optional – extracts IP, UA, actor
+        request=request,        # optional – extracts ip, ua, actor
         user=some_user,         # optional override / supplement
         context={'score': 0.97},
     )
 
-The function is thread-safe (Django ORM writes are atomic per-row),
+the function is thread-safe (django orm writes are atomic per-row),
 performant (no synchronous blocking), and fails silently (never raises
 so it cannot break a request/response cycle).
 """
@@ -27,10 +27,10 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
-# ── UA parser (optional dependency) ──────────────────────────────────────────
+#  ua parser (optional dependency) 
 
 def _parse_user_agent(ua_string: str) -> dict:
-    """Return browser/OS/device info from a User-Agent string."""
+    """return browser/os/device info from a user-agent string."""
     result = {'browser': '', 'os': '', 'device_type': 'desktop'}
     if not ua_string:
         return result
@@ -46,7 +46,7 @@ def _parse_user_agent(ua_string: str) -> dict:
         else:
             result['device_type'] = 'desktop'
     except ImportError:
-        # user-agents not installed — store raw UA only
+        # user-agents not installed — store raw ua only
         pass
     except Exception:
         pass
@@ -54,7 +54,7 @@ def _parse_user_agent(ua_string: str) -> dict:
 
 
 def _get_client_ip(request) -> str | None:
-    """Return the real client IP, respecting X-Forwarded-For."""
+    """return the real client ip, respecting x-forwarded-for."""
     if not request:
         return None
     xff = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -63,7 +63,7 @@ def _get_client_ip(request) -> str | None:
     return request.META.get('REMOTE_ADDR')
 
 
-# ── Main logging function ─────────────────────────────────────────────────────
+#  main logging function 
 
 def log_event(
     event_type: str,
@@ -73,37 +73,37 @@ def log_event(
     context: dict | None = None,
 ) -> None:
     """
-    Record one audit log entry.  Never raises — errors are logged to the
-    Python `audit` logger and swallowed so they cannot break a request.
+    record one audit log entry.  never raises — errors are logged to the
+    python `audit` logger and swallowed so they cannot break a request.
 
-    Parameters
-    ----------
-    event_type  : one of the EVENT_TYPE_CHOICES keys (e.g. 'LOGIN')
-    auth_method : one of the AUTH_METHOD_CHOICES keys (e.g. 'password')
-    request     : Django HttpRequest (optional) — used to extract IP, UA, actor
-    user        : CustomUser instance (optional) — overrides request.user
+    parameters
+    
+    event_type  : one of the event_type_choices keys (e.g. 'login')
+    auth_method : one of the auth_method_choices keys (e.g. 'password')
+    request     : django httprequest (optional) — used to extract ip, ua, actor
+    user        : customuser instance (optional) — overrides request.user
     context     : dict with any extra payload (logout_reason, error_code, …)
     """
     try:
         from .models import AuditLog  # lazy import to avoid circular imports
 
-        # Resolve actor
+        # resolve actor
         actor = user
         if actor is None and request is not None:
             req_user = getattr(request, 'user', None)
             if req_user and getattr(req_user, 'is_authenticated', False):
                 actor = req_user
 
-        # Network
+        # network
         ip = _get_client_ip(request)
 
-        # Device fingerprint
+        # device fingerprint
         ua_string = ''
         if request is not None:
             ua_string = request.META.get('HTTP_USER_AGENT', '')
         ua_info = _parse_user_agent(ua_string)
 
-        # Denormalised actor fields (survive user deletion)
+        # denormalised actor fields (survive user deletion)
         actor_user_id = ''
         actor_username = ''
         actor_role = ''
@@ -112,12 +112,12 @@ def log_event(
             actor_username = getattr(actor, 'username', '') or ''
             actor_role = getattr(actor, 'role', '') or ''
 
-        # Context
+        # context
         ctx = dict(context) if context else {}
-        # Add IST timestamp string for human readability in JSON exports
+        # add ist timestamp string for human readability in json exports
         ctx['_ist'] = timezone.localtime(timezone.now()).strftime('%Y-%m-%d %H:%M:%S IST')
 
-        # Build the row
+        # build the row
         log = AuditLog(
             event_type=event_type,
             auth_method=auth_method,
@@ -132,12 +132,12 @@ def log_event(
             device_type=ua_info['device_type'][:40],
             context=ctx,
         )
-        # Compute checksum before save (id and timestamp will be set on save)
+        # compute checksum before save (id and timestamp will be set on save)
         log.save()  # sets id + timestamp
         log.checksum = log.compute_checksum()
         log.save(update_fields=['checksum'])
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: ble001
         logger.error(
             'audit.log_event failed: %s\n%s',
             exc,
@@ -145,13 +145,13 @@ def log_event(
         )
 
 
-# ── Legacy shim (keeps old callers working) ──────────────────────────────────
+#  legacy shim (keeps old callers working) 
 
 def audit(request, action: str, target_resource: str = '', resource_id: str = '',
           metadata=None) -> None:
     """
-    Backward-compatible wrapper around log_event().
-    Old code that calls audit(request, 'LOGGED_IN_BIOMETRIC', …) continues
+    backward-compatible wrapper around log_event().
+    old code that calls audit(request, 'logged_in_biometric', …) continues
     to work without modification.
     """
     context = {}
@@ -165,7 +165,7 @@ def audit(request, action: str, target_resource: str = '', resource_id: str = ''
     if resource_id:
         context['resource_id'] = resource_id
 
-    # Map old action strings → new event_type
+    # map old action strings → new event_type
     action_map = {
         'LOGGED_IN_BIOMETRIC':          ('BIO_LOGIN', 'facial_recognition'),
         'BIO_AUTH_LOCKED':              ('BIO_AUTH_LOCKED', 'facial_recognition'),

@@ -14,7 +14,7 @@ class AttendanceSessionForm(ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        # We need AJAX to populate year/subject normally, but we handle basic POST bound data here
+        # we need ajax to populate year/subject normally, but we handle basic post bound data here
         if 'academic_class' in self.data:
             try:
                 class_id = self.data.get('academic_class')
@@ -30,7 +30,7 @@ class AttendanceSessionForm(ModelForm):
             except (ValueError, TypeError):
                 pass
         
-        # If we are editing an instance
+        # if we are editing an instance
         elif self.instance.pk and self.instance.subject:
             self.fields['academic_class'].initial = self.instance.subject.academic_year.academic_class
             self.fields['academic_year'].initial = self.instance.subject.academic_year

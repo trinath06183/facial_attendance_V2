@@ -3,7 +3,7 @@
 {% block title %}Start Session — SmartAttend{% endblock %}
 
 {% block content %}
-<!-- ── Page Header ───────────────────────────── -->
+<!--  page header  -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
         <a href="{% url 'session_list' %}"
@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<!-- ── Pre-flight Checklist ──────────────────── -->
+<!--  pre-flight checklist  -->
 <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 mb-6 flex items-start gap-4 max-w-2xl">
     <div class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
         <i class="fas fa-exclamation-triangle text-amber-600 text-sm" aria-hidden="true"></i>
@@ -30,7 +30,7 @@
     </div>
 </div>
 
-<!-- ── Form Card ─────────────────────────────── -->
+<!--  form card  -->
 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden max-w-2xl">
     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
         <i class="fas fa-play-circle text-emerald-500 text-sm" aria-hidden="true"></i>
@@ -162,7 +162,7 @@
                 }
             </script>
 
-            <!-- Actions -->
+            <!-- actions -->
             <div class="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
                 <a href="{% url 'session_list' %}"
                     class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">

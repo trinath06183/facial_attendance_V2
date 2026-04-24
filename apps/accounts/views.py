@@ -19,9 +19,57 @@ from .models import CustomUser
 
 logger = logging.getLogger(__name__)
 
+
+def _liveness_session_key(flow_name: str) -> str:
+    return f"liveness_state_{flow_name}"
+
+
+def _clear_liveness_state(request, flow_name: str) -> None:
+    request.session.pop(_liveness_session_key(flow_name), None)
+
+
+def _apply_liveness_gate(request, flow_name: str, student, result: dict, state_tools: dict) -> None:
+    """
+    updates per-session liveness state and gates `face_match` until challenge passes.
+    """
+    if not student:
+        _clear_liveness_state(request, flow_name)
+        result['liveness_required'] = False
+        result['liveness_passed'] = False
+        result['liveness_prompt'] = None
+        return
+
+    create_state = state_tools['create']
+    update_state = state_tools['update']
+    expired = state_tools['expired']
+
+    key = _liveness_session_key(flow_name)
+    scope = str(student.id)
+    state = request.session.get(key)
+
+    if not state or expired(state) or state.get('scope') != scope:
+        state = create_state()
+        state['scope'] = scope
+
+    state = update_state(state, result.get('liveness_metrics'))
+    state['scope'] = scope
+    request.session[key] = state
+    request.session.modified = True
+
+    challenge = state.get('challenge', 'NOD')
+    result['liveness_required'] = True
+    result['liveness_challenge'] = challenge.lower()
+    result['liveness_passed'] = bool(state.get('passed'))
+    result['liveness_prompt'] = state.get('prompt')
+    result['identity_match'] = bool(result.get('face_match'))
+
+    if result.get('face_match') and not result['liveness_passed']:
+        result['face_match'] = False
+        result['error'] = 'LIVENESS_REQUIRED'
+
 class CustomLoginView(LoginView):
     """
-    Extends generic LoginView to block login if user is already active.
+    extends generic loginview to block login if user is already active.
     """
     template_name = 'accounts/login.html'
 
@@ -33,7 +81,7 @@ class CustomLoginView(LoginView):
             if force_login:
                 terminate_user_session(user)
             else:
-                # Log failed login attempt because of conflict
+                # log failed login attempt because of conflict
                 from apps.audit.utils import log_event
                 log_event(
                     event_type='LOGIN_FAILED',
@@ -47,7 +95,7 @@ class CustomLoginView(LoginView):
                     admin_teacher_already_active=True
                 ))
 
-        # Tell the signal which auth method was used
+        # tell the signal which auth method was used
         self.request.session['_auth_method'] = 'password'
         response = super().form_valid(form)
         touch_user_activity(self.request)
@@ -117,12 +165,12 @@ def user_toggle_status(request, user_id):
 @require_POST
 def biometric_login_api(request):
     """
-    API endpoint for biometric login.
-    Expects JSON: { "frame": "base64...", "current_qr": "..." }
+    api endpoint for biometric login.
+    expects json: { "frame": "base64...", "current_qr": "..." }
     """
     import time
     
-    # Lockout check
+    # lockout check
     lockout_until = request.session.get('bio_lockout_until')
     if lockout_until and time.time() < lockout_until:
         remaining = int(lockout_until - time.time())
@@ -138,7 +186,7 @@ def biometric_login_api(request):
     if not frame_b64:
         return JsonResponse({'success': False, 'error': 'MISSING_FRAME'})
 
-    # Strip data URL prefix if present
+    # strip data url prefix if present
     if ',' in frame_b64:
         frame_b64 = frame_b64.split(',')[1]
     
@@ -149,18 +197,26 @@ def biometric_login_api(request):
 
     from apps.students.models import Student
     from apps.students.qr_utils import verify_token
-    from apps.students.face_pipeline import process_biometric_frame
+    from apps.students.face_pipeline import (
+        process_biometric_frame,
+        create_liveness_state,
+        update_liveness_state,
+        is_liveness_state_expired,
+    )
 
     student = None
     stored_vecs = None
 
-    # If QR is provided, find the student
+    if not current_qr:
+        _clear_liveness_state(request, 'biometric_login')
+
+    # if qr is provided, find the student
     if current_qr:
         student_id_str = verify_token(current_qr)
         if student_id_str:
             student = Student.objects.filter(university_roll_number=student_id_str).first()
             if not student:
-                # Legacy UUID fallback
+                # legacy uuid fallback
                 import uuid
                 try:
                     uuid_obj = uuid.UUID(student_id_str, version=4)
@@ -173,10 +229,27 @@ def biometric_login_api(request):
             if stored_embeddings.exists():
                 stored_vecs = [e.get_vector() for e in stored_embeddings]
 
-    # Process the frame
-    result = process_biometric_frame(image_bytes, stored_vecs=stored_vecs)
+    if not (student and stored_vecs):
+        _clear_liveness_state(request, 'biometric_login')
 
-    # If we have a successful face match and a student, log them in!
+    # process the frame
+    result = process_biometric_frame(image_bytes, stored_vecs=stored_vecs)
+    if student and stored_vecs:
+        _apply_liveness_gate(
+            request,
+            'biometric_login',
+            student,
+            result,
+            {
+                'create': create_liveness_state,
+                'update': update_liveness_state,
+                'expired': is_liveness_state_expired,
+            },
+        )
+    else:
+        result['identity_match'] = bool(result.get('face_match'))
+
+    # if we have a successful face match and a student, log them in!
     if result.get('face_match') and student and hasattr(student, 'user') and student.user:
         if student.user.is_active:
             force_login = data.get('force_login') is True
@@ -189,20 +262,26 @@ def biometric_login_api(request):
             request.session['_auth_method'] = 'facial_recognition'
             login(request, student.user)
             touch_user_activity(request)
-            # Reset failed attempts
+            # reset failed attempts
             request.session['bio_failed_attempts'] = 0
             
-            # Log the biometric login in the audit system
+            # log the biometric login in the audit system
             from apps.audit.utils import log_event
             log_event(request=request, event_type='BIO_LOGIN', auth_method='facial_recognition',
                       context={'score': result.get('face_score', 0),
                                'student_id': str(student.user.id)})
             result['redirect_url'] = '/dashboard/'
+            _clear_liveness_state(request, 'biometric_login')
         else:
             result['face_match'] = False
             result['error'] = 'ACCOUNT_INACTIVE'
-    elif current_qr and result.get('face_box') and not result.get('face_match'):
-        # Failed match while looking at a face
+    elif (
+        current_qr
+        and result.get('face_box')
+        and not bool(result.get('identity_match', result.get('face_match')))
+        and not (result.get('liveness_required') and not result.get('liveness_passed'))
+    ):
+        # failed match while looking at a face
         fails = request.session.get('bio_failed_attempts', 0) + 1
         request.session['bio_failed_attempts'] = fails
         if fails >= 5:
@@ -223,12 +302,12 @@ def biometric_login_api(request):
     return JsonResponse({'success': True, 'data': result})
 
 
-# ── Student Biometric Login Scanner ──────────────────────────────────────────
+#  student biometric login scanner 
 
 def student_scanner_view(request):
     """
-    Public page: students scan their QR + face to log in.
-    No @login_required — accessible from the login page.
+    public page: students scan their qr + face to log in.
+    no @login_required — accessible from the login page.
     """
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -238,31 +317,31 @@ def student_scanner_view(request):
 @require_POST
 def student_face_login_api(request):
     """
-    Public API for the student biometric login scanner.
-    Expects JSON: { "frame": "base64...", "current_qr": "..." or null }
+    public api for the student biometric login scanner.
+    expects json: { "frame": "base64...", "current_qr": "..." or null }
 
-    Phase 1 (current_qr is null):
-        - Run process_biometric_frame to detect QR code + face bounding box.
-        - If QR detected, look up the student and return their profile.
-        - Frontend uses this to lock the QR and show the student card.
+    phase 1 (current_qr is null):
+        - run process_biometric_frame to detect qr code + face bounding box.
+        - if qr detected, look up the student and return their profile.
+        - frontend uses this to lock the qr and show the student card.
 
-    Phase 2 (current_qr is provided):
-        - Look up the student by the locked QR token.
-        - Load their stored face embeddings.
-        - Run process_biometric_frame with stored_vecs to match face.
-        - On match, log the student in and return redirect_url.
+    phase 2 (current_qr is provided):
+        - look up the student by the locked qr token.
+        - load their stored face embeddings.
+        - run process_biometric_frame with stored_vecs to match face.
+        - on match, log the student in and return redirect_url.
     """
-    # ── Lockout check (DISABLED) ───────────────────────────────
+    #  lockout check (disabled) 
     # lockout_until = request.session.get('bio_lockout_until')
     # if lockout_until and time.time() < lockout_until:
     #     remaining = int(lockout_until - time.time())
-    #     return JsonResponse({'success': False, 'error': 'ACCOUNT_LOCKED', 'timeout': remaining})
+    #     return jsonresponse({'success': false, 'error': 'account_locked', 'timeout': remaining})
 
-    # ── Parse request ────────────────────────────────────────────
+    #  parse request 
     try:
         data = json.loads(request.body)
         frame_b64  = data.get('frame')
-        current_qr = data.get('current_qr')  # None in Phase 1, token string in Phase 2
+        current_qr = data.get('current_qr')  # none in phase 1, token string in phase 2
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'error': 'INVALID_JSON'})
 
@@ -279,13 +358,19 @@ def student_face_login_api(request):
 
     from apps.students.models import Student
     from apps.students.qr_utils import verify_token
-    from apps.students.face_pipeline import process_biometric_frame
+    from apps.students.face_pipeline import (
+        process_biometric_frame,
+        create_liveness_state,
+        update_liveness_state,
+        is_liveness_state_expired,
+    )
 
-    # ── PHASE 1: No QR locked yet — just detect QR + face in frame ──
+    #  phase 1: no qr locked yet — just detect qr + face in frame 
     if not current_qr:
+        _clear_liveness_state(request, 'student_scanner')
         result = process_biometric_frame(image_bytes, stored_vecs=None)
 
-        # If a QR was detected in the frame, resolve which student it belongs to
+        # if a qr was detected in the frame, resolve which student it belongs to
         if result.get('qr_data'):
             student_id_str = verify_token(result['qr_data'])
             if student_id_str:
@@ -308,7 +393,7 @@ def student_face_login_api(request):
 
         return JsonResponse({'success': True, 'data': result})
 
-    # ── PHASE 2: QR is locked — match face against the student's embeddings ──
+    #  phase 2: qr is locked — match face against the student's embeddings 
     student = None
     stored_vecs = None
 
@@ -324,17 +409,30 @@ def student_face_login_api(request):
                 pass
 
     if not student:
+        _clear_liveness_state(request, 'student_scanner')
         return JsonResponse({'success': False, 'error': 'STUDENT_NOT_FOUND'})
 
     stored_embeddings = student.embeddings.filter(is_active=True)
     if not stored_embeddings.exists():
+        _clear_liveness_state(request, 'student_scanner')
         return JsonResponse({'success': False, 'error': 'NO_ENROLLED_FACE'})
 
     stored_vecs = [e.get_vector() for e in stored_embeddings]
 
     result = process_biometric_frame(image_bytes, stored_vecs=stored_vecs)
+    _apply_liveness_gate(
+        request,
+        'student_scanner',
+        student,
+        result,
+        {
+            'create': create_liveness_state,
+            'update': update_liveness_state,
+            'expired': is_liveness_state_expired,
+        },
+    )
 
-    # Keep the student card visible during face scan phase
+    # keep the student card visible during face scan phase
     primary_photo = student.photos.filter(is_primary=True).first()
     result['student'] = {
         'full_name': student.full_name,
@@ -342,16 +440,16 @@ def student_face_login_api(request):
         'photo_url':  primary_photo.image.url if primary_photo else '',
     }
 
-    # ── Successful face match → log in ───────────────────────────
+    #  successful face match → log in 
     if result.get('face_match'):
         from django.contrib.auth import get_user_model
         from apps.audit.utils import audit
         User = get_user_model()
 
-        # --- Ensure the student has a linked user account ---
+        #  ensure the student has a linked user account 
         if not student.user:
-            # 1. Only link an existing user if they are already STUDENT role.
-            #    NEVER touch ADMIN or TEACHER accounts — doing so would demote them.
+            # 1. only link an existing user if they are already student role.
+            #    never touch admin or teacher accounts — doing so would demote them.
             existing = None
             if student.email:
                 candidate = User.objects.filter(email=student.email).first()
@@ -363,7 +461,7 @@ def student_face_login_api(request):
                 student.save(update_fields=['user'])
                 logger.info(f"Linked existing student user '{existing.username}' to student {student.full_name}")
             else:
-                # 2. Auto-create a fresh student-only user account
+                # 2. auto-create a fresh student-only user account
                 raw_username = (
                     getattr(student, 'university_roll_number', None)
                     or str(student.id)[:8]
@@ -389,10 +487,10 @@ def student_face_login_api(request):
                       f"Auto-created biometric-only account for student {student.full_name}")
                 logger.info(f"Auto-created user '{username}' for student {student.full_name}")
 
-        # Do NOT forcibly change the role of any linked user.
-        # If an admin/teacher is accidentally linked, that must be fixed manually.
+        # do not forcibly change the role of any linked user.
+        # if an admin/teacher is accidentally linked, that must be fixed manually.
 
-        # --- Now log in ---
+        #  now log in 
         if student.user and student.user.is_active:
             force_login = data.get('force_login') is True
             if is_user_already_active(student.user, request):
@@ -407,7 +505,8 @@ def student_face_login_api(request):
                 request.session['bio_failed_attempts'] = 0
                 audit(request, 'LOGGED_IN_BIOMETRIC', 'User', str(student.user.id),
                       f"Biometric login — score {result.get('face_score', 0):.4f}")
-            # Force password change on first login
+            _clear_liveness_state(request, 'student_scanner')
+            # force password change on first login
             if student.user.must_change_password:
                 result['redirect_url'] = '/accounts/student/first-login-change-password/'
             else:
@@ -416,36 +515,40 @@ def student_face_login_api(request):
             result['face_match'] = False
             result['error'] = 'ACCOUNT_INACTIVE'
 
-    elif result.get('face_box') and not result.get('face_match'):
-        # Lockout system disabled
+    elif (
+        result.get('face_box')
+        and not bool(result.get('identity_match', result.get('face_match')))
+        and not (result.get('liveness_required') and not result.get('liveness_passed'))
+    ):
+        # lockout system disabled
         from apps.audit.utils import audit
         audit(request, 'BIO_AUTH_FAILED', 'Student', str(student.id), "Face match failed on scanner page")
 
     return JsonResponse({'success': True, 'data': result})
 
 
-# Removed destructive browser_logout_api endpoint that caused erratic auto-logouts
-# ── Email OTP Password Reset Flow ─────────────────────────────────────────────
+# removed destructive browser_logout_api endpoint that caused erratic auto-logouts
+#  email otp password reset flow 
 
 import secrets
 from django.core.mail import send_mail
 from .models import PasswordResetOTP
 
 def password_reset_request(request):
-    """Step 1: User enters their email to request an OTP."""
+    """step 1: user enters their email to request an otp."""
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
         user = CustomUser.objects.filter(email=email).first()
         
-        # Security: Only allow ADMIN and TEACHER to use this flow.
+        # security: only allow admin and teacher to use this flow.
         if user and user.role in ['ADMIN', 'TEACHER']:
-            # Generate 6-digit OTP
+            # generate 6-digit otp
             otp_code = str(secrets.randbelow(900000) + 100000)
             
-            # Save OTP to DB
+            # save otp to db
             PasswordResetOTP.objects.create(user=user, otp=otp_code)
             
-            # Send Email
+            # send email
             subject = "SmartAttend - Password Reset Verification Code"
             message = f"Hello {user.get_full_name()},\n\nYour password reset OTP code is: {otp_code}\nThis code will expire in 10 minutes.\n\nIf you did not request this, please ignore this email."
             try:
@@ -465,9 +568,9 @@ def password_reset_request(request):
                 logger.exception("Failed to send OTP email")
                 messages.error(request, "Unable to send verification email; please try again later.")
         else:
-            # Vague message for security (don't reveal if email exists)
+            # vague message for security (don't reveal if email exists)
             messages.info(request, "If an Admin or Teacher account exists with that email, an OTP has been sent.")
-            # Even if it failed, redirect to verification for security obscurity, 
+            # even if it failed, redirect to verification for security obscurity, 
             # or just show a message.
             request.session['reset_email'] = email
             return redirect('password_reset_verify')
@@ -476,7 +579,7 @@ def password_reset_request(request):
 
 
 def password_reset_verify(request):
-    """Step 2: User enters the OTP received in email."""
+    """step 2: user enters the otp received in email."""
     email = request.session.get('reset_email')
     if not email:
         return redirect('password_reset_request')
@@ -486,11 +589,11 @@ def password_reset_verify(request):
         user = CustomUser.objects.filter(email=email).first()
         
         if user:
-            # Get the latest OTP for this user
+            # get the latest otp for this user
             valid_otp = PasswordResetOTP.objects.filter(user=user).order_by('-created_at').first()
             if valid_otp and secrets.compare_digest(str(valid_otp.otp), str(otp_input)):
                 if valid_otp.is_valid():
-                    # Success
+                    # success
                     valid_otp.delete()
                     request.session['reset_verified_user_id'] = str(user.id)
                     return redirect('password_reset_confirm')
@@ -504,7 +607,7 @@ def password_reset_verify(request):
     return render(request, 'accounts/password_reset_otp.html', {'email': email})
 
 def password_reset_confirm(request):
-    """Step 3: User resets their password after verifying OTP."""
+    """step 3: user resets their password after verifying otp."""
     user_id = request.session.get('reset_verified_user_id')
     if not user_id:
         return redirect('password_reset_request')
@@ -520,7 +623,7 @@ def password_reset_confirm(request):
                 user.set_password(password)
                 user.save()
                 
-                # Cleanup session variables
+                # cleanup session variables
                 del request.session['reset_verified_user_id']
                 if 'reset_email' in request.session:
                     del request.session['reset_email']
@@ -538,13 +641,13 @@ def password_reset_confirm(request):
     return render(request, 'accounts/password_reset_confirm.html', {'user': user})
 
 
-# ── Student Password Login ─────────────────────────────────────────────────────
+#  student password login 
 
 @require_POST
 def student_password_login(request):
     """
-    POST handler for the student roll-number + password login form on the main login page.
-    Authenticates via the linked CustomUser account on the Student model.
+    post handler for the student roll-number + password login form on the main login page.
+    authenticates via the linked customuser account on the student model.
     """
     from apps.students.models import Student
     from django.contrib.auth import authenticate
@@ -573,7 +676,7 @@ def student_password_login(request):
             request.session['_auth_method'] = 'password'
             login(request, user)
             touch_user_activity(request)
-            # Force password change on first login
+            # force password change on first login
             if user.must_change_password:
                 return redirect('student_first_login_change_password')
             return redirect('dashboard')
@@ -589,12 +692,12 @@ def student_password_login(request):
     return redirect('login')
 
 
-# ── Student OTP Password Reset ─────────────────────────────────────────────────
+#  student otp password reset 
 
 def student_password_reset_request(request):
     """
-    Step 1: Student enters their University Roll Number.
-    System finds their registered email and dispatches an OTP.
+    step 1: student enters their university roll number.
+    system finds their registered email and dispatches an otp.
     """
     from apps.students.models import Student
 
@@ -621,7 +724,7 @@ def student_password_reset_request(request):
                 logger.exception("Failed to send student OTP email")
                 messages.error(request, "Unable to send verification email; please try again later.")
         else:
-            # Vague error for security
+            # vague error for security
             messages.info(request, "If a student account exists with that Roll Number, an OTP has been sent to the registered email.")
             request.session['student_reset_roll'] = roll_number
             return redirect('student_password_reset_verify')
@@ -630,7 +733,7 @@ def student_password_reset_request(request):
 
 
 def student_password_reset_verify(request):
-    """Step 2: Student enters the 6-digit OTP sent to their email."""
+    """step 2: student enters the 6-digit otp sent to their email."""
     from apps.students.models import Student
 
     roll_number = request.session.get('student_reset_roll')
@@ -655,7 +758,7 @@ def student_password_reset_verify(request):
         else:
             messages.error(request, "Invalid request.")
 
-    # Mask the email for display
+    # mask the email for display
     masked_email = ''
     if student and student.email:
         parts = student.email.split('@')
@@ -665,7 +768,7 @@ def student_password_reset_verify(request):
 
 
 def student_password_reset_confirm(request):
-    """Step 3: Student sets a new password."""
+    """step 3: student sets a new password."""
     user_id = request.session.get('student_reset_verified_user_id')
     if not user_id:
         return redirect('student_password_reset_request')
@@ -693,11 +796,11 @@ def student_password_reset_confirm(request):
     return render(request, 'accounts/student_password_reset_confirm.html', {'user': user})
 
 
-# ── Student Change Password (logged in) ────────────────────────────────────────
+#  student change password (logged in) 
 
 @login_required
 def student_change_password(request):
-    """Allows a logged-in STUDENT to change their password."""
+    """allows a logged-in student to change their password."""
     from django.contrib.auth import update_session_auth_hash
 
     if request.user.role != 'STUDENT':
@@ -719,7 +822,7 @@ def student_change_password(request):
             request.user.set_password(new_password)
             request.user.must_change_password = False
             request.user.save()
-            # Keep the user logged in after password change
+            # keep the user logged in after password change
             update_session_auth_hash(request, request.user)
             messages.success(request, "Your password has been changed successfully!")
             return redirect('dashboard')
@@ -730,9 +833,9 @@ def student_change_password(request):
 @login_required
 def student_first_login_change_password(request):
     """
-    Shown immediately after a student's very first login.
-    The student is NOT required to enter their old (default) password.
-    After a successful change, must_change_password is cleared and 
+    shown immediately after a student's very first login.
+    the student is not required to enter their old (default) password.
+    after a successful change, must_change_password is cleared and 
     they are redirected to the dashboard.
     """
     from django.contrib.auth import update_session_auth_hash
@@ -740,7 +843,7 @@ def student_first_login_change_password(request):
     if request.user.role != 'STUDENT':
         return redirect('dashboard')
 
-    # If they've already changed their password, go straight to dashboard
+    # if they've already changed their password, go straight to dashboard
     if not request.user.must_change_password:
         return redirect('dashboard')
 

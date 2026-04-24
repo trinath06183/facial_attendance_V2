@@ -35,7 +35,7 @@
     </header>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Analytics -->
+        <!-- analytics -->
         <div class="bg-indigo-50 border border-indigo-100 p-8 rounded-3xl flex flex-col justify-center">
             <p class="text-indigo-600 text-xs font-bold uppercase tracking-widest mb-1">Average Presence</p>
             <p class="text-5xl font-black text-indigo-900">{{ presence_percentage|default:"--" }}%</p>
@@ -48,7 +48,7 @@
         <div class="bg-orange-50 border border-orange-100 p-8 rounded-3xl flex flex-col justify-center">
             <p class="text-orange-600 text-xs font-bold uppercase tracking-widest mb-1">Classes Missed</p>
             <p class="text-5xl font-black text-orange-900">{{ classes_missed|default:"0" }}</p>
-            <!-- <p class="text-orange-800/60 text-sm font-medium mt-2">Requires attention if > 5</p> -->
+            <!-- <p class="text-orange-800/60 text-sm font-medium mt-2">requires attention if > 5</p> -->
         </div>
 
         <div class="bg-white border border-gray-100 p-6 rounded-3xl shadow-sm">
@@ -77,10 +77,10 @@
         </div>
     </div>
 
-    <!-- Recent History — Full Attendance Logs Viewer -->
+    <!-- recent history — full attendance logs viewer -->
     <div class="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm relative">
 
-        <!-- Section Header + Export Buttons -->
+        <!-- section header + export buttons -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
                 <i class="fas fa-history text-blue-500"></i> Recent History
@@ -101,7 +101,7 @@
             </div>
         </div>
 
-        <!-- Filters -->
+        <!-- filters -->
         <div class="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
@@ -148,7 +148,7 @@
             </div>
         </div>
 
-        <!-- Summary Bar -->
+        <!-- summary bar -->
         <div id="summary-bar" class="bg-gray-50 rounded-2xl p-4 mb-5 border border-gray-100">
             <div id="summary-loading" class="flex items-center gap-2 text-sm text-gray-400 font-medium">
                 <i class="fas fa-spinner fa-spin"></i> Calculating attendance…
@@ -188,7 +188,7 @@
             </div>
         </div>
 
-        <!-- Results Table -->
+        <!-- results table -->
         <div class="rounded-2xl border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap">
@@ -209,7 +209,7 @@
                 </table>
             </div>
 
-            <!-- Pagination -->
+            <!-- pagination -->
             <div class="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 bg-gray-50/50">
                 <p class="text-xs text-gray-500 font-medium" id="pagination-info">Showing 0 results</p>
                 <div class="flex items-center gap-2">
@@ -224,7 +224,7 @@
         </div>
     </div>
 
-    <!-- QR Modal -->
+    <!-- qr modal -->
     <div id="qr-modal"
         class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200">

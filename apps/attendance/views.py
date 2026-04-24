@@ -10,7 +10,15 @@ from django.conf import settings
 
 from apps.students.models import Student
 from apps.students.qr_utils import verify_token
-from apps.students.face_pipeline import detect_and_embed, compare_embeddings, passive_liveness_check
+from apps.students.face_pipeline import (
+    detect_and_embed,
+    compare_embeddings,
+    passive_liveness_check,
+    process_biometric_frame,
+    create_liveness_state,
+    update_liveness_state,
+    is_liveness_state_expired,
+)
 from apps.audit.utils import audit
 from .models import AttendanceSession, AttendanceRecord, Subject, AcademicClass, AcademicYear
 from .forms import AttendanceSessionForm
@@ -20,6 +28,52 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 FACE_MATCH_THRESHOLD = settings.FACE_MATCH_THRESHOLD
+
+
+def _attendance_liveness_key(session_id) -> str:
+    return f'attendance_liveness_{session_id}'
+
+
+def _clear_attendance_liveness(request, session_id) -> None:
+    request.session.pop(_attendance_liveness_key(session_id), None)
+
+
+def _apply_attendance_liveness(request, session_obj, student, result: dict) -> None:
+    """
+    applies blink/nod liveness gating and annotates the api result payload.
+    """
+    if not student:
+        _clear_attendance_liveness(request, session_obj.id)
+        result['liveness_required'] = False
+        result['liveness_passed'] = False
+        result['liveness_prompt'] = None
+        return
+
+    key = _attendance_liveness_key(session_obj.id)
+    scope = f'{session_obj.id}:{student.id}'
+    state = request.session.get(key)
+
+    if not state or is_liveness_state_expired(state) or state.get('scope') != scope:
+        state = create_liveness_state()
+        state['scope'] = scope
+
+    state = update_liveness_state(state, result.get('liveness_metrics'))
+    state['scope'] = scope
+    request.session[key] = state
+    request.session.modified = True
+
+    challenge = state.get('challenge', 'NOD')
+    result['liveness_required'] = True
+    result['liveness_challenge'] = challenge.lower()
+    result['liveness_passed'] = bool(state.get('passed'))
+    result['liveness_prompt'] = state.get('prompt')
+    result['identity_match'] = bool(result.get('face_match'))
+
+    # keep legacy face_match false until liveness is completed
+    # so existing frontend success conditions remain compatible.
+    if result.get('face_match') and not result['liveness_passed']:
+        result['face_match'] = False
+        result['error'] = 'LIVENESS_REQUIRED'
 
 @login_required
 def session_list(request):
@@ -32,7 +86,7 @@ def session_list(request):
 
 @login_required
 def session_create(request):
-    # Prevent teachers from creating a new session if they already have an active one
+    # prevent teachers from creating a new session if they already have an active one
     if request.user.role == 'TEACHER':
         active_session = AttendanceSession.objects.filter(teacher=request.user, status='OPEN').first()
         if active_session:
@@ -60,7 +114,7 @@ def session_detail(request, pk):
     session.close_if_expired(commit=True)
     records = session.records.select_related('student').all()
     
-    # Pre-populate absent records for active students in section if not exist
+    # pre-populate absent records for active students in section if not exist
     if session.subject:
         active_students = session.subject.enrolled_students.filter(enrollment_status='ACTIVE')
         existing_record_student_ids = [r.student_id for r in records]
@@ -74,7 +128,7 @@ def session_detail(request, pk):
                     verification_method='NONE'
                 )
                 
-    # Re-fetch after pre-populating
+    # re-fetch after pre-populating
     records = session.records.select_related('student').order_by('student__full_name')
     
     return render(request, 'attendance/session_detail.html', {
@@ -108,7 +162,7 @@ def session_reopen(request, pk):
         if session.auto_close_at and timezone.now() >= session.auto_close_at:
             messages.error(request, "This session has already reached the teacher timing limit.")
             return redirect('session_detail', pk=pk)
-        # Re-open the session
+        # re-open the session
         session.status = 'OPEN'
         session.closed_at = None
         session.save()
@@ -118,7 +172,7 @@ def session_reopen(request, pk):
 
 @login_required
 def scanner_view(request, pk):
-    """View that renders the QR and face scanner interface."""
+    """view that renders the qr and face scanner interface."""
     session = get_object_or_404(AttendanceSession, pk=pk)
     session.close_if_expired(commit=True)
     if session.status != 'OPEN':
@@ -130,8 +184,8 @@ def scanner_view(request, pk):
 @require_POST
 def lookup_profile(request, pk):
     """
-    API endpoint called to quickly fetch profile info upon QR scan.
-    Expects JSON: { "qr_token": "..." }
+    api endpoint called to quickly fetch profile info upon qr scan.
+    expects json: { "qr_token": "..." }
     """
     session = get_object_or_404(AttendanceSession, pk=pk)
     session.close_if_expired(commit=True)
@@ -153,7 +207,7 @@ def lookup_profile(request, pk):
         
     student = Student.objects.filter(university_roll_number=student_id_str).first()
     
-    # Fallback to legacy UUID token
+    # fallback to legacy uuid token
     if not student:
         import uuid
         try:
@@ -168,11 +222,11 @@ def lookup_profile(request, pk):
     if session.subject and not student.enrolled_subjects.filter(id=session.subject_id).exists():
         return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SUBJECT'})
         
-    # Determine photo URL
+    # determine photo url
     primary_photo = student.photos.filter(is_primary=True).first()
     photo_url = primary_photo.image.url if primary_photo else None
     
-    # Check if already marked present
+    # check if already marked present
     record = AttendanceRecord.objects.filter(session=session, student=student).first()
     already_marked = record and record.status == 'PRESENT'
 
@@ -193,8 +247,8 @@ def lookup_profile(request, pk):
 @require_POST
 def verify_attendance(request, pk):
     """
-    API endpoint called by the scanner JS.
-    Expects JSON: { "frame": "base64...", "current_qr": "..." }
+    api endpoint called by the scanner js.
+    expects json: { "frame": "base64...", "current_qr": "..." }
     """
     session = get_object_or_404(AttendanceSession, pk=pk)
     session.close_if_expired(commit=True)
@@ -220,9 +274,11 @@ def verify_attendance(request, pk):
     except Exception:
         return JsonResponse({'success': False, 'error': 'INVALID_BASE64'})
 
-    from apps.students.face_pipeline import process_biometric_frame
     student = None
     stored_vecs = None
+
+    if not current_qr:
+        _clear_attendance_liveness(request, session.id)
 
     if current_qr:
         student_id_str = verify_token(current_qr)
@@ -237,13 +293,16 @@ def verify_attendance(request, pk):
                     pass
                     
         if not student:
+            _clear_attendance_liveness(request, session.id)
             return JsonResponse({'success': False, 'error': 'STUDENT_NOT_FOUND'})
             
         if session.subject and not student.enrolled_subjects.filter(id=session.subject_id).exists():
+             _clear_attendance_liveness(request, session.id)
              return JsonResponse({'success': False, 'error': 'STUDENT_NOT_IN_SUBJECT'})
 
         stored_embeddings = student.embeddings.filter(is_active=True)
         if not stored_embeddings.exists():
+            _clear_attendance_liveness(request, session.id)
             return JsonResponse({'success': False, 'error': 'NO_ENROLLED_FACE'})
             
         stored_vecs = [e.get_vector() for e in stored_embeddings]
@@ -255,6 +314,8 @@ def verify_attendance(request, pk):
     except Exception as e:
         logger.error(f"Biometric Processing Crash: {e}")
         return JsonResponse({'success': False, 'error': 'SERVER_PIPELINE_ERROR', 'details': str(e)})
+
+    _apply_attendance_liveness(request, session, student, result)
 
     if result.get('face_match') and student:
         record, created = AttendanceRecord.objects.get_or_create(
@@ -268,14 +329,15 @@ def verify_attendance(request, pk):
             record.face_match_score = result.get('face_score')
             record.save()
             audit(request, 'ATTENDANCE_MARKED', 'AttendanceRecord', str(record.id))
+        _clear_attendance_liveness(request, session.id)
             
     return JsonResponse({'success': True, 'data': result})
 
 @login_required
 def attendance_viewer(request):
     """
-    Renders the UI framework for the advanced Role-Based Attendance Viewer.
-    Provides necessary filter options natively.
+    renders the ui framework for the advanced role-based attendance viewer.
+    provides necessary filter options natively.
     """
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -306,7 +368,7 @@ def analytics_dashboard(request):
         return redirect('dashboard')
     
     subjects = Subject.objects.all()
-    # Simplified context since we dropped Section, giving raw Subjects for now
+    # simplified context since we dropped section, giving raw subjects for now
     return render(request, 'attendance/analytics.html', {
         'sections': subjects, # renamed variable eventually!
     })
@@ -327,8 +389,8 @@ def analytics_data(request):
         data['recent_history'] = [{'status': r.status, 'marked_at': r.marked_at} for r in data['recent_history']]
         return JsonResponse(data)
     else:
-        # Re-use academic filters if possible, but keep simple mapped equivalent
-        subject_id = request.GET.get('section_id') # Map from old JS
+        # re-use academic filters if possible, but keep simple mapped equivalent
+        subject_id = request.GET.get('section_id') # map from old js
         data = get_admin_analytics(start_date, end_date, subject_id=subject_id)
         return JsonResponse(data)
 

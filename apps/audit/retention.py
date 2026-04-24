@@ -1,7 +1,7 @@
 """
 apps/audit/retention.py
-────────────────────────
-Log retention logic — purges entries older than AUDIT_LOG_RETENTION_HOURS (default 48h).
+
+log retention logic — purges entries older than audit_log_retention_hours (default 48h).
 """
 
 import logging
@@ -16,10 +16,10 @@ RETENTION_HOURS = getattr(settings, 'AUDIT_LOG_RETENTION_HOURS', 48)
 
 def purge_old_logs(dry_run: bool = False) -> int:
     """
-    Delete AuditLog rows older than RETENTION_HOURS.
+    delete auditlog rows older than retention_hours.
 
-    Returns the number of rows deleted (or that would be deleted in dry_run).
-    This function never raises — errors are logged and 0 is returned.
+    returns the number of rows deleted (or that would be deleted in dry_run).
+    this function never raises — errors are logged and 0 is returned.
     """
     try:
         from .models import AuditLog

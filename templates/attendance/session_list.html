@@ -3,7 +3,7 @@
 {% block title %}Attendance Sessions — SmartAttend{% endblock %}
 
 {% block content %}
-<!-- ── Page Header ───────────────────────────── -->
+<!--  page header  -->
 <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
         <h1 class="text-3xl font-black text-gray-900 tracking-tight">Attendance Sessions</h1>
@@ -17,7 +17,7 @@
     {% endif %}
 </div>
 
-<!-- ── Sessions Table ────────────────────────── -->
+<!--  sessions table  -->
 <div class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
         <h2 class="font-bold text-gray-800 flex items-center gap-2 text-sm">
@@ -44,7 +44,7 @@
                 {% for session in sessions %}
                 <tr class="hover:bg-gray-50/60 transition-colors" role="row">
 
-                    <!-- Course Info -->
+                    <!-- course info -->
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
@@ -58,17 +58,17 @@
                         </div>
                     </td>
 
-                    <!-- Instructor -->
+                    <!-- instructor -->
                     <td class="px-6 py-4 hidden md:table-cell">
                         <span class="text-sm text-gray-600 font-medium">{{ session.teacher.get_full_name|default:session.teacher.username }}</span>
                     </td>
 
-                    <!-- Started At -->
+                    <!-- started at -->
                     <td class="px-6 py-4 hidden sm:table-cell">
                         <span class="text-sm text-gray-600 font-mono">{{ session.started_at|date:"M d, Y · h:i A" }}</span>
                     </td>
 
-                    <!-- Status Badge -->
+                    <!-- status badge -->
                     <td class="px-6 py-4 text-center">
                         {% if session.status == 'OPEN' %}
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-emerald-200 shadow-sm"
@@ -88,7 +88,7 @@
                         {% endif %}
                     </td>
 
-                    <!-- Actions -->
+                    <!-- actions -->
                     <td class="px-6 py-4 text-right">
                         <div class="flex items-center justify-end gap-2">
                             <a href="{% url 'session_detail' session.id %}"
